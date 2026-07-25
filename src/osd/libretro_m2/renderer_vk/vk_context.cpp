@@ -414,11 +414,25 @@ void context_reset_cb()
 		return;
 	}
 
-	// cache_context is false, so a reset means everything from a previous one is gone: drop what we
-	// hold before taking delivery, and do it while the old handles are still the ones the ring was
-	// built against. A second context_reset with no intervening context_destroy is legal and lands
-	// here.
-	present_shutdown();
+	// cache_context is false, so a reset means everything from the previous context is gone and the
+	// ring has to go with it. Normally context_destroy has already seen to that, while the device was
+	// still alive, and this is a no-op.
+	//
+	// A reset with no context_destroy before it is the awkward case: the frontend has not told us the
+	// old device is dead, and there is no way to find out. A VkDevice handle in particular proves
+	// nothing — RetroArch's fullscreen toggle destroys the device and creates a new one, and MoltenVK
+	// hands back a handle that compares *equal* to the destroyed one, because the allocation is
+	// recycled. That was measured, not assumed; a comparison here would have quietly destroyed the
+	// old ring's handles against the new device.
+	//
+	// So the ring is abandoned rather than destroyed. Leaking a few MB in an ordering RetroArch never
+	// produces is the cheap side of the trade; vkDeviceWaitIdle and vkDestroyImage on a dead device
+	// is the expensive one.
+	if (s_iface != nullptr)
+		present_abandon();
+	else
+		present_shutdown();
+
 	s_iface = nullptr;
 	s_funcs = vk_funcs{};
 
@@ -524,9 +538,10 @@ bool declare_hw_render(retro_environment_t environ_cb, retro_log_printf_t log_cb
 
 void forget_hw_render()
 {
-	// If the frontend fired context_destroy first — it normally does — this is a no-op. If it did
-	// not, this is where the ring gets destroyed while its device is still alive.
-	present_shutdown();
+	// If the frontend fired context_destroy first — it normally does — the ring is already gone and
+	// this only resets the frame count. If it did not, this is where the ring gets destroyed while
+	// its device is still alive.
+	present_end_run();
 	s_iface = nullptr;
 	s_funcs = vk_funcs{};
 	s_declared = false;

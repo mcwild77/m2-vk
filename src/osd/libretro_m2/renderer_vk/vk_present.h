@@ -54,9 +54,21 @@ namespace m2vk {
 // retro_load_game has returned, so the first frame or two of every run have no context at all.
 bool present_frame(const uint32_t *pixels, unsigned width, unsigned height);
 
-// Destroys the ring. Called from context_destroy — while the device is still alive — and again on
-// unload in case the frontend never sent one. Idempotent, and safe to call with no ring.
+// Destroys the ring. Called from context_destroy, which is the last moment at which the device is
+// still alive, and again on unload in case the frontend never sent one. Idempotent, and safe to
+// call with no ring — but not safe once the device is gone: use present_abandon() for that.
 void present_shutdown();
+
+// Drops the ring without making a single Vulkan call, for when the device it was built on may
+// already be destroyed — a context_reset that arrived without a context_destroy before it. Leaks
+// whatever that device still held, which is the correct trade: the alternative is destroying handles
+// that no longer exist, and nothing observable from here can tell the two cases apart (MoltenVK
+// recycles VkDevice handle values, so comparing them is not a liveness test).
+void present_abandon();
+
+// The run is over — content unloaded. Tears the ring down and resets the frame count that
+// present_shutdown() deliberately preserves across a context loss.
+void present_end_run();
 
 } // namespace m2vk
 

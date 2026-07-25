@@ -41,6 +41,7 @@
 #include "renderer_vk/shaders/fullscreen_vert_spv.h"
 #include "renderer_vk/shaders/passthrough_frag_spv.h"
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -105,7 +106,14 @@ struct frame_slot
 	retro_vulkan_image handover{};
 };
 
-std::vector<frame_slot> s_slots;
+// A fixed array rather than a vector, and the addresses are the reason. set_image takes the
+// handover by pointer and the frontend may read it again on any later duped frame, so a slot's
+// address has to outlive not just the frame but the ring itself: a rebuild frees the old ring
+// before the new one has been handed over, and a vector would have moved or freed the storage the
+// frontend is still holding a pointer into. Here a torn-down slot is zeroed in place instead, so
+// the worst a stale pointer can find is a null handle rather than freed memory.
+std::array<frame_slot, MAX_RING_SLOTS> s_slots{};
+uint32_t s_slot_count = 0;
 
 // Shared by every slot, built and destroyed with the ring.
 VkRenderPass          s_render_pass = VK_NULL_HANDLE;
@@ -125,7 +133,12 @@ unsigned s_width = 0;
 unsigned s_height = 0;
 uint32_t s_mask = 0;
 
+// Frames presented since the content was loaded. This deliberately survives a context loss: a
+// fixture is identified by (rom, frame), and if this restarted at every context_reset then a
+// fullscreen toggle at frame 1400 would silently move the frame the read-back is armed for. The
+// per-context count is kept alongside it only so that a resumed picture can say so.
 uint64_t s_frames = 0;
+uint64_t s_context_frames = 0;
 
 // Errors in the per-frame path would otherwise repeat 57 times a second.
 bool s_reported_frame_error = false;
@@ -570,9 +583,15 @@ void destroy_shared()
 	s_render_pass = VK_NULL_HANDLE;
 }
 
+// Drops every handle without calling Vulkan. Either the objects have just been destroyed, or the
+// device they belonged to is already gone and touching one would be worse than leaking it.
 void forget_ring()
 {
-	s_slots.clear();
+	// Zeroed rather than left stale: the frontend may still hold a pointer to a slot's handover.
+	for (frame_slot &slot : s_slots)
+		slot = frame_slot{};
+	s_slot_count = 0;
+
 	s_dump_mapped = nullptr;
 	s_dump_buffer = VK_NULL_HANDLE;
 	s_dump_memory = VK_NULL_HANDLE;
@@ -591,7 +610,7 @@ void forget_ring()
 
 void destroy_ring()
 {
-	if (s_slots.empty() && (s_render_pass == VK_NULL_HANDLE))
+	if ((s_slot_count == 0) && (s_render_pass == VK_NULL_HANDLE))
 	{
 		forget_ring();
 		return;
@@ -609,15 +628,17 @@ void destroy_ring()
 	{
 		// Only reachable if the device went away before we were told to tear down, in which case
 		// every handle below is already dead and touching one would be worse than leaking it.
-		vk_log(RETRO_LOG_WARN, "the ring outlived its device; %u slots abandoned\n", unsigned(s_slots.size()));
+		vk_log(RETRO_LOG_WARN, "the ring outlived its device; %u slots abandoned\n", unsigned(s_slot_count));
 		forget_ring();
 		return;
 	}
 
-	const unsigned count = unsigned(s_slots.size());
+	const unsigned count = s_slot_count;
 
-	for (frame_slot &slot : s_slots)
+	for (uint32_t i = 0; i < s_slot_count; i++)
 	{
+		frame_slot &slot = s_slots[i];
+
 		// The command buffer is freed with its pool, and each memory allocation is freed after the
 		// resource bound to it, which is the order Vulkan requires.
 		if (slot.pool != VK_NULL_HANDLE)
@@ -653,7 +674,11 @@ void destroy_ring()
 	dump_destroy();
 	destroy_shared();
 
-	vk_log(RETRO_LOG_INFO, "ring of %u destroyed\n", count);
+	// The frame counts are the point of this line as much as the ring is: they are what says whether
+	// a context loss cost the run anything, and they are the only place the two counters are seen
+	// together.
+	vk_log(RETRO_LOG_INFO, "ring of %u destroyed after %llu frames in this context (%llu since load)\n",
+			count, (unsigned long long)s_context_frames, (unsigned long long)s_frames);
 
 	forget_ring();
 }
@@ -848,10 +873,11 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 		return false;
 	}
 
-	s_slots.resize(count);
-	for (frame_slot &slot : s_slots)
+	// Set before the loop so that a slot which fails half-built is still destroyed by destroy_ring.
+	s_slot_count = count;
+	for (uint32_t i = 0; i < count; i++)
 	{
-		if (!build_slot(slot, width, height, iface.queue_index))
+		if (!build_slot(s_slots[i], width, height, iface.queue_index))
 		{
 			destroy_ring();
 			return false;
@@ -1039,9 +1065,9 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// swapchain length — and the spec's promise is that when it does, the device is idle.
 	const uint32_t mask = iface->get_sync_index_mask(iface->handle);
 
-	if (s_slots.empty() || (iface != s_iface) || (width != s_width) || (height != s_height) || (mask != s_mask))
+	if ((s_slot_count == 0) || (iface != s_iface) || (width != s_width) || (height != s_height) || (mask != s_mask))
 	{
-		if (!s_slots.empty())
+		if (s_slot_count != 0)
 		{
 			vk_log(RETRO_LOG_INFO, "rebuilding the ring: %ux%u mask 0x%x -> %ux%u mask 0x%x\n",
 					s_width, s_height, unsigned(s_mask), width, height, unsigned(mask));
@@ -1052,12 +1078,12 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	}
 
 	const uint32_t index = iface->get_sync_index(iface->handle);
-	if (index >= s_slots.size())
+	if (index >= s_slot_count)
 	{
 		if (!s_reported_frame_error)
 		{
 			vk_log(RETRO_LOG_ERROR, "the frontend returned sync index %u for a ring of %u (mask 0x%x)\n",
-					unsigned(index), unsigned(s_slots.size()), unsigned(s_mask));
+					unsigned(index), unsigned(s_slot_count), unsigned(s_mask));
 			s_reported_frame_error = true;
 		}
 		return false;
@@ -1108,10 +1134,17 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// the frontend's own queue family, so there is no ownership to transfer.
 	iface->set_image(iface->handle, &slot.handover, 0, nullptr, VK_QUEUE_FAMILY_IGNORED);
 
-	// One line, once, saying the Vulkan path is actually carrying the picture. Without it the only
-	// difference between "drawing" and "duping every frame" in the log is silence.
-	if (s_frames == 0)
-		vk_log(RETRO_LOG_INFO, "first frame presented: %ux%u through slot %u\n", width, height, unsigned(index));
+	// One line per context, saying the Vulkan path is actually carrying the picture. Without it the
+	// only difference between "drawing" and "duping every frame" in the log is silence — and after a
+	// context loss, "the picture came back" is precisely the thing that needs saying.
+	if (s_context_frames == 0)
+	{
+		if (s_frames == 0)
+			vk_log(RETRO_LOG_INFO, "first frame presented: %ux%u through slot %u\n", width, height, unsigned(index));
+		else
+			vk_log(RETRO_LOG_INFO, "picture resumed at frame %llu: %ux%u through slot %u\n",
+					(unsigned long long)s_frames, width, height, unsigned(index));
+	}
 
 	// The read-back is in the command buffer just submitted, so the copy has to have retired before
 	// the buffer holds anything. This stalls the frame it is taken on, which is the price of the
@@ -1132,6 +1165,7 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	}
 
 	s_frames++;
+	s_context_frames++;
 	s_reported_frame_error = false;
 	return true;
 }
@@ -1139,10 +1173,32 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 void present_shutdown()
 {
 	destroy_ring();
-	s_frames = 0;
+	s_context_frames = 0;
 	s_reported_frame_error = false;
-	// s_dump_done is deliberately not reset: one dump per process, so that a context loss partway
-	// through a run does not quietly overwrite the fixture with a different frame.
+	// s_frames is deliberately not reset: it counts frames since the content was loaded, so that a
+	// read-back armed for frame N lands on frame N however many contexts the run has been through.
+	// present_end_run() is what ends a run.
+	//
+	// s_dump_done is not reset either: one dump per process, so that a context loss partway through
+	// a run does not quietly overwrite the fixture with a different frame.
+}
+
+void present_abandon()
+{
+	// The device the ring was built on is gone, so every handle in it is already dead. Dropping them
+	// is all that can be done; destroying them would be a use-after-free.
+	if (s_slot_count != 0)
+		vk_log(RETRO_LOG_WARN, "the context was replaced without being destroyed; %u slots abandoned\n",
+				unsigned(s_slot_count));
+	forget_ring();
+	s_context_frames = 0;
+	s_reported_frame_error = false;
+}
+
+void present_end_run()
+{
+	present_shutdown();
+	s_frames = 0;
 }
 
 } // namespace m2vk
