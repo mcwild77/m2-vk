@@ -31,6 +31,8 @@
 #include "libretro_m2_osd.h"
 #include "retro_options.h"
 
+#include "renderer_vk/vk_funcs.h"
+
 #include "emu.h"
 #include "emuopts.h"
 #include "main.h"
@@ -238,7 +240,14 @@ RETRO_API void retro_get_system_av_info(struct retro_system_av_info *info)
 //  libretro: lifecycle
 //============================================================
 
-RETRO_API void retro_init(void) { }
+RETRO_API void retro_init(void)
+{
+	// Says which headers the Vulkan side was built against, before any of it has run. What the
+	// frontend's implementation actually is gets logged at context_reset, and the two are allowed
+	// to differ — but when something goes wrong there, this is the other half of the comparison.
+	s_log_cb(RETRO_LOG_INFO, "[model2] %s\n", m2vk::vk_build_info());
+}
+
 RETRO_API void retro_deinit(void) { }
 
 // Every port is a RetroPad and nothing else. The analogue sticks and triggers are always read, so

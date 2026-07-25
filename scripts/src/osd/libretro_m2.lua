@@ -29,6 +29,39 @@
 dofile("modules.lua")
 
 
+---------------------------------------------------------------------------
+--
+--   Vulkan headers.
+--
+--   Headers only: the core links no Vulkan library and never will.  Every entry point is resolved
+--   at run time from the vkGetInstanceProcAddr the frontend supplies, so there is nothing here to
+--   put on a link line -- see src/osd/libretro_m2/renderer_vk/vk_funcs.h for the reasoning, and
+--   devnotes/p2-vulkan-passthrough.md for the consequences.
+--
+--   An environment variable rather than a genie --option: options reach genie only through the
+--   PARAMS list in the top-level makefile, and that is an upstream file this fork does not patch.
+--
+---------------------------------------------------------------------------
+
+VULKAN_INCLUDEDIR = os.getenv("M2VK_VULKAN_INCLUDEDIR")
+if (VULKAN_INCLUDEDIR == nil) or (VULKAN_INCLUDEDIR == "") then
+	if _OPTIONS["targetos"]=="macosx" then
+		VULKAN_INCLUDEDIR = "/opt/homebrew/include"
+	else
+		VULKAN_INCLUDEDIR = "/usr/include"
+	end
+end
+
+if not os.isfile(path.join(VULKAN_INCLUDEDIR, "vulkan", "vulkan.h")) then
+	error("\n"
+		.. "vulkan/vulkan.h was not found under '" .. VULKAN_INCLUDEDIR .. "'.\n"
+		.. "The Model 2 libretro core needs the Vulkan headers at build time (it links no Vulkan\n"
+		.. "library).  On macOS: brew install vulkan-headers.  Otherwise install your distribution's\n"
+		.. "vulkan-headers package, or set M2VK_VULKAN_INCLUDEDIR to the prefix that contains\n"
+		.. "vulkan/vulkan.h and re-run with REGENIE=1.\n", 0)
+end
+
+
 -- Trimmed counterpart to osdmodulesbuild().  Deliberately excludes bgfx (drawbgfx.cpp
 -- includes the OSD-specific window.h and drags in some eighty more files) and imgui,
 -- which are the only two backends that do not guard their platform includes.
@@ -134,6 +167,7 @@ function maintargetosdoptions(_target, _subtarget)
 	}
 	includedirs {
 		MAME_DIR .. "src/osd/libretro_m2",
+		VULKAN_INCLUDEDIR,
 	}
 
 	if _OPTIONS["targetos"]~="windows" and _OPTIONS["targetos"]~="macosx" and _OPTIONS["targetos"]~="asmjs" then
@@ -198,6 +232,7 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/modules/render",
 		MAME_DIR .. "3rdparty",
 		MAME_DIR .. "src/osd/libretro_m2",
+		VULKAN_INCLUDEDIR,
 	}
 
 	configuration { "linux-* or freebsd" }
@@ -209,6 +244,7 @@ project ("osd_" .. _OPTIONS["osd"])
 	files {
 		MAME_DIR .. "src/osd/osdepend.h",
 		MAME_DIR .. "src/osd/libretro_m2/libretro.h",
+		MAME_DIR .. "src/osd/libretro_m2/libretro_vulkan.h",
 		MAME_DIR .. "src/osd/libretro_m2/libretro_m2_osd.h",
 		MAME_DIR .. "src/osd/libretro_m2/libretro_m2_osd.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/libretro_m2_input.h",
@@ -219,6 +255,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_polytap.h",
 		MAME_DIR .. "src/osd/libretro_m2/module_stubs.cpp",
+		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.h",
+		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.cpp",
 	}
 
 
