@@ -4,61 +4,94 @@
 
     Sega Model 2 polygon tap — diagnostic instrumentation for the hardware renderer port.
 
-    Header-only, and compiled in only when M2VK_POLYTAP is defined; the stock build is untouched.
-    Build with: make SOURCES=src/mame/sega/model2.cpp SUBTARGET=model2 ARCHOPTS_CXX=-DM2VK_POLYTAP
-
-    Purpose: observe the exact polygon stream the hardware renderer will consume. The tap sits at
-    the point in model2_renderer::model2_3d_render() where the geometry engine has finished
-    projecting to screen space and every texture/lighting parameter has been resolved into
-    m2_poly_extra_data, i.e. immediately before the software scanline rasterizer is dispatched.
+    One consumer behind the sink (m2vk_sink.h), which is where the polygon stream is intercepted;
+    this file only reports on what arrives. It knows nothing about the driver: everything it prints
+    comes out of m2vk::poly.
 
     What it reports:
       - per-frame polygon counts, split by the renderer class the hardware would select
         (solid/textured x opaque/translucent), plus a vertex-count histogram
-      - screen-space and 1/z ranges, sort-bucket range, window count
-      - the calling thread, so that single-threaded submission can be relied upon
+      - screen-space and depth ranges, sort-bucket range, window count
+      - the submitting thread, so that single-threaded submission can be relied upon
+      - a run-level feature survey at teardown, one key=value per line, so a sweep across the ROM
+        set can aggregate it
       - optionally, a full record of every polygon in one frame, dumped to a text file
 
-    Environment variables (all optional):
-      M2VK_POLYTAP_EVERY=N      print a summary line every N rendered frames (default 1, 0 = never)
-      M2VK_POLYTAP_DUMP=N       dump every polygon of rendered frame N (1-based) to a file
-      M2VK_POLYTAP_DUMP_FILE=P  path for that dump (default "polytap_frame<N>.txt")
+    Environment variables. The tap is attached only if at least one of them is set, so a normal
+    core run costs nothing; M2VK_POLYTAP=0 forces it off whatever else is set.
+      M2VK_POLYTAP=1             attach with the defaults below
+      M2VK_POLYTAP_EVERY=N       print a summary line every N rendered frames (default 1, 0 = never)
+      M2VK_POLYTAP_DUMP=N        dump every polygon of rendered frame N (1-based) to a file
+      M2VK_POLYTAP_DUMP_FILE=P   path for that dump (default "polytap_frame<N>.txt")
+      M2VK_POLYTAP_SUMMARY=P     path for the run-level survey (default stderr)
+      M2VK_POLYTAP_TAG=S         label carried in the survey's first line
 
     Dump format, one record per line, tab-separated key=value fields:
       P  poly-level fields (draw order, sort bucket, window, texture header, resolved parameters)
       V  one line per vertex, following its P line: screen x/y, 1/z, u/z, v/z
 
 *********************************************************************************************************************************/
-#ifndef MAME_SEGA_MODEL2_POLYTAP_H
-#define MAME_SEGA_MODEL2_POLYTAP_H
+#ifndef MAME_OSD_LIBRETRO_M2_M2VK_POLYTAP_H
+#define MAME_OSD_LIBRETRO_M2_M2VK_POLYTAP_H
 
 #pragma once
 
+#include "m2vk_sink.h"
+
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <set>
 #include <thread>
 
-namespace model2_polytap {
+namespace m2vk {
 
-// Vertex parameter slots, as used by model2_v.cpp. Spelled out rather than relying on that file's
-// pz/pu/pv macros so this header stands alone.
-enum : int { PARAM_Z = 0, PARAM_U = 1, PARAM_V = 2 };
-
-class tap
+class polytap : public consumer
 {
 public:
-	static tap &instance()
+	// Nothing is attached unless the run is being observed; see the environment variables above.
+	static bool wanted()
 	{
-		static tap s_tap;
-		return s_tap;
+		char const *const on = std::getenv("M2VK_POLYTAP");
+		if (on != nullptr)
+			return std::strtoul(on, nullptr, 10) != 0;
+
+		static char const *const vars[] = {
+				"M2VK_POLYTAP_EVERY", "M2VK_POLYTAP_DUMP", "M2VK_POLYTAP_DUMP_FILE",
+				"M2VK_POLYTAP_SUMMARY", "M2VK_POLYTAP_TAG" };
+		for (char const *const var : vars)
+		{
+			if (std::getenv(var) != nullptr)
+				return true;
+		}
+		return false;
+	}
+
+	polytap()
+	{
+		char const *const every = std::getenv("M2VK_POLYTAP_EVERY");
+		if (every != nullptr)
+			m_every = uint32_t(std::strtoul(every, nullptr, 10));
+
+		char const *const dump = std::getenv("M2VK_POLYTAP_DUMP");
+		if (dump != nullptr)
+			m_dump_frame = uint32_t(std::strtoul(dump, nullptr, 10));
+
+		std::fprintf(stderr, "[polytap] active; summary every %u frame(s), dump frame %u\n",
+				m_every, m_dump_frame);
+	}
+
+	virtual ~polytap()
+	{
+		if (m_dump != nullptr)
+			std::fclose(m_dump);
 	}
 
 	// submitted = raster->poly_list_index, the number of polygons the geometry engine put in the
 	// list this frame. Comparing it against the number of tapped polygons proves the tap sees the
 	// whole stream and not a subset.
-	void frame_begin(u32 submitted)
+	virtual void frame_begin(uint32_t submitted) override
 	{
 		m_frame++;
 		m_polys = 0;
@@ -73,7 +106,7 @@ public:
 		m_max_bucket = 0;
 		m_windows = 0;
 		m_pages_frame.clear();
-		m_prev_key = ~u32(0);
+		m_prev_key = ~uint32_t(0);
 
 		if (m_dump_frame != 0 && m_frame == m_dump_frame)
 		{
@@ -91,66 +124,62 @@ public:
 		}
 	}
 
-	// Called with the polygon exactly as the software rasterizer is about to receive it: vertices
-	// projected to screen space, and for textured polygons p[0] already reciprocated to 1/z with
-	// u,v premultiplied by it.
-	void poly(model2_state::polygon const &poly, m2_poly_extra_data const &extra, u8 renderer, rectangle const &vp)
+	virtual void submit(poly const &poly) override
 	{
 		check_thread();
 
 		m_polys++;
-		m_by_renderer[renderer & 3]++;
-		if (poly.num_vertices >= 3 && poly.num_vertices <= 8)
-			m_by_verts[poly.num_vertices - 3]++;
-		if (poly.z < m_min_bucket) m_min_bucket = poly.z;
-		if (poly.z > m_max_bucket) m_max_bucket = poly.z;
+		m_by_renderer[poly.renderer & 3]++;
+		if (poly.num_verts >= 3 && poly.num_verts <= 8)
+			m_by_verts[poly.num_verts - 3]++;
+		if (poly.bucket < m_min_bucket) m_min_bucket = poly.bucket;
+		if (poly.bucket > m_max_bucket) m_max_bucket = poly.bucket;
 		if (poly.window >= m_windows) m_windows = poly.window + 1;
 
-		for (int i = 0; i < poly.num_vertices; i++)
+		for (int i = 0; i < poly.num_verts; i++)
 		{
-			poly_vertex const &v = poly.v[i];
+			vertex const &v = poly.v[i];
 			if (v.x < m_min_x) m_min_x = v.x;
 			if (v.x > m_max_x) m_max_x = v.x;
 			if (v.y < m_min_y) m_min_y = v.y;
 			if (v.y > m_max_y) m_max_y = v.y;
-			float const rz = v.p[PARAM_Z];
-			if (rz < m_min_rz) m_min_rz = rz;
-			if (rz > m_max_rz) m_max_rz = rz;
+			if (v.rz < m_min_rz) m_min_rz = v.rz;
+			if (v.rz > m_max_rz) m_max_rz = v.rz;
 
 			// A depth value the Vulkan path would have to clamp: not finite, or so large that z has
 			// collapsed to ~0. The software rasterizer tolerates these silently.
-			if (!std::isfinite(rz) || rz > 1e6f)
+			if (!std::isfinite(v.rz) || v.rz > 1e6f)
 				m_run_bad_depth++;
 		}
 
 		// Run-level accumulation.
 		m_run_polys++;
-		m_run_by_renderer[renderer & 3]++;
-		if (poly.num_vertices >= 3 && poly.num_vertices <= 8)
-			m_run_by_verts[poly.num_vertices - 3]++;
-		if (poly.num_vertices > 5)
+		m_run_by_renderer[poly.renderer & 3]++;
+		if (poly.num_verts >= 3 && poly.num_verts <= 8)
+			m_run_by_verts[poly.num_verts - 3]++;
+		if (poly.num_verts > 5)
 			m_run_verts_over5++;
-		m_run_lumabase.insert(extra.lumabase);
-		m_run_colorbase.insert(extra.colorbase);
-		if (extra.checker)
+		m_run_lumabase.insert(poly.lumabase);
+		m_run_colorbase.insert(poly.colorbase);
+		if (poly.checker)
 			m_run_checker++;
 
 		// The P4 metric: does this polygon share a sort bucket with the one drawn immediately before
 		// it, inside the same window? If so a depth buffer has a tie to break, and only draw order
 		// can break it correctly.
-		u32 const key = (u32(poly.window) << 16) | poly.z;
+		uint32_t const key = (uint32_t(poly.window) << 16) | poly.bucket;
 		if (key == m_prev_key)
 			m_run_tie_polys++;
 		m_prev_key = key;
 
-		if (renderer & 2)
+		if (poly.renderer & 2)
 		{
-			if (extra.utex)
+			if (poly.utex)
 				m_run_utex++;
-			u64 const page =
-					(u64((poly.texheader[2] & 0x1000) ? 1 : 0) << 60) |
-					(u64(extra.texx) << 44) | (u64(extra.texy) << 28) |
-					(u64(extra.texwidth) << 14) | u64(extra.texheight);
+			uint64_t const page =
+					(uint64_t(poly.sheet) << 60) |
+					(uint64_t(poly.texx) << 44) | (uint64_t(poly.texy) << 28) |
+					(uint64_t(poly.texwidth) << 14) | uint64_t(poly.texheight);
 			m_pages_frame.insert(page);
 			m_run_pages.insert(page);
 		}
@@ -164,36 +193,32 @@ public:
 				"\tvp=%d,%d,%d,%d\tclip=%d,%d,%d,%d\tcenter=%d,%d"
 				"\ttexsize=%ux%u\ttexpos=%u,%u\twrap=%u,%u\tmirror=%u,%u\tsheet1=%u"
 				"\tutex=%u\tutexminlod=%u\tutexpos=%u,%u\n",
-				m_polys - 1, poly.num_vertices, poly.z, poly.window,
-				renderer, (renderer >> 1) & 1, renderer & 1,
+				m_polys - 1, poly.num_verts, poly.bucket, poly.window,
+				poly.renderer, (poly.renderer >> 1) & 1, poly.renderer & 1,
 				poly.texheader[0], poly.texheader[1], poly.texheader[2], poly.texheader[3],
-				poly.luma, extra.lumabase, extra.colorbase, extra.checker, extra.texlod,
+				poly.luma, poly.lumabase, poly.colorbase, poly.checker, poly.texlod,
 				poly.viewport[0], poly.viewport[1], poly.viewport[2], poly.viewport[3],
-				vp.left(), vp.top(), vp.right(), vp.bottom(),
+				poly.clip[0], poly.clip[1], poly.clip[2], poly.clip[3],
 				poly.center[0], poly.center[1],
-				(renderer & 2) ? extra.texwidth : 0u, (renderer & 2) ? extra.texheight : 0u,
-				(renderer & 2) ? extra.texx : 0u, (renderer & 2) ? extra.texy : 0u,
-				(renderer & 2) ? extra.texwrapx : 0u, (renderer & 2) ? extra.texwrapy : 0u,
-				(renderer & 2) ? extra.texmirrorx : 0u, (renderer & 2) ? extra.texmirrory : 0u,
-				(renderer & 2) ? u32((poly.texheader[2] & 0x1000) ? 1 : 0) : 0u,
-				(renderer & 2) ? extra.utex : 0u, (renderer & 2) ? extra.utexminlod : 0u,
-				(renderer & 2) ? extra.utexx : 0u, (renderer & 2) ? extra.utexy : 0u);
+				poly.texwidth, poly.texheight, poly.texx, poly.texy,
+				poly.texwrapx, poly.texwrapy, poly.texmirrorx, poly.texmirrory,
+				poly.sheet, poly.utex, poly.utexminlod, poly.utexx, poly.utexy);
 
-		for (int i = 0; i < poly.num_vertices; i++)
+		for (int i = 0; i < poly.num_verts; i++)
 		{
-			poly_vertex const &v = poly.v[i];
+			vertex const &v = poly.v[i];
 			std::fprintf(m_dump, "V\t%d\tx=%.6f\ty=%.6f\trz=%.9g\tuz=%.9g\tvz=%.9g\n",
-					i, v.x, v.y, v.p[PARAM_Z], v.p[PARAM_U], v.p[PARAM_V]);
+					i, v.x, v.y, v.rz, v.uz, v.vz);
 		}
 	}
 
-	void frame_end()
+	virtual void frame_end() override
 	{
 		m_run_frames++;
 		if (m_polys > m_run_max_polys) m_run_max_polys = m_polys;
 		if (m_polys < m_run_min_polys) m_run_min_polys = m_polys;
 		if (m_polys != m_submitted) m_run_count_mismatch++;
-		if (m_pages_frame.size() > m_run_max_pages_frame) m_run_max_pages_frame = u32(m_pages_frame.size());
+		if (m_pages_frame.size() > m_run_max_pages_frame) m_run_max_pages_frame = uint32_t(m_pages_frame.size());
 		if (m_min_bucket < m_run_min_bucket) m_run_min_bucket = m_min_bucket;
 		if (m_max_bucket > m_run_max_bucket) m_run_max_bucket = m_max_bucket;
 		if (m_windows > m_run_max_windows) m_run_max_windows = m_windows;
@@ -224,9 +249,11 @@ public:
 		}
 	}
 
-	// Run-level feature survey, emitted once at teardown. Written to M2VK_POLYTAP_SUMMARY if set,
-	// otherwise stderr. One key=value per line so a sweep across the ROM set can aggregate it.
-	~tap()
+	// Run-level feature survey, emitted once as the machine exits. Written to M2VK_POLYTAP_SUMMARY
+	// if set, otherwise stderr. One key=value per line so a sweep across the ROM set can aggregate
+	// it. A game that reaches no 3D at all says so rather than saying nothing — the sink exists for
+	// the whole run, so this is reached either way.
+	virtual void run_end() override
 	{
 		FILE *out = stderr;
 		char const *const path = std::getenv("M2VK_POLYTAP_SUMMARY");
@@ -271,10 +298,10 @@ public:
 		std::fprintf(out, "bucket_min=%u\n", m_run_min_bucket);
 		std::fprintf(out, "bucket_max=%u\n", m_run_max_bucket);
 		std::fprintf(out, "windows_max=%u\n", m_run_max_windows);
-		std::fprintf(out, "pages_run=%u\n", u32(m_run_pages.size()));
+		std::fprintf(out, "pages_run=%u\n", uint32_t(m_run_pages.size()));
 		std::fprintf(out, "pages_frame_max=%u\n", m_run_max_pages_frame);
-		std::fprintf(out, "lumabase_distinct=%u\n", u32(m_run_lumabase.size()));
-		std::fprintf(out, "colorbase_distinct=%u\n", u32(m_run_colorbase.size()));
+		std::fprintf(out, "lumabase_distinct=%u\n", uint32_t(m_run_lumabase.size()));
+		std::fprintf(out, "colorbase_distinct=%u\n", uint32_t(m_run_colorbase.size()));
 		std::fprintf(out, "count_mismatch_frames=%u\n", m_run_count_mismatch);
 		std::fprintf(out, "multithreaded=%u\n", m_multithreaded ? 1u : 0u);
 
@@ -283,20 +310,6 @@ public:
 	}
 
 private:
-	tap()
-	{
-		char const *const every = std::getenv("M2VK_POLYTAP_EVERY");
-		if (every != nullptr)
-			m_every = u32(std::strtoul(every, nullptr, 10));
-
-		char const *const dump = std::getenv("M2VK_POLYTAP_DUMP");
-		if (dump != nullptr)
-			m_dump_frame = u32(std::strtoul(dump, nullptr, 10));
-
-		std::fprintf(stderr, "[polytap] active; summary every %u frame(s), dump frame %u\n",
-				m_every, m_dump_frame);
-	}
-
 	void check_thread()
 	{
 		std::thread::id const self = std::this_thread::get_id();
@@ -311,57 +324,50 @@ private:
 		}
 	}
 
-	u32              m_frame = 0;
-	u32              m_polys = 0;
-	u32              m_submitted = 0;
-	u32              m_every = 1;
-	u32              m_dump_frame = 0;
-	u32              m_by_renderer[4] = { 0, 0, 0, 0 };
-	u32              m_by_verts[6] = { 0, 0, 0, 0, 0, 0 };
+	uint32_t         m_frame = 0;
+	uint32_t         m_polys = 0;
+	uint32_t         m_submitted = 0;
+	uint32_t         m_every = 1;
+	uint32_t         m_dump_frame = 0;
+	uint32_t         m_by_renderer[4] = { 0, 0, 0, 0 };
+	uint32_t         m_by_verts[6] = { 0, 0, 0, 0, 0, 0 };
 	float            m_min_x = 0, m_max_x = 0, m_min_y = 0, m_max_y = 0;
 	float            m_min_rz = 0, m_max_rz = 0;
-	u32              m_min_bucket = 0, m_max_bucket = 0;
-	u32              m_windows = 0;
+	uint32_t         m_min_bucket = 0, m_max_bucket = 0;
+	uint32_t         m_windows = 0;
 	FILE *           m_dump = nullptr;
 	std::thread::id  m_thread;
 	bool             m_have_thread = false;
 	bool             m_multithreaded = false;
 
 	// Per-frame, reset in frame_begin.
-	std::set<u64>    m_pages_frame;
-	u32              m_prev_key = ~u32(0);
+	std::set<uint64_t> m_pages_frame;
+	uint32_t         m_prev_key = ~uint32_t(0);
 
 	// Run-level, never reset.
-	u32              m_run_frames = 0;
-	u64              m_run_polys = 0;
-	u32              m_run_min_polys = ~u32(0);
-	u32              m_run_max_polys = 0;
-	u64              m_run_by_renderer[4] = { 0, 0, 0, 0 };
-	u64              m_run_by_verts[6] = { 0, 0, 0, 0, 0, 0 };
-	u64              m_run_verts_over5 = 0;
-	u64              m_run_utex = 0;
-	u64              m_run_checker = 0;
-	u64              m_run_tie_polys = 0;
-	u64              m_run_bad_depth = 0;
+	uint32_t         m_run_frames = 0;
+	uint64_t         m_run_polys = 0;
+	uint32_t         m_run_min_polys = ~uint32_t(0);
+	uint32_t         m_run_max_polys = 0;
+	uint64_t         m_run_by_renderer[4] = { 0, 0, 0, 0 };
+	uint64_t         m_run_by_verts[6] = { 0, 0, 0, 0, 0, 0 };
+	uint64_t         m_run_verts_over5 = 0;
+	uint64_t         m_run_utex = 0;
+	uint64_t         m_run_checker = 0;
+	uint64_t         m_run_tie_polys = 0;
+	uint64_t         m_run_bad_depth = 0;
 	float            m_run_min_rz = 1e30f;
 	float            m_run_max_rz = -1e30f;
-	u32              m_run_min_bucket = 0xffff;
-	u32              m_run_max_bucket = 0;
-	u32              m_run_max_windows = 0;
-	u32              m_run_max_pages_frame = 0;
-	u32              m_run_count_mismatch = 0;
-	std::set<u64>    m_run_pages;
-	std::set<u32>    m_run_lumabase;
-	std::set<u32>    m_run_colorbase;
+	uint32_t         m_run_min_bucket = 0xffff;
+	uint32_t         m_run_max_bucket = 0;
+	uint32_t         m_run_max_windows = 0;
+	uint32_t         m_run_max_pages_frame = 0;
+	uint32_t         m_run_count_mismatch = 0;
+	std::set<uint64_t> m_run_pages;
+	std::set<uint32_t> m_run_lumabase;
+	std::set<uint32_t> m_run_colorbase;
 };
 
-inline void frame_begin(u32 submitted) { tap::instance().frame_begin(submitted); }
-inline void frame_end() { tap::instance().frame_end(); }
-inline void submit(model2_state::polygon const &poly, m2_poly_extra_data const &extra, u8 renderer, rectangle const &vp)
-{
-	tap::instance().poly(poly, extra, renderer, vp);
-}
+} // namespace m2vk
 
-} // namespace model2_polytap
-
-#endif // MAME_SEGA_MODEL2_POLYTAP_H
+#endif // MAME_OSD_LIBRETRO_M2_M2VK_POLYTAP_H

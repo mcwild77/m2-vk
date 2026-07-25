@@ -92,8 +92,8 @@
 #include "model2.h"
 #include "model2rd.ipp"
 
-#ifdef M2VK_POLYTAP
-#include "model2_polytap.h"
+#ifdef M2VK
+#include "libretro_m2/m2vk_sink.h"
 #endif
 
 #include <cmath>
@@ -610,8 +610,8 @@ void model2_renderer::model2_3d_render(polygon *poly, const rectangle &cliprect)
 		}
 	}
 
-#ifdef M2VK_POLYTAP
-	model2_polytap::submit(*poly, extra, renderer, vp);
+#ifdef M2VK
+	m2vk::submit(*poly, extra, renderer, vp);
 #endif
 
 	switch (poly->num_vertices)
@@ -713,8 +713,8 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
 	m_renderer->destmap().fill(0x00000000, cliprect);
 	m_renderer->fillmap().fill(0x00, cliprect);
 
-#ifdef M2VK_POLYTAP
-	model2_polytap::frame_begin(raster->poly_list_index);
+#ifdef M2VK
+	m2vk::frame_begin(raster->poly_list_index);
 #endif
 
 	for (int window = raster->cur_window; window >= 0; window--)
@@ -745,8 +745,8 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
 	}
 	m_renderer->wait("End of frame");
 
-#ifdef M2VK_POLYTAP
-	model2_polytap::frame_end();
+#ifdef M2VK
+	m2vk::frame_end();
 #endif
 
 	copybitmap_trans(bitmap, m_renderer->destmap(), 0, 0, 0, 0, cliprect, 0x00000000);
