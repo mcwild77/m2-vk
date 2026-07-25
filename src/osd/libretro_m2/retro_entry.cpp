@@ -31,6 +31,7 @@
 #include "libretro_m2_osd.h"
 #include "retro_options.h"
 
+#include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
 
 #include "emu.h"
@@ -76,6 +77,16 @@ std::unique_ptr<libretro_m2_options>      s_options;
 std::unique_ptr<libretro_m2_osd_interface> s_osd;
 std::thread                                s_emu_thread;
 bool                                       s_running = false;
+
+// Set at load if the renderer option asked for Vulkan and the frontend accepted the declaration.
+// It decides which of the two presentation paths retro_run takes, and it is deliberately not the
+// same question as "is there a context right now" — a declared context can be absent for the first
+// frames and can be destroyed mid-run.
+bool                                       s_hw_render = false;
+
+// One-shot: the Vulkan path has no picture to present yet, and says so once per load rather than
+// once per frame. Goes away with step 4, along with the branch that reads it.
+bool                                       s_hw_render_noted = false;
 
 // Runs the whole MAME frontend. Everything after start_frontend() returns is teardown.
 void emu_thread_main(std::vector<std::string> args)
@@ -287,8 +298,20 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			m2opt::KEY_RENDERER, renderer.c_str(),
 			m2opt::KEY_SERVICE_BUTTONS, service_buttons ? "enabled" : "disabled");
 
+	// Hardware render is declared here, before the machine starts, and only when the option asked
+	// for it: with renderer=software the core must not declare it at all, so that the P1
+	// presentation path stays byte-for-byte the path the software goldens were generated with.
+	//
+	// A refusal is not an error. retrohost is a frontend with no hardware render, and RetroArch with
+	// a GL video driver is another; both keep running on the software path.
+	s_hw_render = false;
+	s_hw_render_noted = false;
 	if (renderer != "software")
-		s_log_cb(RETRO_LOG_WARN, "[model2] the Vulkan renderer is not built into this core yet; using the software renderer\n");
+	{
+		s_hw_render = m2vk::declare_hw_render(s_environ_cb, s_log_cb);
+		if (!s_hw_render)
+			s_log_cb(RETRO_LOG_WARN, "[model2] this frontend has no Vulkan context to offer; using the software renderer\n");
+	}
 
 	// The content's own directory, plus a place for sets the frontend keeps alongside the core.
 	// The second entry is what makes a clone loadable when its parent set lives elsewhere.
@@ -373,6 +396,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		if (s_emu_thread.joinable())
 			s_emu_thread.join();
 		s_running = false;
+		s_hw_render = false;
+		m2vk::forget_hw_render();
 		s_osd.reset();
 		s_options.reset();
 		return false;
@@ -397,6 +422,12 @@ RETRO_API void retro_unload_game(void)
 		s_emu_thread.join();
 
 	s_running = false;
+	s_hw_render = false;
+
+	// The frontend normally fires context_destroy before this; make the state safe whether or not it
+	// did, and stop a context_reset arriving for a machine that no longer exists.
+	m2vk::forget_hw_render();
+
 	s_osd.reset();
 	s_options.reset();
 }
@@ -442,12 +473,29 @@ RETRO_API void retro_run(void)
 		return;
 	}
 
-	int width = 0, height = 0;
-	const uint32_t *const pixels = s_osd->framebuffer(width, height);
-	if ((pixels != nullptr) && (width > 0) && (height > 0))
-		s_video_cb(pixels, unsigned(width), unsigned(height), size_t(width) * sizeof(uint32_t));
-	else
+	if (s_hw_render)
+	{
+		// With hardware render declared, libretro allows only RETRO_HW_FRAME_BUFFER_VALID or null
+		// through video_cb (libretro.h:946) — a software pointer is not an option, so the Vulkan path
+		// dupes until it has an image of its own. That is not only the P2-step-2 state of affairs: a
+		// context legitimately does not exist for the first frame or two of every run, because
+		// context_reset does not fire until after retro_load_game has returned.
+		if (!s_hw_render_noted && m2vk::have_context())
+		{
+			s_log_cb(RETRO_LOG_INFO, "[model2] vk: context is up; nothing is drawn through it yet\n");
+			s_hw_render_noted = true;
+		}
 		s_video_cb(nullptr, 0, 0, 0); // frame duped
+	}
+	else
+	{
+		int width = 0, height = 0;
+		const uint32_t *const pixels = s_osd->framebuffer(width, height);
+		if ((pixels != nullptr) && (width > 0) && (height > 0))
+			s_video_cb(pixels, unsigned(width), unsigned(height), size_t(width) * sizeof(uint32_t));
+		else
+			s_video_cb(nullptr, 0, 0, 0); // frame duped
+	}
 
 	int samples = 0;
 	const int16_t *const audio = s_osd->frame_audio(samples);
