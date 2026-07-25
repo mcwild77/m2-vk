@@ -68,10 +68,15 @@ void vk_log(retro_log_level level, char const *fmt, ...) M2VK_PRINTF(2, 3);
 //  the function table
 //============================================================
 
-// Instance-level entry points, resolved from the frontend's vkGetInstanceProcAddr against the
-// frontend's VkInstance. Device-level calls come from get_device_proc_addr and are added to this
-// table as the phases that need them arrive; nothing above core Vulkan 1.0 belongs here without a
-// run-time check that the device supports it.
+// Every entry point this core calls, in one table. The instance-level half is resolved from the
+// frontend's vkGetInstanceProcAddr against the frontend's VkInstance; the device-level half from
+// vkGetDeviceProcAddr against the frontend's VkDevice. Both halves are filled in one go at
+// context_reset and the whole table is dropped at context_destroy, because after that every handle
+// it was resolved against is dead.
+//
+// The table grows as the phases that need it arrive. Nothing above core Vulkan 1.1 belongs here —
+// that is what the frontend's physical device admits to (see the probe log) — and nothing above
+// core 1.0 belongs here without a run-time check that the device supports it.
 struct vk_funcs
 {
 	PFN_vkGetInstanceProcAddr                       get_instance_proc_addr = nullptr;
@@ -82,18 +87,53 @@ struct vk_funcs
 	// loader in front of it will admit to.
 	PFN_vkEnumerateInstanceVersion                  enumerate_instance_version = nullptr;
 
+	// instance level
 	PFN_vkGetPhysicalDeviceProperties               get_physical_device_properties = nullptr;
 	PFN_vkGetPhysicalDeviceFeatures                 get_physical_device_features = nullptr;
 	PFN_vkGetPhysicalDeviceMemoryProperties         get_physical_device_memory_properties = nullptr;
 	PFN_vkGetPhysicalDeviceQueueFamilyProperties    get_physical_device_queue_family_properties = nullptr;
 	PFN_vkGetPhysicalDeviceFormatProperties         get_physical_device_format_properties = nullptr;
 	PFN_vkEnumerateDeviceExtensionProperties        enumerate_device_extension_properties = nullptr;
+
+	// device level — submission and synchronisation
+	PFN_vkDeviceWaitIdle                            device_wait_idle = nullptr;
+	PFN_vkQueueSubmit                               queue_submit = nullptr;
+	PFN_vkCreateFence                               create_fence = nullptr;
+	PFN_vkDestroyFence                              destroy_fence = nullptr;
+	PFN_vkWaitForFences                             wait_for_fences = nullptr;
+	PFN_vkResetFences                               reset_fences = nullptr;
+
+	// device level — memory
+	PFN_vkAllocateMemory                            allocate_memory = nullptr;
+	PFN_vkFreeMemory                                free_memory = nullptr;
+
+	// device level — images
+	PFN_vkCreateImage                               create_image = nullptr;
+	PFN_vkDestroyImage                              destroy_image = nullptr;
+	PFN_vkGetImageMemoryRequirements                get_image_memory_requirements = nullptr;
+	PFN_vkBindImageMemory                           bind_image_memory = nullptr;
+	PFN_vkCreateImageView                           create_image_view = nullptr;
+	PFN_vkDestroyImageView                          destroy_image_view = nullptr;
+
+	// device level — command recording
+	PFN_vkCreateCommandPool                         create_command_pool = nullptr;
+	PFN_vkDestroyCommandPool                        destroy_command_pool = nullptr;
+	PFN_vkResetCommandPool                          reset_command_pool = nullptr;
+	PFN_vkAllocateCommandBuffers                    allocate_command_buffers = nullptr;
+	PFN_vkBeginCommandBuffer                        begin_command_buffer = nullptr;
+	PFN_vkEndCommandBuffer                          end_command_buffer = nullptr;
+	PFN_vkCmdPipelineBarrier                        cmd_pipeline_barrier = nullptr;
+	PFN_vkCmdClearColorImage                        cmd_clear_color_image = nullptr;
 };
 
 // Fills the table. Returns false if a required entry point is missing, having logged which one:
-// that would mean the frontend handed over a loader that cannot answer for its own instance, and
-// the only safe response is to leave Vulkan alone.
-bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDeviceProcAddr gdpa, VkInstance instance);
+// that would mean the frontend handed over a loader that cannot answer for its own instance or its
+// own device, and the only safe response is to leave Vulkan alone.
+bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDeviceProcAddr gdpa,
+		VkInstance instance, VkDevice device);
+
+// Names a VkResult for a log line. Unknown codes come back as their number.
+char const *vk_result_name(VkResult result);
 
 } // namespace m2vk
 

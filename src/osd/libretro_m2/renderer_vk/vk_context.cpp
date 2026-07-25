@@ -6,16 +6,19 @@
 
     See vk_context.h for the rules this keeps. The other half of the file is the probe: on the first
     context_reset it logs what the frontend's Vulkan implementation actually is and what it can
-    actually do. That log is not decoration. The headers this core is built against are 1.4 and
-    RetroArch on macOS is talking to MoltenVK 1.2.7, so anything above core 1.0 compiles perfectly
-    happily and may not exist at run time. Every decision the renderer makes from here — depth
-    format, staging alignment, whether depthBiasClamp is available for the decal fix, whether
-    dynamic rendering or synchronization2 can be used at all — is answered by this log rather than by
-    the headers.
+    actually do. That log is not decoration. The headers this core is built against are 1.4, and on
+    this machine the physical device RetroArch hands over reports apiVersion 1.1.0 — MoltenVK clamps
+    a device to the instance's requested API version, whatever the driver itself could do — so
+    anything above core 1.1 compiles perfectly happily and does not exist at run time. Every
+    decision the renderer makes from here — depth format, staging alignment, whether depthBiasClamp
+    is available for the decal fix, whether dynamic rendering or synchronization2 can be used at all
+    — is answered by this log rather than by the headers.
 
 *********************************************************************************************************************************/
 
 #include "renderer_vk/vk_context.h"
+
+#include "renderer_vk/vk_present.h"
 
 #include <cstdio>
 #include <cstring>
@@ -411,9 +414,11 @@ void context_reset_cb()
 		return;
 	}
 
-	// cache_context is false, so a reset means everything from a previous one is gone. There is
-	// nothing of ours to destroy yet in this step, but the order — drop first, then take delivery —
-	// is the order the later steps need.
+	// cache_context is false, so a reset means everything from a previous one is gone: drop what we
+	// hold before taking delivery, and do it while the old handles are still the ones the ring was
+	// built against. A second context_reset with no intervening context_destroy is legal and lands
+	// here.
+	present_shutdown();
 	s_iface = nullptr;
 	s_funcs = vk_funcs{};
 
@@ -428,18 +433,12 @@ void context_reset_cb()
 	if (!interface_usable(*iface))
 		return;
 
-	if (!load_funcs(s_funcs, iface->get_instance_proc_addr, iface->get_device_proc_addr, iface->instance))
+	// This resolves the device-level half of the table as well as the instance-level one, which
+	// doubles as proof that the device loader works before anything relies on it. A device-level
+	// name the instance loader would happily resolve and the device loader would not is the failure
+	// it catches, and catching it here is far cheaper than catching it mid-frame.
+	if (!load_funcs(s_funcs, iface->get_instance_proc_addr, iface->get_device_proc_addr, iface->instance, iface->device))
 	{
-		s_funcs = vk_funcs{};
-		return;
-	}
-
-	// Prove the device loader works before anything relies on it. A device-level name that the
-	// instance loader would happily resolve and the device loader would not is the failure this
-	// catches, and it is far cheaper to catch here than in step 3.
-	if (s_funcs.get_device_proc_addr(iface->device, "vkQueueSubmit") == nullptr)
-	{
-		vk_log(RETRO_LOG_ERROR, "the frontend's device loader cannot resolve vkQueueSubmit\n");
 		s_funcs = vk_funcs{};
 		return;
 	}
@@ -473,6 +472,10 @@ void context_destroy_cb()
 	// Safe against the emulator by construction: the baton has the emulation thread parked inside
 	// update() for the whole of retro_run, and no Vulkan call is ever made from it. So teardown here
 	// cannot race a frame in flight.
+	//
+	// The ring goes first, while the device is still alive — this callback is the last moment at
+	// which it is — and only then are the handles let go.
+	present_shutdown();
 	vk_log(RETRO_LOG_INFO, "context destroyed\n");
 	s_iface = nullptr;
 	s_funcs = vk_funcs{};
@@ -521,6 +524,9 @@ bool declare_hw_render(retro_environment_t environ_cb, retro_log_printf_t log_cb
 
 void forget_hw_render()
 {
+	// If the frontend fired context_destroy first — it normally does — this is a no-op. If it did
+	// not, this is where the ring gets destroyed while its device is still alive.
+	present_shutdown();
 	s_iface = nullptr;
 	s_funcs = vk_funcs{};
 	s_declared = false;

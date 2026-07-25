@@ -259,6 +259,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_context.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_context.cpp",
+		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_present.h",
+		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_present.cpp",
 	}
 
 

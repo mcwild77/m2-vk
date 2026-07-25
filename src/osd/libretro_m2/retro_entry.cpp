@@ -33,6 +33,7 @@
 
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
+#include "renderer_vk/vk_present.h"
 
 #include "emu.h"
 #include "emuopts.h"
@@ -83,10 +84,6 @@ bool                                       s_running = false;
 // same question as "is there a context right now" — a declared context can be absent for the first
 // frames and can be destroyed mid-run.
 bool                                       s_hw_render = false;
-
-// One-shot: the Vulkan path has no picture to present yet, and says so once per load rather than
-// once per frame. Goes away with step 4, along with the branch that reads it.
-bool                                       s_hw_render_noted = false;
 
 // Runs the whole MAME frontend. Everything after start_frontend() returns is teardown.
 void emu_thread_main(std::vector<std::string> args)
@@ -305,7 +302,6 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// A refusal is not an error. retrohost is a frontend with no hardware render, and RetroArch with
 	// a GL video driver is another; both keep running on the software path.
 	s_hw_render = false;
-	s_hw_render_noted = false;
 	if (renderer != "software")
 	{
 		s_hw_render = m2vk::declare_hw_render(s_environ_cb, s_log_cb);
@@ -473,25 +469,28 @@ RETRO_API void retro_run(void)
 		return;
 	}
 
+	int width = 0, height = 0;
+	const uint32_t *const pixels = s_osd->framebuffer(width, height);
+	const bool have_picture = (pixels != nullptr) && (width > 0) && (height > 0);
+
 	if (s_hw_render)
 	{
 		// With hardware render declared, libretro allows only RETRO_HW_FRAME_BUFFER_VALID or null
-		// through video_cb (libretro.h:946) — a software pointer is not an option, so the Vulkan path
-		// dupes until it has an image of its own. That is not only the P2-step-2 state of affairs: a
-		// context legitimately does not exist for the first frame or two of every run, because
-		// context_reset does not fire until after retro_load_game has returned.
-		if (!s_hw_render_noted && m2vk::have_context())
-		{
-			s_log_cb(RETRO_LOG_INFO, "[model2] vk: context is up; nothing is drawn through it yet\n");
-			s_hw_render_noted = true;
-		}
-		s_video_cb(nullptr, 0, 0, 0); // frame duped
+		// through video_cb (libretro.h:946) — a software pointer is not an option. So a dupe is the
+		// only thing to say when the renderer has no image, which is the normal state of affairs for
+		// the first frame or two of every run: context_reset does not fire until after
+		// retro_load_game has returned.
+		//
+		// The geometry comes from the software framebuffer even though its pixels do not, yet: the
+		// renderer clears to a flat colour at this step, and step 4 uploads these pixels instead.
+		if (have_picture && m2vk::present_frame(unsigned(width), unsigned(height)))
+			s_video_cb(RETRO_HW_FRAME_BUFFER_VALID, unsigned(width), unsigned(height), 0);
+		else
+			s_video_cb(nullptr, 0, 0, 0); // frame duped
 	}
 	else
 	{
-		int width = 0, height = 0;
-		const uint32_t *const pixels = s_osd->framebuffer(width, height);
-		if ((pixels != nullptr) && (width > 0) && (height > 0))
+		if (have_picture)
 			s_video_cb(pixels, unsigned(width), unsigned(height), size_t(width) * sizeof(uint32_t));
 		else
 			s_video_cb(nullptr, 0, 0, 0); // frame duped
