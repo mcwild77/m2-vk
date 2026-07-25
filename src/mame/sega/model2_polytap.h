@@ -34,8 +34,10 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <set>
 #include <thread>
 
 namespace model2_polytap {
@@ -70,6 +72,8 @@ public:
 		m_min_bucket = 0xffff;
 		m_max_bucket = 0;
 		m_windows = 0;
+		m_pages_frame.clear();
+		m_prev_key = ~u32(0);
 
 		if (m_dump_frame != 0 && m_frame == m_dump_frame)
 		{
@@ -112,6 +116,43 @@ public:
 			float const rz = v.p[PARAM_Z];
 			if (rz < m_min_rz) m_min_rz = rz;
 			if (rz > m_max_rz) m_max_rz = rz;
+
+			// A depth value the Vulkan path would have to clamp: not finite, or so large that z has
+			// collapsed to ~0. The software rasterizer tolerates these silently.
+			if (!std::isfinite(rz) || rz > 1e6f)
+				m_run_bad_depth++;
+		}
+
+		// Run-level accumulation.
+		m_run_polys++;
+		m_run_by_renderer[renderer & 3]++;
+		if (poly.num_vertices >= 3 && poly.num_vertices <= 8)
+			m_run_by_verts[poly.num_vertices - 3]++;
+		if (poly.num_vertices > 5)
+			m_run_verts_over5++;
+		m_run_lumabase.insert(extra.lumabase);
+		m_run_colorbase.insert(extra.colorbase);
+		if (extra.checker)
+			m_run_checker++;
+
+		// The P4 metric: does this polygon share a sort bucket with the one drawn immediately before
+		// it, inside the same window? If so a depth buffer has a tie to break, and only draw order
+		// can break it correctly.
+		u32 const key = (u32(poly.window) << 16) | poly.z;
+		if (key == m_prev_key)
+			m_run_tie_polys++;
+		m_prev_key = key;
+
+		if (renderer & 2)
+		{
+			if (extra.utex)
+				m_run_utex++;
+			u64 const page =
+					(u64((poly.texheader[2] & 0x1000) ? 1 : 0) << 60) |
+					(u64(extra.texx) << 44) | (u64(extra.texy) << 28) |
+					(u64(extra.texwidth) << 14) | u64(extra.texheight);
+			m_pages_frame.insert(page);
+			m_run_pages.insert(page);
 		}
 
 		if (m_dump == nullptr)
@@ -148,6 +189,17 @@ public:
 
 	void frame_end()
 	{
+		m_run_frames++;
+		if (m_polys > m_run_max_polys) m_run_max_polys = m_polys;
+		if (m_polys < m_run_min_polys) m_run_min_polys = m_polys;
+		if (m_polys != m_submitted) m_run_count_mismatch++;
+		if (m_pages_frame.size() > m_run_max_pages_frame) m_run_max_pages_frame = u32(m_pages_frame.size());
+		if (m_min_bucket < m_run_min_bucket) m_run_min_bucket = m_min_bucket;
+		if (m_max_bucket > m_run_max_bucket) m_run_max_bucket = m_max_bucket;
+		if (m_windows > m_run_max_windows) m_run_max_windows = m_windows;
+		if (m_min_rz < m_run_min_rz) m_run_min_rz = m_min_rz;
+		if (m_max_rz > m_run_max_rz) m_run_max_rz = m_max_rz;
+
 		if (m_dump != nullptr)
 		{
 			std::fprintf(m_dump, "# %u polygons tapped, %u submitted by the geometry engine\n",
@@ -170,6 +222,64 @@ public:
 					m_min_bucket, m_max_bucket, m_windows,
 					m_multithreaded ? "  *** MULTIPLE SUBMITTING THREADS ***" : "");
 		}
+	}
+
+	// Run-level feature survey, emitted once at teardown. Written to M2VK_POLYTAP_SUMMARY if set,
+	// otherwise stderr. One key=value per line so a sweep across the ROM set can aggregate it.
+	~tap()
+	{
+		FILE *out = stderr;
+		char const *const path = std::getenv("M2VK_POLYTAP_SUMMARY");
+		if (path != nullptr)
+		{
+			FILE *const f = std::fopen(path, "w");
+			if (f != nullptr)
+				out = f;
+		}
+
+		char const *const tag = std::getenv("M2VK_POLYTAP_TAG");
+		std::fprintf(out, "tag=%s\n", (tag != nullptr) ? tag : "unknown");
+		std::fprintf(out, "frames=%u\n", m_run_frames);
+		if (m_run_frames == 0)
+		{
+			// No rendered frames at all: the game never reached 3D in the time allowed, or it is
+			// sitting on a screen the rasterizer is not involved in.
+			std::fprintf(out, "no_3d=1\n");
+			if (out != stderr)
+				std::fclose(out);
+			return;
+		}
+
+		std::fprintf(out, "polys_total=%llu\n", (unsigned long long)m_run_polys);
+		std::fprintf(out, "polys_min=%u\n", m_run_min_polys);
+		std::fprintf(out, "polys_max=%u\n", m_run_max_polys);
+		std::fprintf(out, "polys_mean=%.1f\n", double(m_run_polys) / double(m_run_frames));
+		std::fprintf(out, "solid=%llu\n", (unsigned long long)m_run_by_renderer[0]);
+		std::fprintf(out, "solid_trans=%llu\n", (unsigned long long)m_run_by_renderer[1]);
+		std::fprintf(out, "tex=%llu\n", (unsigned long long)m_run_by_renderer[2]);
+		std::fprintf(out, "tex_trans=%llu\n", (unsigned long long)m_run_by_renderer[3]);
+		for (int i = 0; i < 6; i++)
+			std::fprintf(out, "verts%d=%llu\n", i + 3, (unsigned long long)m_run_by_verts[i]);
+		std::fprintf(out, "verts_over5=%llu\n", (unsigned long long)m_run_verts_over5);
+		std::fprintf(out, "microtexture=%llu\n", (unsigned long long)m_run_utex);
+		std::fprintf(out, "checker=%llu\n", (unsigned long long)m_run_checker);
+		std::fprintf(out, "tie_polys=%llu\n", (unsigned long long)m_run_tie_polys);
+		std::fprintf(out, "tie_pct=%.1f\n", 100.0 * double(m_run_tie_polys) / double(m_run_polys));
+		std::fprintf(out, "bad_depth=%llu\n", (unsigned long long)m_run_bad_depth);
+		std::fprintf(out, "rz_min=%.9g\n", m_run_min_rz);
+		std::fprintf(out, "rz_max=%.9g\n", m_run_max_rz);
+		std::fprintf(out, "bucket_min=%u\n", m_run_min_bucket);
+		std::fprintf(out, "bucket_max=%u\n", m_run_max_bucket);
+		std::fprintf(out, "windows_max=%u\n", m_run_max_windows);
+		std::fprintf(out, "pages_run=%u\n", u32(m_run_pages.size()));
+		std::fprintf(out, "pages_frame_max=%u\n", m_run_max_pages_frame);
+		std::fprintf(out, "lumabase_distinct=%u\n", u32(m_run_lumabase.size()));
+		std::fprintf(out, "colorbase_distinct=%u\n", u32(m_run_colorbase.size()));
+		std::fprintf(out, "count_mismatch_frames=%u\n", m_run_count_mismatch);
+		std::fprintf(out, "multithreaded=%u\n", m_multithreaded ? 1u : 0u);
+
+		if (out != stderr)
+			std::fclose(out);
 	}
 
 private:
@@ -216,6 +326,33 @@ private:
 	std::thread::id  m_thread;
 	bool             m_have_thread = false;
 	bool             m_multithreaded = false;
+
+	// Per-frame, reset in frame_begin.
+	std::set<u64>    m_pages_frame;
+	u32              m_prev_key = ~u32(0);
+
+	// Run-level, never reset.
+	u32              m_run_frames = 0;
+	u64              m_run_polys = 0;
+	u32              m_run_min_polys = ~u32(0);
+	u32              m_run_max_polys = 0;
+	u64              m_run_by_renderer[4] = { 0, 0, 0, 0 };
+	u64              m_run_by_verts[6] = { 0, 0, 0, 0, 0, 0 };
+	u64              m_run_verts_over5 = 0;
+	u64              m_run_utex = 0;
+	u64              m_run_checker = 0;
+	u64              m_run_tie_polys = 0;
+	u64              m_run_bad_depth = 0;
+	float            m_run_min_rz = 1e30f;
+	float            m_run_max_rz = -1e30f;
+	u32              m_run_min_bucket = 0xffff;
+	u32              m_run_max_bucket = 0;
+	u32              m_run_max_windows = 0;
+	u32              m_run_max_pages_frame = 0;
+	u32              m_run_count_mismatch = 0;
+	std::set<u64>    m_run_pages;
+	std::set<u32>    m_run_lumabase;
+	std::set<u32>    m_run_colorbase;
 };
 
 inline void frame_begin(u32 submitted) { tap::instance().frame_begin(submitted); }
