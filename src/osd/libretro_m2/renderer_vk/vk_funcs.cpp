@@ -175,6 +175,8 @@ bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDevicePr
 
 	M2VK_RESOLVE_DEVICE(allocate_memory,                  PFN_vkAllocateMemory,                 "vkAllocateMemory");
 	M2VK_RESOLVE_DEVICE(free_memory,                      PFN_vkFreeMemory,                     "vkFreeMemory");
+	M2VK_RESOLVE_DEVICE(map_memory,                       PFN_vkMapMemory,                      "vkMapMemory");
+	M2VK_RESOLVE_DEVICE(unmap_memory,                     PFN_vkUnmapMemory,                    "vkUnmapMemory");
 
 	M2VK_RESOLVE_DEVICE(create_image,                     PFN_vkCreateImage,                    "vkCreateImage");
 	M2VK_RESOLVE_DEVICE(destroy_image,                    PFN_vkDestroyImage,                   "vkDestroyImage");
@@ -182,6 +184,31 @@ bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDevicePr
 	M2VK_RESOLVE_DEVICE(bind_image_memory,                PFN_vkBindImageMemory,                "vkBindImageMemory");
 	M2VK_RESOLVE_DEVICE(create_image_view,                PFN_vkCreateImageView,                "vkCreateImageView");
 	M2VK_RESOLVE_DEVICE(destroy_image_view,               PFN_vkDestroyImageView,               "vkDestroyImageView");
+	M2VK_RESOLVE_DEVICE(create_sampler,                   PFN_vkCreateSampler,                  "vkCreateSampler");
+	M2VK_RESOLVE_DEVICE(destroy_sampler,                  PFN_vkDestroySampler,                 "vkDestroySampler");
+
+	M2VK_RESOLVE_DEVICE(create_buffer,                    PFN_vkCreateBuffer,                   "vkCreateBuffer");
+	M2VK_RESOLVE_DEVICE(destroy_buffer,                   PFN_vkDestroyBuffer,                  "vkDestroyBuffer");
+	M2VK_RESOLVE_DEVICE(get_buffer_memory_requirements,   PFN_vkGetBufferMemoryRequirements,    "vkGetBufferMemoryRequirements");
+	M2VK_RESOLVE_DEVICE(bind_buffer_memory,               PFN_vkBindBufferMemory,               "vkBindBufferMemory");
+
+	M2VK_RESOLVE_DEVICE(create_descriptor_set_layout,     PFN_vkCreateDescriptorSetLayout,      "vkCreateDescriptorSetLayout");
+	M2VK_RESOLVE_DEVICE(destroy_descriptor_set_layout,    PFN_vkDestroyDescriptorSetLayout,     "vkDestroyDescriptorSetLayout");
+	M2VK_RESOLVE_DEVICE(create_descriptor_pool,           PFN_vkCreateDescriptorPool,           "vkCreateDescriptorPool");
+	M2VK_RESOLVE_DEVICE(destroy_descriptor_pool,          PFN_vkDestroyDescriptorPool,          "vkDestroyDescriptorPool");
+	M2VK_RESOLVE_DEVICE(allocate_descriptor_sets,         PFN_vkAllocateDescriptorSets,         "vkAllocateDescriptorSets");
+	M2VK_RESOLVE_DEVICE(update_descriptor_sets,           PFN_vkUpdateDescriptorSets,           "vkUpdateDescriptorSets");
+
+	M2VK_RESOLVE_DEVICE(create_shader_module,             PFN_vkCreateShaderModule,             "vkCreateShaderModule");
+	M2VK_RESOLVE_DEVICE(destroy_shader_module,            PFN_vkDestroyShaderModule,            "vkDestroyShaderModule");
+	M2VK_RESOLVE_DEVICE(create_render_pass,               PFN_vkCreateRenderPass,               "vkCreateRenderPass");
+	M2VK_RESOLVE_DEVICE(destroy_render_pass,              PFN_vkDestroyRenderPass,              "vkDestroyRenderPass");
+	M2VK_RESOLVE_DEVICE(create_framebuffer,               PFN_vkCreateFramebuffer,              "vkCreateFramebuffer");
+	M2VK_RESOLVE_DEVICE(destroy_framebuffer,              PFN_vkDestroyFramebuffer,             "vkDestroyFramebuffer");
+	M2VK_RESOLVE_DEVICE(create_pipeline_layout,           PFN_vkCreatePipelineLayout,           "vkCreatePipelineLayout");
+	M2VK_RESOLVE_DEVICE(destroy_pipeline_layout,          PFN_vkDestroyPipelineLayout,          "vkDestroyPipelineLayout");
+	M2VK_RESOLVE_DEVICE(create_graphics_pipelines,        PFN_vkCreateGraphicsPipelines,        "vkCreateGraphicsPipelines");
+	M2VK_RESOLVE_DEVICE(destroy_pipeline,                 PFN_vkDestroyPipeline,                "vkDestroyPipeline");
 
 	M2VK_RESOLVE_DEVICE(create_command_pool,              PFN_vkCreateCommandPool,              "vkCreateCommandPool");
 	M2VK_RESOLVE_DEVICE(destroy_command_pool,             PFN_vkDestroyCommandPool,             "vkDestroyCommandPool");
@@ -190,7 +217,15 @@ bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDevicePr
 	M2VK_RESOLVE_DEVICE(begin_command_buffer,             PFN_vkBeginCommandBuffer,             "vkBeginCommandBuffer");
 	M2VK_RESOLVE_DEVICE(end_command_buffer,               PFN_vkEndCommandBuffer,               "vkEndCommandBuffer");
 	M2VK_RESOLVE_DEVICE(cmd_pipeline_barrier,             PFN_vkCmdPipelineBarrier,             "vkCmdPipelineBarrier");
-	M2VK_RESOLVE_DEVICE(cmd_clear_color_image,            PFN_vkCmdClearColorImage,             "vkCmdClearColorImage");
+	M2VK_RESOLVE_DEVICE(cmd_copy_buffer_to_image,         PFN_vkCmdCopyBufferToImage,           "vkCmdCopyBufferToImage");
+	M2VK_RESOLVE_DEVICE(cmd_copy_image_to_buffer,         PFN_vkCmdCopyImageToBuffer,           "vkCmdCopyImageToBuffer");
+	M2VK_RESOLVE_DEVICE(cmd_begin_render_pass,            PFN_vkCmdBeginRenderPass,             "vkCmdBeginRenderPass");
+	M2VK_RESOLVE_DEVICE(cmd_end_render_pass,              PFN_vkCmdEndRenderPass,               "vkCmdEndRenderPass");
+	M2VK_RESOLVE_DEVICE(cmd_bind_pipeline,                PFN_vkCmdBindPipeline,                "vkCmdBindPipeline");
+	M2VK_RESOLVE_DEVICE(cmd_bind_descriptor_sets,         PFN_vkCmdBindDescriptorSets,          "vkCmdBindDescriptorSets");
+	M2VK_RESOLVE_DEVICE(cmd_set_viewport,                 PFN_vkCmdSetViewport,                 "vkCmdSetViewport");
+	M2VK_RESOLVE_DEVICE(cmd_set_scissor,                  PFN_vkCmdSetScissor,                  "vkCmdSetScissor");
+	M2VK_RESOLVE_DEVICE(cmd_draw,                         PFN_vkCmdDraw,                        "vkCmdDraw");
 
 #undef M2VK_RESOLVE_DEVICE
 

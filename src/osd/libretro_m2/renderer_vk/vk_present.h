@@ -36,6 +36,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 
 namespace m2vk {
 
@@ -44,9 +46,13 @@ namespace m2vk {
 // image, which is the caller's cue to pass RETRO_HW_FRAME_BUFFER_VALID to video_cb; false means
 // there is nothing to present and the frame should be duped.
 //
+// `pixels` is MAME's finished software frame: width * height tightly packed 0xAARRGGBB words, the
+// same buffer the software path hands straight to video_cb. It is read and copied before this
+// returns, so the caller keeps ownership and may reuse it on the next frame.
+//
 // False is a normal answer, not only an error: context_reset does not fire until after
 // retro_load_game has returned, so the first frame or two of every run have no context at all.
-bool present_frame(unsigned width, unsigned height);
+bool present_frame(const uint32_t *pixels, unsigned width, unsigned height);
 
 // Destroys the ring. Called from context_destroy — while the device is still alive — and again on
 // unload in case the frontend never sent one. Idempotent, and safe to call with no ring.

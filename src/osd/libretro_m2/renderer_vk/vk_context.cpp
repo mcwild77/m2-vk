@@ -501,8 +501,8 @@ bool declare_hw_render(retro_environment_t environ_cb, retro_log_printf_t log_cb
 
 	// version_major/minor are 1.0: the floor, not a request for anything. Vulkan's own version
 	// negotiation happens at instance creation, which is the frontend's business while we have no
-	// negotiation interface — and MoltenVK 1.2.7 is the real ceiling regardless of what our 1.4
-	// headers would let us ask for.
+	// negotiation interface — and the physical device MoltenVK hands over reports apiVersion 1.1.0
+	// regardless of what our 1.4 headers would let us ask for.
 	//
 	// depth, stencil and bottom_left_origin are GL-era fields with no Vulkan meaning; they stay zero
 	// rather than being guessed at. cache_context is false so that a lost context is always

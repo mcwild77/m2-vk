@@ -106,6 +106,8 @@ struct vk_funcs
 	// device level — memory
 	PFN_vkAllocateMemory                            allocate_memory = nullptr;
 	PFN_vkFreeMemory                                free_memory = nullptr;
+	PFN_vkMapMemory                                 map_memory = nullptr;
+	PFN_vkUnmapMemory                               unmap_memory = nullptr;
 
 	// device level — images
 	PFN_vkCreateImage                               create_image = nullptr;
@@ -114,6 +116,34 @@ struct vk_funcs
 	PFN_vkBindImageMemory                           bind_image_memory = nullptr;
 	PFN_vkCreateImageView                           create_image_view = nullptr;
 	PFN_vkDestroyImageView                          destroy_image_view = nullptr;
+	PFN_vkCreateSampler                             create_sampler = nullptr;
+	PFN_vkDestroySampler                            destroy_sampler = nullptr;
+
+	// device level — buffers (the staging upload)
+	PFN_vkCreateBuffer                              create_buffer = nullptr;
+	PFN_vkDestroyBuffer                             destroy_buffer = nullptr;
+	PFN_vkGetBufferMemoryRequirements               get_buffer_memory_requirements = nullptr;
+	PFN_vkBindBufferMemory                          bind_buffer_memory = nullptr;
+
+	// device level — descriptors
+	PFN_vkCreateDescriptorSetLayout                 create_descriptor_set_layout = nullptr;
+	PFN_vkDestroyDescriptorSetLayout                destroy_descriptor_set_layout = nullptr;
+	PFN_vkCreateDescriptorPool                      create_descriptor_pool = nullptr;
+	PFN_vkDestroyDescriptorPool                     destroy_descriptor_pool = nullptr;
+	PFN_vkAllocateDescriptorSets                    allocate_descriptor_sets = nullptr;
+	PFN_vkUpdateDescriptorSets                      update_descriptor_sets = nullptr;
+
+	// device level — the pipeline
+	PFN_vkCreateShaderModule                        create_shader_module = nullptr;
+	PFN_vkDestroyShaderModule                       destroy_shader_module = nullptr;
+	PFN_vkCreateRenderPass                          create_render_pass = nullptr;
+	PFN_vkDestroyRenderPass                         destroy_render_pass = nullptr;
+	PFN_vkCreateFramebuffer                         create_framebuffer = nullptr;
+	PFN_vkDestroyFramebuffer                        destroy_framebuffer = nullptr;
+	PFN_vkCreatePipelineLayout                      create_pipeline_layout = nullptr;
+	PFN_vkDestroyPipelineLayout                     destroy_pipeline_layout = nullptr;
+	PFN_vkCreateGraphicsPipelines                   create_graphics_pipelines = nullptr;
+	PFN_vkDestroyPipeline                           destroy_pipeline = nullptr;
 
 	// device level — command recording
 	PFN_vkCreateCommandPool                         create_command_pool = nullptr;
@@ -123,7 +153,18 @@ struct vk_funcs
 	PFN_vkBeginCommandBuffer                        begin_command_buffer = nullptr;
 	PFN_vkEndCommandBuffer                          end_command_buffer = nullptr;
 	PFN_vkCmdPipelineBarrier                        cmd_pipeline_barrier = nullptr;
-	PFN_vkCmdClearColorImage                        cmd_clear_color_image = nullptr;
+	PFN_vkCmdCopyBufferToImage                      cmd_copy_buffer_to_image = nullptr;
+	// Only ever used by the M2VK_VK_DUMP diagnostic, but resolved unconditionally: an entry point
+	// that is missing is worth knowing about at context_reset rather than the first time someone
+	// reaches for the diagnostic.
+	PFN_vkCmdCopyImageToBuffer                      cmd_copy_image_to_buffer = nullptr;
+	PFN_vkCmdBeginRenderPass                        cmd_begin_render_pass = nullptr;
+	PFN_vkCmdEndRenderPass                          cmd_end_render_pass = nullptr;
+	PFN_vkCmdBindPipeline                           cmd_bind_pipeline = nullptr;
+	PFN_vkCmdBindDescriptorSets                     cmd_bind_descriptor_sets = nullptr;
+	PFN_vkCmdSetViewport                            cmd_set_viewport = nullptr;
+	PFN_vkCmdSetScissor                             cmd_set_scissor = nullptr;
+	PFN_vkCmdDraw                                   cmd_draw = nullptr;
 };
 
 // Fills the table. Returns false if a required entry point is missing, having logged which one:

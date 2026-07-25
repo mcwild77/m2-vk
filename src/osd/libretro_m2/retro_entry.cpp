@@ -481,9 +481,9 @@ RETRO_API void retro_run(void)
 		// the first frame or two of every run: context_reset does not fire until after
 		// retro_load_game has returned.
 		//
-		// The geometry comes from the software framebuffer even though its pixels do not, yet: the
-		// renderer clears to a flat colour at this step, and step 4 uploads these pixels instead.
-		if (have_picture && m2vk::present_frame(unsigned(width), unsigned(height)))
+		// The renderer is handed the same buffer the software path passes to video_cb, and uploads it
+		// as a texture. Until P3 that is the whole of the difference between the two paths.
+		if (have_picture && m2vk::present_frame(pixels, unsigned(width), unsigned(height)))
 			s_video_cb(RETRO_HW_FRAME_BUFFER_VALID, unsigned(width), unsigned(height), 0);
 		else
 			s_video_cb(nullptr, 0, 0, 0); // frame duped
