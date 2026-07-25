@@ -34,7 +34,10 @@
 
 #pragma once
 
+#include "m2vk_frame.h"
+
 #include <cstdint>
+#include <cstring>
 
 namespace m2vk {
 
@@ -105,10 +108,19 @@ namespace detail {
 // plain bool rather than a call into the sink; written only when consumers are attached or dropped.
 extern bool g_active;
 
+// True while MAME's own scanline rasteriser should still draw the 3D layer. False once the hardware
+// renderer owns it, which is also where nearly all of the emulator's CPU time goes.
+extern bool g_rasterize;
+
 } // namespace detail
 
 // Cheap enough to sit in front of the per-polygon conversion below.
 inline bool active() { return detail::g_active; }
+
+// Read at the seam once per polygon, immediately after submit(). Default true, so a build that never
+// sets it behaves exactly as MAME does.
+inline bool rasterize() { return detail::g_rasterize; }
+void set_rasterize(bool on);
 
 // One machine's run. Called by the OSD from init() and osd_exit().
 void sink_open();
@@ -193,6 +205,35 @@ inline void submit(Polygon const &src, Extra const &extra, uint8_t renderer, Rec
 	}
 
 	submit(p);
+}
+
+// The 2D half of the seam: one of the two tilemap layers that sandwich the 3D, cropped to the
+// visible rectangle and copied into the frame record. Templated for the same reason submit() is —
+// Bitmap is a bitmap_rgb32 and Rect a rectangle, and this header must not know that.
+//
+// `clip` is screen_update()'s cliprect, which for Model 2 is the visible area (x 0..495, y 0..383 of
+// a 656x424 raster — model2.cpp's set_raw). Cropping here rather than later means the layers come out
+// the same size as the picture the OSD hands the frontend, so the composite is 1:1 with no offset
+// arithmetic anywhere downstream.
+template <typename Bitmap, typename Rect>
+inline void capture_layer(int which, Bitmap const &bm, Rect const &clip)
+{
+	if (!want_layers())
+		return;
+
+	const int w = clip.width();
+	const int h = clip.height();
+	if ((w <= 0) || (h <= 0) || (clip.right() >= bm.width()) || (clip.bottom() >= bm.height()))
+		return;
+
+	uint32_t *dst = layer_begin(which, w, h);
+	if (dst == nullptr)
+		return;
+
+	for (int y = 0; y < h; y++, dst += w)
+		std::memcpy(dst, &bm.pix(clip.top() + y, clip.left()), size_t(w) * sizeof(uint32_t));
+
+	layer_end(which);
 }
 
 } // namespace m2vk

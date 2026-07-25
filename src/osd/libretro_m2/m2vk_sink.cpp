@@ -25,6 +25,7 @@ namespace m2vk {
 namespace detail {
 
 bool g_active = false;
+bool g_rasterize = true;
 
 } // namespace detail
 
@@ -98,6 +99,8 @@ sink g_sink;
 
 } // anonymous namespace
 
+
+void set_rasterize(bool on) { detail::g_rasterize = on; }
 
 void sink_open() { g_sink.open(); }
 void sink_close() { g_sink.close(); }

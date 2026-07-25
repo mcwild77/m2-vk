@@ -73,3 +73,4 @@ emit() { # <shader-stage> <source> <symbol-stem>
 echo "$GLSLC_VERSION"
 emit vert fullscreen.vert  fullscreen_vert
 emit frag passthrough.frag passthrough_frag
+emit frag overlay.frag     overlay_frag

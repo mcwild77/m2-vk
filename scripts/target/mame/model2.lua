@@ -144,6 +144,8 @@ function createProjects_mame_model2(_target, _subtarget)
             MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.h",
             MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.cpp",
             MAME_DIR .. "src/osd/libretro_m2/m2vk_polytap.h",
+            MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.h",
+            MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.cpp",
         }
     end
 end

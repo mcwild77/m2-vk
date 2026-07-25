@@ -31,6 +31,9 @@
 #include "libretro_m2_osd.h"
 #include "retro_options.h"
 
+#include "m2vk_frame.h"
+#include "m2vk_sink.h"
+
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
 #include "renderer_vk/vk_present.h"
@@ -41,6 +44,7 @@
 
 #include "corestr.h"
 
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -309,6 +313,16 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			s_log_cb(RETRO_LOG_WARN, "[model2] this frontend has no Vulkan context to offer; using the software renderer\n");
 	}
 
+	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
+	// composites them itself (m2vk_frame.h). On the software path the two hooks in screen_update()
+	// cost a predicate each and nothing more, which is what keeps renderer=software the reference.
+	m2vk::frame_enable(s_hw_render);
+
+	// MAME's own scanline rasteriser still draws the 3D layer. It stops when the hardware renderer
+	// takes it over; until then M2VK_NO_SW_3D=1 is how to see the gap it will be dropped into — the
+	// under layer with no polygons in it — without waiting for there to be polygons.
+	m2vk::set_rasterize(!s_hw_render || (std::getenv("M2VK_NO_SW_3D") == nullptr));
+
 	// The content's own directory, plus a place for sets the frontend keeps alongside the core.
 	// The second entry is what makes a clone loadable when its parent set lives elsewhere.
 	std::string rompath = rompath_from_path(path);
@@ -423,6 +437,7 @@ RETRO_API void retro_unload_game(void)
 	// The frontend normally fires context_destroy before this; make the state safe whether or not it
 	// did, and stop a context_reset arriving for a machine that no longer exists.
 	m2vk::forget_hw_render();
+	m2vk::frame_end_run();
 
 	s_osd.reset();
 	s_options.reset();

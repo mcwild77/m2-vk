@@ -254,6 +254,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.h",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_polytap.h",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.h",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/module_stubs.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.cpp",
@@ -266,6 +268,7 @@ project ("osd_" .. _OPTIONS["osd"])
 		-- see devnotes/p2-vulkan-passthrough.md for why the shaders are compiled offline.
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/fullscreen_vert_spv.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/passthrough_frag_spv.h",
+		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/overlay_frag_spv.h",
 	}
 
 

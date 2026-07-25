@@ -38,7 +38,10 @@
 
 #include "renderer_vk/vk_context.h"
 
+#include "m2vk_frame.h"
+
 #include "renderer_vk/shaders/fullscreen_vert_spv.h"
+#include "renderer_vk/shaders/overlay_frag_spv.h"
 #include "renderer_vk/shaders/passthrough_frag_spv.h"
 
 #include <array>
@@ -76,9 +79,23 @@ constexpr uint32_t MAX_RING_SLOTS = 8;
 //  state
 //============================================================
 
+// One 2D layer's worth of upload: host-visible staging, an optimal-tiled texture, and the descriptor
+// set naming it. Two of these per slot — the background and the foreground — because the frame is a
+// sandwich and MAME draws both slices (m2vk_frame.h).
+struct layer_tex
+{
+	VkBuffer        staging = VK_NULL_HANDLE;
+	VkDeviceMemory  staging_memory = VK_NULL_HANDLE;
+	void           *staging_mapped = nullptr;
+	VkImage         texture = VK_NULL_HANDLE;
+	VkDeviceMemory  texture_memory = VK_NULL_HANDLE;
+	VkImageView     texture_view = VK_NULL_HANDLE;
+	VkDescriptorSet descriptor = VK_NULL_HANDLE;
+};
+
 // One of these per sync index. Nothing in it is ever shared with another slot: that is the whole
-// point of indexing by get_sync_index(). The texture is per-slot for the same reason the image is —
-// it is written by this frame's copy and read by this frame's draw, and a shared one would be a
+// point of indexing by get_sync_index(). The textures are per-slot for the same reason the image is —
+// they are written by this frame's copy and read by this frame's draw, and a shared one would be a
 // hazard between frames still in flight.
 struct frame_slot
 {
@@ -88,14 +105,7 @@ struct frame_slot
 	VkImageView     view = VK_NULL_HANDLE;
 	VkFramebuffer   framebuffer = VK_NULL_HANDLE;
 
-	// this frame's copy of MAME's picture: host-visible staging, then an optimal-tiled texture
-	VkBuffer        staging = VK_NULL_HANDLE;
-	VkDeviceMemory  staging_memory = VK_NULL_HANDLE;
-	void           *staging_mapped = nullptr;
-	VkImage         texture = VK_NULL_HANDLE;
-	VkDeviceMemory  texture_memory = VK_NULL_HANDLE;
-	VkImageView     texture_view = VK_NULL_HANDLE;
-	VkDescriptorSet descriptor = VK_NULL_HANDLE;
+	layer_tex       layers[m2vk::LAYER_COUNT];
 
 	VkCommandPool   pool = VK_NULL_HANDLE;
 	VkCommandBuffer cmd = VK_NULL_HANDLE;
@@ -121,7 +131,8 @@ VkSampler             s_sampler = VK_NULL_HANDLE;
 VkDescriptorSetLayout s_set_layout = VK_NULL_HANDLE;
 VkDescriptorPool      s_descriptor_pool = VK_NULL_HANDLE;
 VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
-VkPipeline            s_pipeline = VK_NULL_HANDLE;
+VkPipeline            s_pipeline = VK_NULL_HANDLE;        // opaque: the under layer
+VkPipeline            s_pipeline_over = VK_NULL_HANDLE;   // discards pixel 0: the over layer
 
 // Captured when the ring is built, so that teardown does not depend on the context's state having
 // survived — and so that the funcs table is one pointer chase away in the per-frame path.
@@ -427,13 +438,17 @@ bool build_descriptors(uint32_t slot_count)
 	if (!check(s_fns.create_descriptor_set_layout(s_device, &layout_info, nullptr, &s_set_layout), "vkCreateDescriptorSetLayout"))
 		return false;
 
+	// One set per layer per slot: the two layers are sampled by two draws in the same command buffer,
+	// so they cannot share.
+	const uint32_t sets = slot_count * uint32_t(m2vk::LAYER_COUNT);
+
 	VkDescriptorPoolSize size{};
 	size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	size.descriptorCount = slot_count;
+	size.descriptorCount = sets;
 
 	VkDescriptorPoolCreateInfo pool_info{};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.maxSets = slot_count;
+	pool_info.maxSets = sets;
 	pool_info.poolSizeCount = 1;
 	pool_info.pPoolSizes = &size;
 	// No FREE_DESCRIPTOR_SET_BIT: the sets are allocated once and live exactly as long as the pool,
@@ -454,6 +469,7 @@ bool build_pipeline()
 	// reference them afterwards.
 	VkShaderModule vert = VK_NULL_HANDLE;
 	VkShaderModule frag = VK_NULL_HANDLE;
+	VkShaderModule frag_over = VK_NULL_HANDLE;
 	auto const make_module = [](uint32_t const *code, size_t bytes, VkShaderModule &out)
 	{
 		VkShaderModuleCreateInfo info{};
@@ -464,7 +480,8 @@ bool build_pipeline()
 	};
 
 	bool ok = make_module(FULLSCREEN_VERT_SPV, sizeof(FULLSCREEN_VERT_SPV), vert)
-			&& make_module(PASSTHROUGH_FRAG_SPV, sizeof(PASSTHROUGH_FRAG_SPV), frag);
+			&& make_module(PASSTHROUGH_FRAG_SPV, sizeof(PASSTHROUGH_FRAG_SPV), frag)
+			&& make_module(OVERLAY_FRAG_SPV, sizeof(OVERLAY_FRAG_SPV), frag_over);
 
 	if (ok)
 	{
@@ -544,8 +561,21 @@ bool build_pipeline()
 
 		ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline),
 				"vkCreateGraphicsPipelines");
+
+		// The overlay pipeline differs in exactly one thing — the fragment shader, which discards the
+		// transparent pen — so it is built from the same structs rather than from a copy of them. Two
+		// near-identical 60-line pipeline descriptions that have to stay in step is how the second one
+		// ends up subtly different.
+		if (ok)
+		{
+			stages[1].module = frag_over;
+			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_over),
+					"vkCreateGraphicsPipelines (overlay)");
+		}
 	}
 
+	if (frag_over != VK_NULL_HANDLE)
+		s_fns.destroy_shader_module(s_device, frag_over, nullptr);
 	if (frag != VK_NULL_HANDLE)
 		s_fns.destroy_shader_module(s_device, frag, nullptr);
 	if (vert != VK_NULL_HANDLE)
@@ -561,6 +591,8 @@ bool build_pipeline()
 
 void destroy_shared()
 {
+	if (s_pipeline_over != VK_NULL_HANDLE)
+		s_fns.destroy_pipeline(s_device, s_pipeline_over, nullptr);
 	if (s_pipeline != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline, nullptr);
 	if (s_pipeline_layout != VK_NULL_HANDLE)
@@ -575,6 +607,7 @@ void destroy_shared()
 	if (s_render_pass != VK_NULL_HANDLE)
 		s_fns.destroy_render_pass(s_device, s_render_pass, nullptr);
 
+	s_pipeline_over = VK_NULL_HANDLE;
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
 	s_descriptor_pool = VK_NULL_HANDLE;
@@ -595,6 +628,7 @@ void forget_ring()
 	s_dump_mapped = nullptr;
 	s_dump_buffer = VK_NULL_HANDLE;
 	s_dump_memory = VK_NULL_HANDLE;
+	s_pipeline_over = VK_NULL_HANDLE;
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
 	s_descriptor_pool = VK_NULL_HANDLE;
@@ -654,21 +688,24 @@ void destroy_ring()
 		if (slot.memory != VK_NULL_HANDLE)
 			s_fns.free_memory(s_device, slot.memory, nullptr);
 
-		if (slot.texture_view != VK_NULL_HANDLE)
-			s_fns.destroy_image_view(s_device, slot.texture_view, nullptr);
-		if (slot.texture != VK_NULL_HANDLE)
-			s_fns.destroy_image(s_device, slot.texture, nullptr);
-		if (slot.texture_memory != VK_NULL_HANDLE)
-			s_fns.free_memory(s_device, slot.texture_memory, nullptr);
+		for (layer_tex &l : slot.layers)
+		{
+			if (l.texture_view != VK_NULL_HANDLE)
+				s_fns.destroy_image_view(s_device, l.texture_view, nullptr);
+			if (l.texture != VK_NULL_HANDLE)
+				s_fns.destroy_image(s_device, l.texture, nullptr);
+			if (l.texture_memory != VK_NULL_HANDLE)
+				s_fns.free_memory(s_device, l.texture_memory, nullptr);
 
-		// Unmapping is not strictly required before freeing, but leaving a mapping live across a
-		// vkFreeMemory is the sort of thing a validation layer is right to complain about.
-		if (slot.staging_mapped != nullptr)
-			s_fns.unmap_memory(s_device, slot.staging_memory);
-		if (slot.staging != VK_NULL_HANDLE)
-			s_fns.destroy_buffer(s_device, slot.staging, nullptr);
-		if (slot.staging_memory != VK_NULL_HANDLE)
-			s_fns.free_memory(s_device, slot.staging_memory, nullptr);
+			// Unmapping is not strictly required before freeing, but leaving a mapping live across a
+			// vkFreeMemory is the sort of thing a validation layer is right to complain about.
+			if (l.staging_mapped != nullptr)
+				s_fns.unmap_memory(s_device, l.staging_memory);
+			if (l.staging != VK_NULL_HANDLE)
+				s_fns.destroy_buffer(s_device, l.staging, nullptr);
+			if (l.staging_memory != VK_NULL_HANDLE)
+				s_fns.free_memory(s_device, l.staging_memory, nullptr);
+		}
 	}
 
 	dump_destroy();
@@ -739,84 +776,89 @@ bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queu
 	if (!check(s_fns.create_framebuffer(s_device, &fb_info, nullptr, &slot.framebuffer), "vkCreateFramebuffer"))
 		return false;
 
-	// The texture MAME's frame lands in. Optimal tiling and a copy rather than a linear-tiled image
-	// sampled in place: MoltenVK's linear-tiling feature set is narrow, and this is the portable
-	// shape regardless.
-	VkImageCreateInfo tex_info = image_info;
-	tex_info.flags = 0;
-	tex_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-	if (!check(s_fns.create_image(s_device, &tex_info, nullptr, &slot.texture), "vkCreateImage (texture)"))
-		return false;
-	if (!allocate_and_bind_image(slot.texture, slot.texture_memory))
-		return false;
-
-	VkImageViewCreateInfo tex_view_info = view_info;
-	tex_view_info.image = slot.texture;
-	if (!check(s_fns.create_image_view(s_device, &tex_view_info, nullptr, &slot.texture_view), "vkCreateImageView (texture)"))
-		return false;
-
-	// Tightly packed: 496x384x4 is 762 KB, and the device's optimalBufferCopyRowPitchAlignment is a
-	// performance hint rather than a requirement — it reads 1 here anyway, so there is nothing to
-	// pad even for the hint's sake.
-	const VkDeviceSize staging_size = VkDeviceSize(width) * VkDeviceSize(height) * 4;
-
-	VkBufferCreateInfo buffer_info{};
-	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_info.size = staging_size;
-	buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	if (!check(s_fns.create_buffer(s_device, &buffer_info, nullptr, &slot.staging), "vkCreateBuffer"))
-		return false;
-
-	VkMemoryRequirements buffer_reqs{};
-	s_fns.get_buffer_memory_requirements(s_device, slot.staging, &buffer_reqs);
-
-	// HOST_VISIBLE | HOST_COHERENT, and no fallback: Vulkan guarantees at least one memory type with
-	// both, so this cannot fail on a conforming implementation — and having it means no
-	// vkFlushMappedMemoryRanges anywhere, which is one fewer thing to forget.
-	uint32_t staging_type = 0;
-	if (!find_memory_type(buffer_reqs.memoryTypeBits,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_type))
+	// One of these per 2D layer. Identical in every respect but which draw samples them; the loop is
+	// the only thing that stops the two from drifting apart.
+	for (layer_tex &l : slot.layers)
 	{
-		vk_log(RETRO_LOG_ERROR, "no host-visible coherent memory type accepts a %llu byte staging buffer\n",
-				(unsigned long long)staging_size);
-		return false;
+		// The texture MAME's layer lands in. Optimal tiling and a copy rather than a linear-tiled image
+		// sampled in place: MoltenVK's linear-tiling feature set is narrow, and this is the portable
+		// shape regardless.
+		VkImageCreateInfo tex_info = image_info;
+		tex_info.flags = 0;
+		tex_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		if (!check(s_fns.create_image(s_device, &tex_info, nullptr, &l.texture), "vkCreateImage (texture)"))
+			return false;
+		if (!allocate_and_bind_image(l.texture, l.texture_memory))
+			return false;
+
+		VkImageViewCreateInfo tex_view_info = view_info;
+		tex_view_info.image = l.texture;
+		if (!check(s_fns.create_image_view(s_device, &tex_view_info, nullptr, &l.texture_view), "vkCreateImageView (texture)"))
+			return false;
+
+		// Tightly packed: 496x384x4 is 762 KB, and the device's optimalBufferCopyRowPitchAlignment is a
+		// performance hint rather than a requirement — it reads 1 here anyway, so there is nothing to
+		// pad even for the hint's sake.
+		const VkDeviceSize staging_size = VkDeviceSize(width) * VkDeviceSize(height) * 4;
+
+		VkBufferCreateInfo buffer_info{};
+		buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_info.size = staging_size;
+		buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		if (!check(s_fns.create_buffer(s_device, &buffer_info, nullptr, &l.staging), "vkCreateBuffer"))
+			return false;
+
+		VkMemoryRequirements buffer_reqs{};
+		s_fns.get_buffer_memory_requirements(s_device, l.staging, &buffer_reqs);
+
+		// HOST_VISIBLE | HOST_COHERENT, and no fallback: Vulkan guarantees at least one memory type with
+		// both, so this cannot fail on a conforming implementation — and having it means no
+		// vkFlushMappedMemoryRanges anywhere, which is one fewer thing to forget.
+		uint32_t staging_type = 0;
+		if (!find_memory_type(buffer_reqs.memoryTypeBits,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_type))
+		{
+			vk_log(RETRO_LOG_ERROR, "no host-visible coherent memory type accepts a %llu byte staging buffer\n",
+					(unsigned long long)staging_size);
+			return false;
+		}
+
+		VkMemoryAllocateInfo staging_alloc{};
+		staging_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		staging_alloc.allocationSize = buffer_reqs.size;
+		staging_alloc.memoryTypeIndex = staging_type;
+		if (!check(s_fns.allocate_memory(s_device, &staging_alloc, nullptr, &l.staging_memory), "vkAllocateMemory (staging)"))
+			return false;
+		if (!check(s_fns.bind_buffer_memory(s_device, l.staging, l.staging_memory, 0), "vkBindBufferMemory"))
+			return false;
+		if (!check(s_fns.map_memory(s_device, l.staging_memory, 0, VK_WHOLE_SIZE, 0, &l.staging_mapped), "vkMapMemory"))
+			return false;
+
+		VkDescriptorSetAllocateInfo set_alloc{};
+		set_alloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		set_alloc.descriptorPool = s_descriptor_pool;
+		set_alloc.descriptorSetCount = 1;
+		set_alloc.pSetLayouts = &s_set_layout;
+		if (!check(s_fns.allocate_descriptor_sets(s_device, &set_alloc, &l.descriptor), "vkAllocateDescriptorSets"))
+			return false;
+
+		// Written once. The texture it names never changes for the life of the slot, so there is nothing
+		// for the per-frame path to update.
+		VkDescriptorImageInfo image_binding{};
+		image_binding.sampler = s_sampler;   // immutable in the layout; named here for clarity
+		image_binding.imageView = l.texture_view;
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.dstSet = l.descriptor;
+		write.dstBinding = 0;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		write.pImageInfo = &image_binding;
+		s_fns.update_descriptor_sets(s_device, 1, &write, 0, nullptr);
 	}
-
-	VkMemoryAllocateInfo staging_alloc{};
-	staging_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	staging_alloc.allocationSize = buffer_reqs.size;
-	staging_alloc.memoryTypeIndex = staging_type;
-	if (!check(s_fns.allocate_memory(s_device, &staging_alloc, nullptr, &slot.staging_memory), "vkAllocateMemory (staging)"))
-		return false;
-	if (!check(s_fns.bind_buffer_memory(s_device, slot.staging, slot.staging_memory, 0), "vkBindBufferMemory"))
-		return false;
-	if (!check(s_fns.map_memory(s_device, slot.staging_memory, 0, VK_WHOLE_SIZE, 0, &slot.staging_mapped), "vkMapMemory"))
-		return false;
-
-	VkDescriptorSetAllocateInfo set_alloc{};
-	set_alloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	set_alloc.descriptorPool = s_descriptor_pool;
-	set_alloc.descriptorSetCount = 1;
-	set_alloc.pSetLayouts = &s_set_layout;
-	if (!check(s_fns.allocate_descriptor_sets(s_device, &set_alloc, &slot.descriptor), "vkAllocateDescriptorSets"))
-		return false;
-
-	// Written once. The texture it names never changes for the life of the slot, so there is nothing
-	// for the per-frame path to update.
-	VkDescriptorImageInfo image_binding{};
-	image_binding.sampler = s_sampler;   // immutable in the layout; named here for clarity
-	image_binding.imageView = slot.texture_view;
-	image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-	VkWriteDescriptorSet write{};
-	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	write.dstSet = slot.descriptor;
-	write.dstBinding = 0;
-	write.descriptorCount = 1;
-	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	write.pImageInfo = &image_binding;
-	s_fns.update_descriptor_sets(s_device, 1, &write, 0, nullptr);
 
 	// One pool per slot, reset wholesale each time the slot comes round. That is cheaper than
 	// resetting individual buffers and it means the slot's command memory is recycled rather than
@@ -886,7 +928,7 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 
 	vk_log(RETRO_LOG_INFO, "ring of %u %ux%u B8G8R8A8_UNORM images, sync index mask 0x%x, queue family %u; %llu KiB of staging\n",
 			unsigned(count), width, height, unsigned(mask), iface.queue_index,
-			(unsigned long long)((VkDeviceSize(width) * VkDeviceSize(height) * 4 * count) / 1024));
+			(unsigned long long)((VkDeviceSize(width) * VkDeviceSize(height) * 4 * count * m2vk::LAYER_COUNT) / 1024));
 
 	// The read-back buffer only exists when someone asked for it. A ring rebuild re-reads the
 	// environment but does not re-arm a dump that has already been taken.
@@ -934,7 +976,9 @@ void barrier(VkCommandBuffer cmd, VkImage image,
 	s_fns.cmd_pipeline_barrier(cmd, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &b);
 }
 
-bool record_and_submit(frame_slot &slot, bool dump)
+// `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
+// passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0.
+bool record_and_submit(frame_slot &slot, bool draw_over, bool dump)
 {
 	if (!check(s_fns.reset_command_pool(s_device, slot.pool, 0), "vkResetCommandPool"))
 		return false;
@@ -945,29 +989,36 @@ bool record_and_submit(frame_slot &slot, bool dump)
 	if (!check(s_fns.begin_command_buffer(slot.cmd, &begin), "vkBeginCommandBuffer"))
 		return false;
 
-	// The upload. UNDEFINED as the old layout because last frame's contents are about to be
-	// overwritten in full and discarding them is free.
-	barrier(slot.cmd, slot.texture,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			0, VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+	const uint32_t uploads = draw_over ? uint32_t(m2vk::LAYER_COUNT) : 1;
 
-	VkBufferImageCopy region{};
-	region.bufferOffset = 0;
-	// Zero means "tightly packed to the image extent", which is what the staging buffer is.
-	region.bufferRowLength = 0;
-	region.bufferImageHeight = 0;
-	region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = { s_width, s_height, 1 };
-	s_fns.cmd_copy_buffer_to_image(slot.cmd, slot.staging, slot.texture,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	for (uint32_t i = 0; i < uploads; i++)
+	{
+		layer_tex &l = slot.layers[i];
 
-	// Into the layout the descriptor set names, ready for the draw below.
-	barrier(slot.cmd, slot.texture,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+		// The upload. UNDEFINED as the old layout because last frame's contents are about to be
+		// overwritten in full and discarding them is free.
+		barrier(slot.cmd, l.texture,
+				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				0, VK_ACCESS_TRANSFER_WRITE_BIT,
+				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+		VkBufferImageCopy region{};
+		region.bufferOffset = 0;
+		// Zero means "tightly packed to the image extent", which is what the staging buffer is.
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+		region.imageOffset = { 0, 0, 0 };
+		region.imageExtent = { s_width, s_height, 1 };
+		s_fns.cmd_copy_buffer_to_image(slot.cmd, l.staging, l.texture,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+		// Into the layout the descriptor set names, ready for the draw below.
+		barrier(slot.cmd, l.texture,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+	}
 
 	// The draw. The ring image's transition into SHADER_READ_ONLY_OPTIMAL is the render pass's
 	// finalLayout, so there is no closing barrier here and none is missing.
@@ -998,10 +1049,23 @@ bool record_and_submit(frame_slot &slot, bool dump)
 	scissor.extent = { s_width, s_height };
 	s_fns.cmd_set_scissor(slot.cmd, 0, 1, &scissor);
 
+	// The sandwich, bottom slice first. Both draws are the same fullscreen triangle; they differ only
+	// in the fragment shader and in which layer's descriptor is bound. The 3D goes between them in
+	// step 3, which is why this is two draws in one pass rather than one draw of a shader that samples
+	// both — a depth-tested geometry pass has to sit in the middle, and it cannot if the background
+	// and foreground are resolved in a single fragment.
 	s_fns.cmd_bind_pipeline(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
 	s_fns.cmd_bind_descriptor_sets(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
-			0, 1, &slot.descriptor, 0, nullptr);
+			0, 1, &slot.layers[m2vk::LAYER_UNDER].descriptor, 0, nullptr);
 	s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
+
+	if (draw_over)
+	{
+		s_fns.cmd_bind_pipeline(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_over);
+		s_fns.cmd_bind_descriptor_sets(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
+				0, 1, &slot.layers[m2vk::LAYER_OVER].descriptor, 0, nullptr);
+		s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
+	}
 
 	s_fns.cmd_end_render_pass(slot.cmd);
 
@@ -1061,6 +1125,21 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	if ((pixels == nullptr) || (width == 0) || (height == 0))
 		return false;
 
+	// The composited path when the emulation thread has captured both 2D layers, the passthrough
+	// otherwise. "Otherwise" is not only the software renderer: the layers do not exist until the
+	// first screen_update has run, and a capture whose geometry disagrees with the frame the OSD
+	// handed us is not one to composite from — the picture would be the right size and the wrong
+	// content, which is worse than a frame of passthrough.
+	m2vk::frame_record const *layers = m2vk::frame_current();
+	if ((layers != nullptr)
+			&& ((unsigned(layers->layer[m2vk::LAYER_UNDER].width) != width)
+				|| (unsigned(layers->layer[m2vk::LAYER_UNDER].height) != height)
+				|| (unsigned(layers->layer[m2vk::LAYER_OVER].width) != width)
+				|| (unsigned(layers->layer[m2vk::LAYER_OVER].height) != height)))
+	{
+		layers = nullptr;
+	}
+
 	// Re-read every frame. The mask is documented to change — a fullscreen toggle changes the
 	// swapchain length — and the spec's promise is that when it does, the device is idle.
 	const uint32_t mask = iface->get_sync_index_mask(iface->handle);
@@ -1108,18 +1187,28 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 		return false;
 	}
 
-	// The one copy of the picture. capture_frame() has already packed the visible rectangle tightly,
-	// so this is a single memcpy of the whole thing and the destination layout matches it exactly.
+	// The copies of the picture. capture_frame() and capture_layer() have both already packed the
+	// visible rectangle tightly, so each is a single memcpy and the destination layout matches exactly.
 	//
-	// This could be avoided entirely — capture_frame() could write straight into the mapped buffer —
-	// but that would put Vulkan-owned memory in the emulation thread's write path and couple the
-	// emulator's frame timing to the sync index. Not for the phase whose job is the baseline.
-	std::memcpy(slot.staging_mapped, pixels, size_t(width) * size_t(height) * sizeof(uint32_t));
+	// These could be avoided entirely — the capture could write straight into the mapped buffer — but
+	// that would put Vulkan-owned memory in the emulation thread's write path and couple the
+	// emulator's frame timing to the sync index. Not while the baseline is still being established.
+	const size_t bytes = size_t(width) * size_t(height) * sizeof(uint32_t);
+
+	if (layers != nullptr)
+	{
+		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, layers->layer[m2vk::LAYER_UNDER].pixels.data(), bytes);
+		std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, layers->layer[m2vk::LAYER_OVER].pixels.data(), bytes);
+	}
+	else
+	{
+		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, pixels, bytes);
+	}
 
 	const bool dump = !s_dump_done && !s_dump_prefix.empty() && (s_dump_mapped != nullptr)
 			&& (s_frames == s_dump_frame);
 
-	if (!record_and_submit(slot, dump))
+	if (!record_and_submit(slot, layers != nullptr, dump))
 	{
 		if (!s_reported_frame_error)
 		{

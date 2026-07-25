@@ -612,6 +612,8 @@ void model2_renderer::model2_3d_render(polygon *poly, const rectangle &cliprect)
 
 #ifdef M2VK
 	m2vk::submit(*poly, extra, renderer, vp);
+	if (!m2vk::rasterize())
+		return;
 #endif
 
 	switch (poly->num_vertices)
@@ -2455,10 +2457,18 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
 	else
 		render_polygons(bitmap, cliprect);
 
+#ifdef M2VK
+	m2vk::capture_layer(m2vk::LAYER_UNDER, bitmap, cliprect);
+#endif
+
 	m_sys24_bitmap.fill(0, cliprect);
 
 	for (int layer = 3; layer >= 0; layer--)
 		m_tiles->draw(screen, m_sys24_bitmap, cliprect, (layer<<1) | 1, 0, 0);
+
+#ifdef M2VK
+	m2vk::capture_layer(m2vk::LAYER_OVER, m_sys24_bitmap, cliprect);
+#endif
 
 	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
 
