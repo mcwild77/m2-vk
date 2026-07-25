@@ -11,7 +11,8 @@
     header is the whole of what they see.
 
     What arrives here is a m2vk::poly — a plain snapshot of the polygon, carrying no MAME types.
-    That is deliberate:
+    Its shape, and the rest of what crosses the seam, is m2vk_frame.h; this header is the seam
+    itself. The separation is deliberate:
 
       * consumers (the diagnostic tap below, the hardware renderer later) compile without the
         driver's headers, so they cannot come to depend on driver internals, and an upstream change
@@ -41,53 +42,6 @@
 
 namespace m2vk {
 
-// as declared by model2_state::polygon
-enum : int { MAX_VERTICES = 8 };
-
-struct vertex
-{
-	float   x, y;       // screen space, after projection and viewport transform
-	float   rz;         // textured polygons: 1/z. solid polygons: z, unreciprocated — the solid
-	                    // scanline renderer ignores the vertex parameters, so model2_v.cpp only
-	                    // reciprocates for the textured case. Beware when comparing depth ranges
-	                    // across renderer classes.
-	float   uz, vz;     // u/z, v/z, premultiplied by rz and scaled by 1/8. Textured only.
-};
-
-// One polygon, exactly as the software rasterizer is about to receive it. The texture fields are
-// zero unless (renderer & 2) — model2_v.cpp resolves them only for textured polygons, and the
-// object_data slot they live in is recycled, so anything else in there is stale.
-struct poly
-{
-	vertex          v[MAX_VERTICES];
-	uint8_t         num_verts;
-	uint8_t         renderer;       // bit1 = textured, bit0 = translucent; indexes m_render_callbacks
-	uint16_t        bucket;         // sort bucket (polygon::z). Within one bucket, draw order is
-	                                // submission order, and only submission order breaks the tie.
-	uint8_t         window;
-	uint16_t        texheader[4];   // the raw header words, for anything not decoded below
-	uint8_t         luma;
-	int32_t         texlod;
-	int16_t         viewport[4];
-	int16_t         center[2];
-	int32_t         clip[4];        // viewport after clipping against the screen: left, top, right, bottom
-
-	// resolved parameters, i.e. m2_poly_extra_data
-	uint32_t        lumabase;
-	uint32_t        colorbase;
-	uint8_t         checker;
-	uint32_t        texwidth, texheight;
-	uint32_t        texx, texy;
-	uint8_t         texwrapx, texwrapy;
-	uint8_t         texmirrorx, texmirrory;
-	uint8_t         sheet;          // 0 = textureram0, 1 = textureram1
-	uint8_t         utex;           // microtexture enable
-	uint8_t         utexminlod;
-	uint32_t        utexx, utexy;
-	uint32_t const *texsheet[2];    // live texture RAM: [0] this polygon's sheet, [1] the other one.
-	                                // Valid for the duration of the submit() call only.
-};
-
 // Implemented by anything that wants the stream. run_begin/run_end bracket one machine; the frame
 // pair brackets one rendered frame. Every method is optional.
 class consumer
@@ -97,7 +51,7 @@ public:
 
 	virtual void run_begin() { }
 	virtual void run_end() { }
-	virtual void frame_begin(uint32_t submitted) { }
+	virtual void frame_begin(uint32_t submitted, frame_tables const &tables) { }
 	virtual void submit(poly const &p) { }
 	virtual void frame_end() { }
 };
@@ -114,8 +68,10 @@ extern bool g_rasterize;
 
 } // namespace detail
 
-// Cheap enough to sit in front of the per-polygon conversion below.
-inline bool active() { return detail::g_active; }
+// Cheap enough to sit in front of the per-polygon conversion below. Two predicates because there
+// are two independent reasons to want the stream: a diagnostic consumer is attached, or the frame
+// record is capturing for the hardware renderer.
+inline bool active() { return detail::g_active || capturing(); }
 
 // Read at the seam once per polygon, immediately after submit(). Default true, so a build that never
 // sets it behaves exactly as MAME does.
@@ -126,8 +82,9 @@ void set_rasterize(bool on);
 void sink_open();
 void sink_close();
 
-// The seam, driver-type-free half.
-void frame_begin(uint32_t submitted);
+// The seam, driver-type-free half. The tables are pointers into model2_state and are read — and
+// copied — before frame_begin returns; nothing keeps them.
+void frame_begin(uint32_t submitted, frame_tables const &tables);
 void submit(poly const &p);
 void frame_end();
 
@@ -172,6 +129,12 @@ inline void submit(Polygon const &src, Extra const &extra, uint8_t renderer, Rec
 
 	p.lumabase = extra.lumabase;
 	p.colorbase = extra.colorbase;
+
+	// The one table lookup that happens here rather than crossing whole. Both scanline renderers do
+	// exactly this — state->m_palram[colorbase + 0x1000] — and colorbase is 10 bits, so the index
+	// cannot leave m_palram's 0x2000 entries. See m2vk::poly for why the raw word is kept.
+	p.palcolor = extra.state->m_palram[extra.colorbase + 0x1000];
+
 	p.checker = extra.checker;
 
 	if (renderer & 2)
@@ -218,7 +181,7 @@ inline void submit(Polygon const &src, Extra const &extra, uint8_t renderer, Rec
 template <typename Bitmap, typename Rect>
 inline void capture_layer(int which, Bitmap const &bm, Rect const &clip)
 {
-	if (!want_layers())
+	if (!capturing())
 		return;
 
 	const int w = clip.width();

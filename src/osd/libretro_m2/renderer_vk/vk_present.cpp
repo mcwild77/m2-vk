@@ -179,6 +179,76 @@ void          *s_dump_mapped = nullptr;
 
 
 //============================================================
+//  the geometry diagnostic
+//============================================================
+
+// M2VK_GEOM_LOG=1 reports the frame record's geometry as the *renderer* sees it — on the frontend's
+// thread, after the baton, from data the emulation thread wrote. One line per frame with new
+// polygons rather than one per presented frame, so a duped frame is silent and the sequence lines up
+// one for one with the polytap's own per-frame line.
+//
+// That correspondence is the test. The two counts are produced by different code on different
+// threads from different copies of the stream, and if they agree frame for frame over a run then the
+// record is carrying the whole stream and carrying it intact. Nothing is drawn from it yet.
+bool     s_geom_log = false;
+bool     s_geom_log_known = false;
+uint64_t s_geom_last_serial = 0;
+uint64_t s_geom_last_tables = 0;
+
+// FNV-1a, and only over tables that have just changed. A serial says something crossed; a digest
+// says the bytes did, which is the part that would otherwise go unnoticed until the shading is
+// wrong in step 4.
+uint64_t table_digest(m2vk::frame_record const &record)
+{
+	uint64_t h = 1469598103934665603ull;
+	for (uint8_t const b : record.colorxlat)
+	{
+		h ^= b;
+		h *= 1099511628211ull;
+	}
+	for (uint8_t const b : record.lumaram)
+	{
+		h ^= b;
+		h *= 1099511628211ull;
+	}
+	return h;
+}
+
+void report_geometry(m2vk::frame_record const *record)
+{
+	if (!s_geom_log_known)
+	{
+		s_geom_log = (std::getenv("M2VK_GEOM_LOG") != nullptr);
+		s_geom_log_known = true;
+	}
+
+	if (!s_geom_log || (record == nullptr) || !record->geometry_valid)
+		return;
+	if (record->geometry_serial == s_geom_last_serial)
+		return;     // the emulator produced no new list this frame; the renderer would dupe the 3D
+
+	s_geom_last_serial = record->geometry_serial;
+
+	if (record->tables_serial != s_geom_last_tables)
+	{
+		s_geom_last_tables = record->tables_serial;
+		vk_log(RETRO_LOG_INFO, "geom %llu: polys %u/%u  tables %llu now %016llx (%u + %u bytes)\n",
+				(unsigned long long)record->geometry_serial,
+				unsigned(record->poly_count), unsigned(record->submitted),
+				(unsigned long long)record->tables_serial, (unsigned long long)table_digest(*record),
+				unsigned(record->colorxlat.size()), unsigned(record->lumaram.size()));
+	}
+	else
+	{
+		vk_log(RETRO_LOG_INFO, "geom %llu: polys %u/%u  tables %llu  capacity %u\n",
+				(unsigned long long)record->geometry_serial,
+				unsigned(record->poly_count), unsigned(record->submitted),
+				(unsigned long long)record->tables_serial, unsigned(record->polys.size()));
+	}
+}
+
+
+//============================================================
 //  helpers
 //============================================================
 
@@ -1125,12 +1195,18 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	if ((pixels == nullptr) || (width == 0) || (height == 0))
 		return false;
 
+	// The record the emulation thread finished writing before it parked on the baton. The polygon
+	// stream and the colour tables in it are recorded but not yet drawn — step 2 of P3 hands them
+	// across and no further, and report_geometry is how that is checked.
+	m2vk::frame_record const *const record = m2vk::frame_current();
+	report_geometry(record);
+
 	// The composited path when the emulation thread has captured both 2D layers, the passthrough
 	// otherwise. "Otherwise" is not only the software renderer: the layers do not exist until the
 	// first screen_update has run, and a capture whose geometry disagrees with the frame the OSD
 	// handed us is not one to composite from — the picture would be the right size and the wrong
 	// content, which is worse than a frame of passthrough.
-	m2vk::frame_record const *layers = m2vk::frame_current();
+	m2vk::frame_record const *layers = record;
 	if ((layers != nullptr)
 			&& ((unsigned(layers->layer[m2vk::LAYER_UNDER].width) != width)
 				|| (unsigned(layers->layer[m2vk::LAYER_UNDER].height) != height)
@@ -1288,6 +1364,11 @@ void present_end_run()
 {
 	present_shutdown();
 	s_frames = 0;
+
+	// The record's own serials restart with the run, so the watermarks that chase them have to as
+	// well, or the first frame of a second game would look like a duplicate and go unreported.
+	s_geom_last_serial = 0;
+	s_geom_last_tables = 0;
 }
 
 } // namespace m2vk

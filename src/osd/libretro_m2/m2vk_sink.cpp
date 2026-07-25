@@ -65,7 +65,7 @@ public:
 		m_consumers.clear();
 	}
 
-	void frame_begin(uint32_t submitted)
+	void frame_begin(uint32_t submitted, frame_tables const &tables)
 	{
 		// A build whose OSD does not bracket the run (the plain SUBTARGET=model2 binary, which has no
 		// libretro OSD to call sink_open) still gets one run, opened here and closed by ~sink at
@@ -75,7 +75,7 @@ public:
 			open();
 
 		for (auto &c : m_consumers)
-			c->frame_begin(submitted);
+			c->frame_begin(submitted, tables);
 	}
 
 	void submit(poly const &p)
@@ -105,8 +105,26 @@ void set_rasterize(bool on) { detail::g_rasterize = on; }
 void sink_open() { g_sink.open(); }
 void sink_close() { g_sink.close(); }
 
-void frame_begin(uint32_t submitted) { g_sink.frame_begin(submitted); }
-void submit(poly const &p) { g_sink.submit(p); }
-void frame_end() { g_sink.frame_end(); }
+// The frame record is not a consumer: it is the renderer's half of the seam rather than something
+// watching it, it is the only thing that needs the tables, and it must not depend on a consumer list
+// that a diagnostic environment variable can empty. So it is called first and directly, and the
+// consumers get whatever is left.
+void frame_begin(uint32_t submitted, frame_tables const &tables)
+{
+	geometry_begin(submitted, tables);
+	g_sink.frame_begin(submitted, tables);
+}
+
+void submit(poly const &p)
+{
+	geometry_submit(p);
+	g_sink.submit(p);
+}
+
+void frame_end()
+{
+	geometry_end();
+	g_sink.frame_end();
+}
 
 } // namespace m2vk

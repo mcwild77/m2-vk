@@ -90,8 +90,9 @@ public:
 
 	// submitted = raster->poly_list_index, the number of polygons the geometry engine put in the
 	// list this frame. Comparing it against the number of tapped polygons proves the tap sees the
-	// whole stream and not a subset.
-	virtual void frame_begin(uint32_t submitted) override
+	// whole stream and not a subset. The colour tables are the hardware renderer's business; nothing
+	// the survey reports comes out of them.
+	virtual void frame_begin(uint32_t submitted, frame_tables const &) override
 	{
 		m_frame++;
 		m_polys = 0;
