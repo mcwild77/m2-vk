@@ -206,8 +206,9 @@ uint64_t s_geom_last_serial = 0;
 uint64_t s_geom_last_tables = 0;
 
 // FNV-1a, and only over tables that have just changed. A serial says something crossed; a digest
-// says the bytes did, which is the part that would otherwise go unnoticed until the shading is
-// wrong in step 4.
+// says the bytes did, which is the part that would otherwise go unnoticed until the shading came out
+// wrong with nothing to point at. Texture RAM is not in here: it is not snapshotted into the record,
+// so there is nothing whose crossing could be in doubt.
 uint64_t table_digest(m2vk::frame_record const &record)
 {
 	uint64_t h = 1469598103934665603ull;

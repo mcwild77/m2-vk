@@ -30,15 +30,22 @@
         the emulation thread and not one Vulkan call may be made there. So this file's upload runs
         inside retro_run, from data the emulation thread wrote and is now parked against.
 
-    What this step draws is the untextured path only: draw_scanline_solid's colour chain and the
-    checker stipple. Textured polygons are counted and skipped; the texture RAM decode and the
-    lumaram tail are the next two steps. An untextured *translucent* polygon draws nothing at all,
-    as in the software renderer, so it is dropped at upload rather than discarded in the shader.
+    What this draws is both opaque paths: draw_scanline_solid's colour chain and the checker stipple,
+    and — since step 4 — draw_scanline_tex, which is the filtered texel, the mip chain, the
+    microtexture blend and the lumaram tail. Textured *translucent* polygons are counted and skipped;
+    the cutout is step 5. An untextured translucent polygon draws nothing at all, as in the software
+    renderer, so it is dropped at upload rather than discarded in the shader.
 
     Buffers are per sync index and are written directly rather than staged: this device's memory
     type 1 is device-local and host-visible both (unified memory), so a staging copy would buy
-    nothing. They grow to the run's high-water mark and are never shrunk, so a run that has been
-    going for a second does no allocation at all.
+    nothing. The per-frame three grow to the run's high-water mark and are never shrunk, so a run
+    that has been going for a second does no allocation at all.
+
+    Texture RAM is a fourth, fixed at 2 MB — both 1 MB sheets, raw, exactly as they sit in the
+    machine's memory shares. There is no atlas, no cache and no page decode, because at 2 MB total
+    there is nothing to be gained by working out which part of it a frame wants. It is copied from
+    the live shares on this thread, which is safe for the same reason everything else here is: the
+    emulation thread is parked on the baton for all of retro_run.
 
 *********************************************************************************************************************************/
 
@@ -77,8 +84,7 @@ void geom_forget();
 // Turns the record into this slot's buffers. Called on the frontend's thread, after the slot's
 // fence has retired, so the buffers this touches are not in flight. Returns whether there is
 // anything for geom_draw() to do — false when the hardware path does not own the 3D, when the
-// emulator has produced no geometry, or when every polygon in the frame took a path this step does
-// not draw yet.
+// emulator has produced no geometry, or when every polygon in the frame took a path not drawn yet.
 bool geom_upload(uint32_t slot, frame_record const &record);
 
 // Records the polygon pass, inside the ring's render pass and between the two 2D layer draws. The

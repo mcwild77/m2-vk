@@ -87,22 +87,48 @@ struct gpu_vertex
 
 static_assert(sizeof(gpu_vertex) == 28, "the vertex attribute offsets below are written out by hand");
 
-// std430, four words, and it stays four words until a textured step needs more. Mirrors the
-// poly_params struct at the top of poly.frag.
+// std430, sixteen scalar words, so the array stride is a plain 64 bytes. Mirrors the poly_params
+// struct at the top of poly.frag, field for field and in order.
 struct gpu_poly
 {
 	uint32_t palcolor;
 	uint32_t luma;
 	uint32_t flags;
-	uint32_t reserved;
+	int32_t  texlod;
+
+	uint32_t texwidth;
+	uint32_t texheight;
+	uint32_t texx;
+	uint32_t texy;
+
+	uint32_t lumabase;
+	uint32_t sheet;
+	uint32_t utexx;
+	uint32_t utexy;
+
+	uint32_t utexminlod;
+	int32_t  max_level;
+	uint32_t reserved0;
+	uint32_t reserved1;
 };
+
+static_assert(sizeof(gpu_poly) == 64, "poly.frag's poly_params must match this word for word");
 
 enum : uint32_t
 {
 	FLAG_TRANSLUCENT = 1,
 	FLAG_TEXTURED    = 2,
-	FLAG_CHECKER     = 4
+	FLAG_CHECKER     = 4,
+	FLAG_WRAPX       = 8,
+	FLAG_WRAPY       = 16,
+	FLAG_MIRRORX     = 32,
+	FLAG_MIRRORY     = 64,
+	FLAG_UTEX        = 128
 };
+
+// Both sheets in one buffer, sheet 0 first. 2 MB, which is the entirety of Model 2's texture memory
+// and the reason there is no atlas, no cache and no page decode anywhere in this renderer.
+constexpr uint32_t TEXRAM_TOTAL_WORDS = m2vk::TEXRAM_SHEET_WORDS * 2;
 
 // The vertex shader's push constant block: the visible picture's half-extent in pixels.
 struct gpu_push
@@ -132,6 +158,7 @@ struct geom_slot
 	mapped_buffer   params;
 	mapped_buffer   colorxlat;
 	mapped_buffer   lumaram;
+	mapped_buffer   texram;
 
 	VkDescriptorSet descriptor = VK_NULL_HANDLE;
 
@@ -240,15 +267,15 @@ bool create_buffer(mapped_buffer &b, VkDeviceSize size, VkBufferUsageFlags usage
 	return true;
 }
 
-// Points the slot's descriptor set at whatever its five buffers currently are. Called at build and
-// again whenever growth has replaced one of them.
+// Points the slot's descriptor set at whatever its buffers currently are. Called at build and again
+// whenever growth has replaced one of them.
 void write_descriptor(geom_slot &slot)
 {
-	const VkBuffer buffers[3] = { slot.params.buffer, slot.colorxlat.buffer, slot.lumaram.buffer };
+	const VkBuffer buffers[4] = { slot.params.buffer, slot.colorxlat.buffer, slot.lumaram.buffer, slot.texram.buffer };
 
-	VkDescriptorBufferInfo info[3]{};
-	VkWriteDescriptorSet write[3]{};
-	for (uint32_t i = 0; i < 3; i++)
+	VkDescriptorBufferInfo info[4]{};
+	VkWriteDescriptorSet write[4]{};
+	for (uint32_t i = 0; i < 4; i++)
 	{
 		info[i].buffer = buffers[i];
 		info[i].offset = 0;
@@ -262,7 +289,25 @@ void write_descriptor(geom_slot &slot)
 		write[i].pBufferInfo = &info[i];
 	}
 
-	s_fns.update_descriptor_sets(s_device, 3, write, 0, nullptr);
+	s_fns.update_descriptor_sets(s_device, 4, write, 0, nullptr);
+}
+
+// max_level in draw_scanline_tex: 30 - count_leading_zeros_32(min(texwidth, texheight)), which is
+// floor(log2(min)) - 1 — the chain stops at 2x2. Resolved here rather than in the shader because it
+// is per polygon and constant across its fragments.
+int32_t max_mip_level(uint32_t width, uint32_t height)
+{
+	uint32_t smaller = (width < height) ? width : height;
+	int32_t level = -1;
+	while (smaller != 0)
+	{
+		smaller >>= 1;
+		level++;
+	}
+
+	// Only reachable if a textured polygon arrived with a zero dimension, which the header decode
+	// cannot produce (32 << n). MAME would clamp against a negative bound here.
+	return (level > 0) ? (level - 1) : 0;
 }
 
 // The three per-frame buffers, sized for `polys` polygons: every polygon may have MAX_VERTICES
@@ -298,11 +343,11 @@ bool size_slot(geom_slot &slot, uint32_t polys)
 
 bool build_descriptors(uint32_t slot_count)
 {
-	// Three storage buffers: the per-polygon parameters, the baked colour ramps, and the luma
-	// translator. The last is unused by the untextured path and is bound anyway — the record already
-	// carries it, and an unbound descriptor is a worse thing to leave lying around than an unread one.
-	VkDescriptorSetLayoutBinding bindings[3]{};
-	for (uint32_t i = 0; i < 3; i++)
+	// Four storage buffers: the per-polygon parameters, the baked colour ramps, the luma translator
+	// and texture RAM. All four are bound for every draw — the sheets in particular, because the mip
+	// chain alternates between them and a polygon reads both.
+	VkDescriptorSetLayoutBinding bindings[4]{};
+	for (uint32_t i = 0; i < 4; i++)
 	{
 		bindings[i].binding = i;
 		bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -312,7 +357,7 @@ bool build_descriptors(uint32_t slot_count)
 
 	VkDescriptorSetLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layout_info.bindingCount = 3;
+	layout_info.bindingCount = 4;
 	layout_info.pBindings = bindings;
 	if (!check(s_fns.create_descriptor_set_layout(s_device, &layout_info, nullptr, &s_set_layout),
 			"vkCreateDescriptorSetLayout (geometry)"))
@@ -322,7 +367,7 @@ bool build_descriptors(uint32_t slot_count)
 
 	VkDescriptorPoolSize size{};
 	size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	size.descriptorCount = slot_count * 3;
+	size.descriptorCount = slot_count * 4;
 
 	VkDescriptorPoolCreateInfo pool_info{};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -544,23 +589,31 @@ bool geom_build(const retro_hw_render_interface_vulkan &iface, const vk_funcs &f
 			return false;
 		}
 
-		// The two tables are fixed size and are allocated here rather than on the first frame that
-		// carries them, so that nothing in the per-frame path allocates in the steady state.
+		// The tables and the texture sheets are fixed size and are allocated here rather than on the
+		// first frame that carries them, so that nothing in the per-frame path allocates in the steady
+		// state. Texture RAM is much the largest thing here — 2 MB a slot, 6 MB over the ring — and it
+		// is still small enough that holding all of it beats working out which part is wanted.
 		if (!size_slot(slot, INITIAL_POLY_CAPACITY)
 				|| !create_buffer(slot.colorxlat, m2vk::COLORXLAT_ENTRIES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 						"vkCreateBuffer (colorxlat)")
 				|| !create_buffer(slot.lumaram, m2vk::LUMARAM_ENTRIES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-						"vkCreateBuffer (lumaram)"))
+						"vkCreateBuffer (lumaram)")
+				|| !create_buffer(slot.texram, VkDeviceSize(TEXRAM_TOTAL_WORDS) * sizeof(uint32_t),
+						VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (texture RAM)"))
 		{
 			geom_destroy();
 			return false;
 		}
 
+		// Zeroed once, so that a polygon whose texture parameters point at a sheet the driver variant
+		// does not fill reads black rather than whatever the allocator left behind.
+		std::memset(slot.texram.mapped, 0, size_t(TEXRAM_TOTAL_WORDS) * sizeof(uint32_t));
+
 		write_descriptor(slot);
 	}
 
 	const VkDeviceSize per_slot = s_slots[0].vertices.size + s_slots[0].indices.size + s_slots[0].params.size
-			+ s_slots[0].colorxlat.size + s_slots[0].lumaram.size;
+			+ s_slots[0].colorxlat.size + s_slots[0].lumaram.size + s_slots[0].texram.size;
 	vk_log(RETRO_LOG_INFO, "geometry: %u slots of %u polygons, %llu KiB each; depth D32_SFLOAT, draw order\n",
 			unsigned(slot_count), unsigned(INITIAL_POLY_CAPACITY), (unsigned long long)(per_slot / 1024));
 
@@ -583,6 +636,7 @@ void geom_destroy()
 		destroy_buffer(slot.params);
 		destroy_buffer(slot.colorxlat);
 		destroy_buffer(slot.lumaram);
+		destroy_buffer(slot.texram);
 	}
 
 	if (s_pipeline != VK_NULL_HANDLE)
@@ -644,8 +698,14 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	auto *const indices = static_cast<uint32_t *>(slot.indices.mapped);
 	auto *const params = static_cast<gpu_poly *>(slot.params.mapped);
 
+	// Texture RAM is only reachable if the frame actually carried it; a record from before the first
+	// captured geometry frame has null pointers. Without it a textured polygon has nothing to sample,
+	// so it is skipped rather than drawn black.
+	const bool have_texram = (record.texram[0] != nullptr) && (record.texram[1] != nullptr);
+
 	uint32_t vcount = 0;
 	uint32_t icount = 0;
+	uint32_t drawn_textured = 0;
 	uint32_t skipped_textured = 0;
 	uint32_t skipped_translucent = 0;
 
@@ -656,13 +716,33 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 
 		// cls is bit0 = translucent, bit1 = textured — the same two bits, in the same order, that
 		// m_render_callbacks is indexed by. Spelled out rather than passed through, so that the flag
-		// words stay independent of that coincidence when the textured steps add to them.
-		params[n].palcolor = p.palcolor;
-		params[n].luma = p.luma;
-		params[n].flags = ((cls & 1) ? FLAG_TRANSLUCENT : 0u)
+		// words stay independent of that coincidence.
+		gpu_poly &gp = params[n];
+		gp.palcolor = p.palcolor;
+		gp.luma = p.luma;
+		gp.flags = ((cls & 1) ? FLAG_TRANSLUCENT : 0u)
 				| ((cls & 2) ? FLAG_TEXTURED : 0u)
-				| (p.checker ? FLAG_CHECKER : 0u);
-		params[n].reserved = 0;
+				| (p.checker ? FLAG_CHECKER : 0u)
+				| (p.texwrapx ? FLAG_WRAPX : 0u)
+				| (p.texwrapy ? FLAG_WRAPY : 0u)
+				| (p.texmirrorx ? FLAG_MIRRORX : 0u)
+				| (p.texmirrory ? FLAG_MIRRORY : 0u)
+				| (p.utex ? FLAG_UTEX : 0u);
+		gp.texlod = p.texlod;
+		gp.texwidth = p.texwidth;
+		gp.texheight = p.texheight;
+		gp.texx = p.texx;
+		gp.texy = p.texy;
+		gp.lumabase = p.lumabase;
+		// The shader reads texsheet[i] as sheet ^ i, so what it wants is which sheet texheader[2]'s
+		// bit 12 named — not either of the record's two already-swapped pointers.
+		gp.sheet = p.sheet;
+		gp.utexx = p.utexx;
+		gp.utexy = p.utexy;
+		gp.utexminlod = p.utexminlod;
+		gp.max_level = ((cls & 2) != 0) ? max_mip_level(p.texwidth, p.texheight) : 0;
+		gp.reserved0 = 0;
+		gp.reserved1 = 0;
 
 		// A translucent untextured polygon draws nothing at all: draw_scanline_solid<true> returns
 		// before writing a pixel. Dropping it here rather than discarding it in the shader is not an
@@ -673,12 +753,22 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 			skipped_translucent++;
 			continue;
 		}
-		if ((cls & 2) != 0)
+		if (cls == 3)
 		{
-			// The textured paths are the next two steps. Counted rather than approximated: drawing
-			// these flat would produce a plausible-looking picture that is not the game.
+			// The translucent cutout is step 5: the packed alpha lane, the transparent-texel-takes-
+			// neighbour-luma rule and the < 50 % discard. Counted rather than approximated — drawing
+			// these opaque would produce a plausible-looking picture that is not the game.
 			skipped_textured++;
 			continue;
+		}
+		if ((cls & 2) != 0)
+		{
+			if (!have_texram)
+			{
+				skipped_textured++;
+				continue;
+			}
+			drawn_textured++;
 		}
 		// Clamped rather than trusted. The buffers above are sized at MAX_VERTICES per polygon, which
 		// is what model2_state::polygon declares, and the one place this could exceed it is a
@@ -716,10 +806,31 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	if (!s_reported_skips && ((skipped_textured != 0) || (skipped_translucent != 0)))
 	{
 		s_reported_skips = true;
-		vk_log(RETRO_LOG_INFO, "geometry: of %u polygons, %u drawn, %u textured (steps 4 and 5), %u untextured translucent (drawn by neither renderer)\n",
+		vk_log(RETRO_LOG_INFO, "geometry: of %u polygons, %u drawn (%u textured), %u textured translucent (step 5), %u untextured translucent (drawn by neither renderer)\n",
 				unsigned(record.poly_count),
 				unsigned(record.poly_count - skipped_textured - skipped_translucent),
+				unsigned(drawn_textured),
 				unsigned(skipped_textured), unsigned(skipped_translucent));
+	}
+
+	// Texture RAM, straight from the machine's memory shares — no snapshot on the emulation thread,
+	// because that thread is parked on the baton for the whole of this call and the shares outlive the
+	// machine's every frame. 2 MB a frame, and only on frames that actually sample it: the A/B
+	// harness's M2VK_FORCE_SOLID runs never touch it.
+	//
+	// It is re-uploaded unconditionally rather than serial-checked. A dirty check on 2 MB costs a
+	// compare against a shadow copy, which is the memcpy again plus the shadow; the write handlers are
+	// where that check belongs if it is ever needed, and it is not needed until it is measured.
+	if ((drawn_textured != 0) && have_texram)
+	{
+		auto *const dst = static_cast<uint32_t *>(slot.texram.mapped);
+		for (uint32_t sheet = 0; sheet < 2; sheet++)
+		{
+			const uint32_t words = (record.texram_words[sheet] < m2vk::TEXRAM_SHEET_WORDS)
+					? record.texram_words[sheet] : uint32_t(m2vk::TEXRAM_SHEET_WORDS);
+			std::memcpy(dst + (sheet * m2vk::TEXRAM_SHEET_WORDS), record.texram[sheet],
+					size_t(words) * sizeof(uint32_t));
+		}
 	}
 
 	// The tables are 56 KB and change six times in nine hundred frames of VF2, so the serial is worth

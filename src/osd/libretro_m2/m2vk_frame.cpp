@@ -109,6 +109,14 @@ void geometry_begin(uint32_t submitted, frame_tables const &tables)
 
 	if (snapshot_tables(tables))
 		g_record.tables_serial++;
+
+	// Not snapshotted — see frame_record. Re-read every frame anyway because the shares are found
+	// when the machine starts and this is the only place that hears about it.
+	for (int i = 0; i < 2; i++)
+	{
+		g_record.texram[i] = tables.texram[i];
+		g_record.texram_words[i] = tables.texram_words[i];
+	}
 }
 
 void geometry_submit(poly const &p)
@@ -203,6 +211,14 @@ void frame_end_run()
 	g_record.submitted = 0;
 	g_record.geometry_valid = false;
 	g_record.geometry_serial = 0;
+
+	// Dropped rather than kept stale: these point into a machine that is going away, and the next
+	// run's shares are somewhere else entirely.
+	for (int i = 0; i < 2; i++)
+	{
+		g_record.texram[i] = nullptr;
+		g_record.texram_words[i] = 0;
+	}
 
 	// The tables are marked stale rather than cleared, for the same reason: the next run's first
 	// captured frame refills them, and it will report itself as a change because of this flag.

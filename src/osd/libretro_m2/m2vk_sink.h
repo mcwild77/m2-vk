@@ -70,6 +70,7 @@ extern bool g_rasterize;
 // force_solid() and only_poly() below for what they are for; they live here rather than behind
 // accessors because submit() reads them for every polygon on both renderers' paths.
 extern uint8_t  g_force_solid;      // 0 off, 1 clear the textured bit, 2 force renderer 0
+extern bool     g_opaque_only;      // every translucent polygon rewritten to the class neither draws
 extern int32_t  g_only_poly;        // -1 draws every polygon, otherwise only this one
 extern int32_t  g_only_frame;       // -1 means every frame; only meaningful with g_only_poly
 extern uint32_t g_frame_index;      // frames seen at the seam, from 0
@@ -115,13 +116,23 @@ void set_rasterize(bool on);
 //   M2VK_FORCE_SOLID=2   forces renderer 0, so every polygon draws opaque. Nothing is skipped, so
 //                        the coverage comparison sees the whole stream — which is what it is for.
 //
+//   M2VK_OPAQUE_ONLY=1   rewrites every translucent polygon to renderer class 1, which is the one
+//                        class NEITHER renderer draws — draw_scanline_solid<true> returns before it
+//                        writes a pixel and vk_geom drops it at upload. So it removes exactly the
+//                        same polygons from both paths, which is what makes it a measuring tool
+//                        rather than a picture. It exists because P3 lands the translucent cutout a
+//                        step after the opaque textured path, and without it the coverage diff for
+//                        that step reads the missing translucency as a rasterizer disagreement.
+//                        Applied after M2VK_FORCE_SOLID, which subsumes it in both its modes.
+//
 //   M2VK_ONLY_POLY=<n>   draws polygon n of a frame and no other. With M2VK_ONLY_FRAME=<m> it is
 //                        polygon n of frame m; without, it is polygon n of every frame. n counts
 //                        polygons arriving at the seam, so it is the same n in both renderers even
 //                        when the record has dropped some.
 //
-// Neither costs anything when unset: two predicates on an already-hot path.
+// None of them costs anything when unset: three predicates on an already-hot path.
 inline bool force_solid() { return detail::g_force_solid != 0; }
+inline bool opaque_only() { return detail::g_opaque_only; }
 inline bool only_poly() { return detail::g_only_poly >= 0; }
 
 // One machine's run. Called by the OSD from init() and osd_exit().
@@ -158,6 +169,10 @@ inline uint8_t submit(Polygon const &src, Extra const &extra, uint8_t renderer, 
 		renderer &= 1;      // textured -> untextured, translucent still means "draw nothing"
 	else if (detail::g_force_solid != 0)
 		renderer = 0;       // everything opaque and untextured, so nothing is skipped
+
+	// Class 1 is the one neither renderer draws, so this subtracts the same set from both.
+	if (detail::g_opaque_only && ((renderer & 1) != 0))
+		renderer = 1;
 
 	if (!active() || detail::g_poly_dropped)
 		return renderer;

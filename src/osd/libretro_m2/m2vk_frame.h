@@ -131,13 +131,29 @@ struct frame_tables
 	uint16_t const *colorxlat;      // m_colorxlat: three 32x256 ramps at u16 offsets 0, 0x2000, 0x4000
 	uint8_t  const *lumaram;        // m_lumaram: the luma translator, indexed by lumabase + (texel >> 1)
 	uint8_t  const *gamma;          // m_gamma_table: computed once in video_start and never written again
+
+	// The two texture sheets, m_textureram0 and m_textureram1, indexed the way the sheet bit in
+	// texheader[2] names them rather than the way any one polygon sees them. These are memory shares
+	// owned by the machine, so unlike the three tables above they are not snapshotted: they stay valid
+	// for the machine's whole life and are read straight through on the frontend's thread, which is
+	// safe for exactly the reason the snapshots are — the emulation thread is parked for all of it.
+	uint32_t const *texram[2];
+	uint32_t        texram_words[2];    // what the share actually is, in u32 words. get_texel can only
+	                                    // reach 0x40000 of them; a share smaller than that is a driver
+	                                    // variant we upload short and zero-fill.
 };
 
 enum : uint32_t
 {
 	COLORXLAT_ENTRIES = 0x6000,     // 0xc000 bytes of u16 in model2_state
 	LUMARAM_ENTRIES   = 0x8000,
-	GAMMA_ENTRIES     = 256
+	GAMMA_ENTRIES     = 256,
+
+	// One sheet, as get_texel addresses it: offset is a 16-bit-word index reaching 0x80000, and the
+	// fetch is sheet[offset >> 1], so 0x40000 u32 words — exactly 1 MB. Both sheets together are the
+	// whole of Model 2's texture memory, which is why there is no atlas and no cache anywhere in this
+	// renderer: it is cheaper to hold all of it than to work out which part is wanted.
+	TEXRAM_SHEET_WORDS = 0x40000
 };
 
 
@@ -183,6 +199,13 @@ struct frame_record
 	bool     tables_valid = false;
 	uint64_t tables_serial = 0;     // bumped only when the bytes actually changed, so the renderer
 	                                // can skip the upload rather than push 56 KB every frame.
+
+	// Texture RAM, carried as the live pointers rather than copied. 2 MB is too much to snapshot on
+	// the emulation thread for no gain: the frontend reads it while that thread is parked, which is
+	// the same guarantee the snapshot would have been resting on anyway. Null until a frame with
+	// geometry has been captured.
+	uint32_t const *texram[2] = { nullptr, nullptr };
+	uint32_t        texram_words[2] = { 0, 0 };
 
 	// Bumped every time a complete pair of layers lands. The renderer does not need it to be correct
 	// — it presents whatever is current — but it is the cheap way to tell "the emulator produced

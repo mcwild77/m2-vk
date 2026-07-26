@@ -716,7 +716,7 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
 	m_renderer->fillmap().fill(0x00, cliprect);
 
 #ifdef M2VK
-	m2vk::frame_begin(raster->poly_list_index, { m_colorxlat.get(), m_lumaram.get(), m_gamma_table });
+	m2vk::frame_begin(raster->poly_list_index, { m_colorxlat.get(), m_lumaram.get(), m_gamma_table, { m_textureram0, m_textureram1 }, { u32(m_textureram0.length()), u32(m_textureram1.length()) } });
 #endif
 
 	for (int window = raster->cur_window; window >= 0; window--)

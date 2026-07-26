@@ -29,6 +29,7 @@ bool g_active = false;
 bool g_rasterize = true;
 
 uint8_t  g_force_solid = 0;
+bool     g_opaque_only = false;
 int32_t  g_only_poly = -1;
 int32_t  g_only_frame = -1;
 uint32_t g_frame_index = 0;
@@ -60,6 +61,7 @@ void read_debug_filter()
 {
 	const int32_t solid = env_index("M2VK_FORCE_SOLID");
 	detail::g_force_solid = (solid <= 0) ? 0 : uint8_t((solid == 1) ? 1 : 2);
+	detail::g_opaque_only = (std::getenv("M2VK_OPAQUE_ONLY") != nullptr);
 	detail::g_only_poly = env_index("M2VK_ONLY_POLY");
 	detail::g_only_frame = env_index("M2VK_ONLY_FRAME");
 	detail::g_frame_index = 0;
