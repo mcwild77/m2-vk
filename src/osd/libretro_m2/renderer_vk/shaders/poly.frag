@@ -72,6 +72,22 @@
 //
 // Nothing blends anywhere in this renderer. Model 2's translucency is a cutout and checker is a
 // stipple; both are per-pixel discards and every surviving fragment is opaque.
+//
+// THIS FILE COMPILES TWICE. -DEARLY_Z=1 produces the specialisation for polygons that cannot discard,
+// which is MAME's draw_scanline_tex<false> reached by a preprocessor symbol instead of a template
+// parameter. The two discard sites below are the entire difference, and they are gated on exactly the
+// two flags vk_geom.cpp tests to choose the pipeline — one predicate, written once, so the shader and
+// the renderer cannot drift apart. Both variants must stay in this one file for that reason.
+//
+// EarlyFragmentTests is an execution mode on the entry point, not a value, so a specialisation
+// constant cannot reach it: it has to be a second module. And it may only be declared in a shader
+// with no reachable discard, because it moves the depth write to BEFORE the fragment shader runs —
+// so a discard under it would leave a pixel claimed in the depth buffer and unwritten in the colour
+// buffer. That is precisely the "unclaimed key" rule inverted, which is why the flag predicate is
+// load-bearing rather than an optimisation detail.
+#ifdef EARLY_Z
+layout(early_fragment_tests) in;
+#endif
 
 layout(location = 0) noperspective in vec3 v_param;
 layout(location = 1) flat in uint v_poly;
@@ -356,12 +372,14 @@ void main()
 {
 	poly_params p = polys[v_poly];
 
+#ifndef EARLY_Z
 	if ((p.flags & FLAG_CHECKER) != 0u)
 	{
 		ivec2 c = ivec2(gl_FragCoord.xy);
 		if (((c.x ^ c.y) & 1) == 0)
 			discard;
 	}
+#endif
 
 	uint luma;
 
@@ -386,7 +404,14 @@ void main()
 		int u = int(uoz * z * 256.0);
 		int v = int(voz * z * 256.0);
 
+		// Constant in the early-Z variant, which is what dead-codes the packed alpha lane, the four
+		// neighbour tests and the cutout below. The pipeline predicate guarantees it, so reading the flag
+		// here would only give the compiler something it cannot prove.
+#ifdef EARLY_Z
+		const bool translucent = false;
+#else
 		bool translucent = (p.flags & FLAG_TRANSLUCENT) != 0u;
+#endif
 
 		uint t = fetch_bilinear_texel(p, translucent, level, u, v);
 
@@ -402,11 +427,15 @@ void main()
 			t = LERP(t, t2, uint(min((-mml) >> int(p.utexminlod), 127)));
 		}
 
+		// Textually removed rather than left for the optimiser to fold away on the constant above: a
+		// discard that is merely unreachable is still a discard in the module, and EarlyFragmentTests may
+		// only be declared where there is none.
+#ifndef EARLY_Z
 		if (translucent)
 		{
 			// The cutout, and it is the only place Model 2's "translucency" means anything: the alpha
 			// lane sits in bits 16..23, so 0x00400000 is 50%. Below that the pixel is not drawn — and
-			// because this shader has no EarlyFragmentTests execution mode, a discarded fragment does
+			// because this variant has no EarlyFragmentTests execution mode, a discarded fragment does
 			// not write depth either, which is what keeps the draw-order key equal to m_fillmap.
 			if (t < 0x00400000u)
 				discard;
@@ -414,6 +443,7 @@ void main()
 			// remove the alpha value; no longer needed
 			t &= 0xffu;
 		}
+#endif
 
 		// The filtered texel has 8 bits of precision and the translator map has 128 entries, hence the
 		// shift — it is not an off-by-one waiting to be fixed. lumabase + (t >> 1) is exactly 15 bits

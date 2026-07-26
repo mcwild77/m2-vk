@@ -91,9 +91,10 @@ bool geom_upload(uint32_t slot, frame_record const &record);
 // caller has already set the viewport and scissor to the visible extent, which is what makes
 // gl_FragCoord equal the software renderer's x/scanline.
 //
-// It is one indexed draw per run of polygons sharing a clipped viewport — usually one for the whole
-// frame — and it SETS THE SCISSOR, then restores the full extent before returning, because the caller
-// draws the foreground tilemaps after it.
+// It is one indexed draw per run of polygons sharing a clipped viewport AND a pipeline — the two
+// pipelines differ only in whether the fragment shader can discard, and a polygon that cannot takes the
+// EarlyFragmentTests variant. It SETS THE SCISSOR, then restores the full extent before returning,
+// because the caller draws the foreground tilemaps after it.
 void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height);
 
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.

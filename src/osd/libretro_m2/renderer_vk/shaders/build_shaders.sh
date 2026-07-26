@@ -31,15 +31,16 @@ trap 'rm -rf "$TMP"' EXIT
 # `set -o pipefail` above turns that into a failed build with nothing to show for it.
 GLSLC_VERSION="$("$GLSLC" --version | sed -n 1p)"
 
-emit() { # <shader-stage> <source> <symbol-stem>
+emit() { # <shader-stage> <source> <symbol-stem> [extra glslc args...]
 	local stage="$1" src="$2" stem="$3"
+	shift 3
 	local upper
 	upper="$(printf '%s' "$stem" | tr '[:lower:]' '[:upper:]')"
 
 	# --target-env=vulkan1.0: the physical device RetroArch's MoltenVK hands over reports apiVersion
 	# 1.1.0, and nothing in these shaders wants anything past core 1.0. -O because the blob is
 	# committed and a debug one is several times the size for no benefit.
-	"$GLSLC" --target-env=vulkan1.0 -O -fshader-stage="$stage" "$HERE/$src" -o "$TMP/$stem.spv"
+	"$GLSLC" --target-env=vulkan1.0 -O -fshader-stage="$stage" "$@" "$HERE/$src" -o "$TMP/$stem.spv"
 
 	{
 		echo "// license:BSD-3-Clause"
@@ -75,4 +76,9 @@ emit vert fullscreen.vert  fullscreen_vert
 emit frag passthrough.frag passthrough_frag
 emit frag overlay.frag     overlay_frag
 emit vert poly.vert        poly_vert
+
+# poly.frag twice: the general variant, and the specialisation for polygons that cannot discard, which
+# is the only one allowed to declare EarlyFragmentTests. One source, so the two cannot drift — see the
+# header comment in poly.frag.
 emit frag poly.frag        poly_frag
+emit frag poly.frag        poly_early_frag -DEARLY_Z=1

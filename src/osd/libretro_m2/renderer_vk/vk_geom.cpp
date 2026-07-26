@@ -10,7 +10,13 @@
     rectangle. Nothing else varies per polygon — no pipeline change, no descriptor rebind — so a game
     with one viewport for the whole frame is still a single draw, which is nearly all of them.
 
-    Three traps that are already paid for and must stay paid:
+    There are TWO pipelines and they differ in one thing: whether the fragment shader can discard.
+    A polygon that is neither translucent nor checkered cannot, so it takes the variant that declares
+    EarlyFragmentTests and has its depth resolved before the shader runs; everything else takes the
+    late-test variant, because a discarded fragment must leave the draw-order key unclaimed. The
+    predicate is the two flag bits and nothing else — see the note above the split in geom_upload.
+
+    Four traps that are already paid for and must stay paid:
 
       * The scissor comes from the polygon's own clipped viewport and it is not decoration. MAME
         passes `vp` — the game's viewport registers intersected with the visible rectangle — to
@@ -26,6 +32,14 @@
         32-bit indices put the restart value at 0xffffffff, which the vertex count cannot reach:
         1450 polygons at 8 vertices is 11600, and the capacity check below refuses anything that
         would come near it.
+
+      * Batches follow SUBMISSION ORDER and are never regrouped to save a draw. The depth key makes
+        the final picture order-independent — the winner of a pixel is the lowest record index that
+        covers it and does not discard, whatever sequence the draws arrive in — so all the early-Z
+        polygons could legally be swept into one draw and all the rest into another. That is deliberately
+        not done: it would rest the picture on that argument being airtight, to buy draw calls back in a
+        phase where performance.md §2a says the whole optimisation list is bidding for 4.5 % of a frame.
+        If the draw count ever does become the problem, this paragraph is the escape hatch.
 
       * The parameter buffer is indexed by the polygon's position in the *record*, not by its
         position among the polygons that were actually drawn. Skipped polygons leave a dead 16-byte
@@ -44,6 +58,7 @@
 
 #include "renderer_vk/vk_geom.h"
 
+#include "renderer_vk/shaders/poly_early_frag_spv.h"
 #include "renderer_vk/shaders/poly_frag_spv.h"
 #include "renderer_vk/shaders/poly_vert_spv.h"
 
@@ -168,14 +183,16 @@ struct mapped_buffer
 	VkDeviceSize   size = 0;
 };
 
-// One indexed draw: a run of consecutive polygons that share a clipped viewport. The rectangle is
-// carried in m_destmap pixels rather than as a VkRect2D, because geom_draw is where the framebuffer
-// extent is known and therefore where the clamp — and, at P5, the internal-resolution scale — belongs.
+// One indexed draw: a run of consecutive polygons that share a clipped viewport AND a pipeline. The
+// rectangle is carried in m_destmap pixels rather than as a VkRect2D, because geom_draw is where the
+// framebuffer extent is known and therefore where the clamp — and, at P5, the internal-resolution
+// scale — belongs.
 struct draw_batch
 {
 	int32_t  left, top, right, bottom;  // inclusive, exactly as MAME's rectangle spells it
 	uint32_t first_index;
 	uint32_t index_count;
+	bool     early;                     // the no-discard variant; geom_draw maps it to a VkPipeline
 };
 
 struct geom_slot
@@ -205,7 +222,11 @@ uint32_t s_slot_count = 0;
 VkDescriptorSetLayout s_set_layout = VK_NULL_HANDLE;
 VkDescriptorPool      s_descriptor_pool = VK_NULL_HANDLE;
 VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
-VkPipeline            s_pipeline = VK_NULL_HANDLE;
+
+// Indexed by draw_batch::early. [0] is the general variant, which can discard and therefore tests
+// depth late; [1] declares EarlyFragmentTests and is only ever selected for polygons whose fragment
+// shader has no discard in it at all. Same layout, same descriptor set, same everything else.
+VkPipeline            s_pipelines[2] = { VK_NULL_HANDLE, VK_NULL_HANDLE };
 
 const retro_hw_render_interface_vulkan *s_iface = nullptr;
 vk_funcs s_fns;
@@ -224,6 +245,12 @@ bool s_no_3d_known = false;
 bool s_no_scissor = false;
 bool s_no_scissor_known = false;
 
+// M2VK_NO_EARLY_Z=1 sends every polygon to the general pipeline, which is the pre-split behaviour and
+// one draw again. Unlike M2VK_NO_SCISSOR this is a pure no-op switch: it must not move a single pixel
+// on either renderer, so "digests equal with it on and off" is the whole verification of the split.
+bool s_no_early_z = false;
+bool s_no_early_z_known = false;
+
 // Said once rather than 57 times a second.
 bool s_reported_skips = false;
 
@@ -239,6 +266,13 @@ uint32_t s_max_windows = 0;
 uint32_t s_max_batches = 0;
 uint32_t s_offscreen_total = 0;
 bool     s_windows_ascending_seen = false;
+
+// The pipeline split's own numbers, because its cost and its benefit are the same quantity seen twice:
+// the share of polygons that get early-Z is what it buys, and the batches those polygons break the
+// stream into is what it costs. A game that is nearly all translucent (sgt24h, overrev) can only lose
+// here, and the report is how that is seen rather than assumed.
+uint64_t s_early_polys = 0;
+uint64_t s_drawn_polys = 0;
 
 // Polygons the per-polygon scissor actually cuts *and the previous build did not*, which is a much
 // narrower thing than it first looks. Every game has tens of thousands of polygons a run reaching
@@ -313,6 +347,16 @@ bool no_scissor()
 		s_no_scissor_known = true;
 	}
 	return s_no_scissor;
+}
+
+bool no_early_z()
+{
+	if (!s_no_early_z_known)
+	{
+		s_no_early_z = (std::getenv("M2VK_NO_EARLY_Z") != nullptr);
+		s_no_early_z_known = true;
+	}
+	return s_no_early_z;
 }
 
 void destroy_buffer(mapped_buffer &b)
@@ -501,7 +545,7 @@ bool build_pipeline(VkRenderPass render_pass)
 	}
 
 	VkShaderModule vert = VK_NULL_HANDLE;
-	VkShaderModule frag = VK_NULL_HANDLE;
+	VkShaderModule frag[2] = { VK_NULL_HANDLE, VK_NULL_HANDLE };
 	auto const make_module = [](uint32_t const *code, size_t bytes, VkShaderModule &out)
 	{
 		VkShaderModuleCreateInfo info{};
@@ -512,19 +556,25 @@ bool build_pipeline(VkRenderPass render_pass)
 	};
 
 	bool ok = make_module(POLY_VERT_SPV, sizeof(POLY_VERT_SPV), vert)
-			&& make_module(POLY_FRAG_SPV, sizeof(POLY_FRAG_SPV), frag);
+			&& make_module(POLY_FRAG_SPV, sizeof(POLY_FRAG_SPV), frag[0])
+			&& make_module(POLY_EARLY_FRAG_SPV, sizeof(POLY_EARLY_FRAG_SPV), frag[1]);
 
 	if (ok)
 	{
-		VkPipelineShaderStageCreateInfo stages[2]{};
-		stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-		stages[0].module = vert;
-		stages[0].pName = "main";
-		stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		stages[1].module = frag;
-		stages[1].pName = "main";
+		// The two pipelines share every piece of state below and differ only in the fragment module,
+		// which is the point: anything that has to be true of one is true of the other by construction.
+		VkPipelineShaderStageCreateInfo stages[2][2]{};
+		for (uint32_t i = 0; i < 2; i++)
+		{
+			stages[i][0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			stages[i][0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+			stages[i][0].module = vert;
+			stages[i][0].pName = "main";
+			stages[i][1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			stages[i][1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+			stages[i][1].module = frag[i];
+			stages[i][1].pName = "main";
+		}
 
 		VkVertexInputBindingDescription binding{};
 		binding.binding = 0;
@@ -579,6 +629,11 @@ bool build_pipeline(VkRenderPass render_pass)
 
 		// GREATER with writes on, against a buffer cleared to 0: the first polygon to reach a pixel
 		// carries the largest key and wins, and every later one fails. m_fillmap, in hardware.
+		//
+		// Identical in both pipelines. WHEN the test happens differs — the early-Z module declares
+		// EarlyFragmentTests, so its depth is resolved before the shader — but what it computes does not,
+		// and that is the only reason the split is safe: a shader with no discard cannot tell the two
+		// apart, and one with a discard never reaches the early pipeline.
 		VkPipelineDepthStencilStateCreateInfo depth{};
 		depth.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 		depth.depthTestEnable = VK_TRUE;
@@ -605,28 +660,35 @@ bool build_pipeline(VkRenderPass render_pass)
 		dynamic.dynamicStateCount = 2;
 		dynamic.pDynamicStates = dynamic_states;
 
-		VkGraphicsPipelineCreateInfo info{};
-		info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-		info.stageCount = 2;
-		info.pStages = stages;
-		info.pVertexInputState = &vertex_input;
-		info.pInputAssemblyState = &assembly;
-		info.pViewportState = &viewport_state;
-		info.pRasterizationState = &raster;
-		info.pMultisampleState = &multisample;
-		info.pDepthStencilState = &depth;
-		info.pColorBlendState = &blend;
-		info.pDynamicState = &dynamic;
-		info.layout = s_pipeline_layout;
-		info.renderPass = render_pass;
-		info.subpass = 0;
+		VkGraphicsPipelineCreateInfo info[2]{};
+		for (uint32_t i = 0; i < 2; i++)
+		{
+			info[i].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+			info[i].stageCount = 2;
+			info[i].pStages = stages[i];
+			info[i].pVertexInputState = &vertex_input;
+			info[i].pInputAssemblyState = &assembly;
+			info[i].pViewportState = &viewport_state;
+			info[i].pRasterizationState = &raster;
+			info[i].pMultisampleState = &multisample;
+			info[i].pDepthStencilState = &depth;
+			info[i].pColorBlendState = &blend;
+			info[i].pDynamicState = &dynamic;
+			info[i].layout = s_pipeline_layout;
+			info[i].renderPass = render_pass;
+			info[i].subpass = 0;
+		}
 
-		ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline),
+		// One call for both, so a driver that can share compilation work between them gets the chance.
+		ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 2, info, nullptr, s_pipelines),
 				"vkCreateGraphicsPipelines (geometry)");
 	}
 
-	if (frag != VK_NULL_HANDLE)
-		s_fns.destroy_shader_module(s_device, frag, nullptr);
+	for (VkShaderModule m : frag)
+	{
+		if (m != VK_NULL_HANDLE)
+			s_fns.destroy_shader_module(s_device, m, nullptr);
+	}
 	if (vert != VK_NULL_HANDLE)
 		s_fns.destroy_shader_module(s_device, vert, nullptr);
 
@@ -742,8 +804,11 @@ void geom_destroy()
 		destroy_buffer(slot.texram);
 	}
 
-	if (s_pipeline != VK_NULL_HANDLE)
-		s_fns.destroy_pipeline(s_device, s_pipeline, nullptr);
+	for (VkPipeline p : s_pipelines)
+	{
+		if (p != VK_NULL_HANDLE)
+			s_fns.destroy_pipeline(s_device, p, nullptr);
+	}
 	if (s_pipeline_layout != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline_layout(s_device, s_pipeline_layout, nullptr);
 	// The sets are freed with the pool.
@@ -761,7 +826,8 @@ void geom_forget()
 		slot = geom_slot{};
 	s_slot_count = 0;
 
-	s_pipeline = VK_NULL_HANDLE;
+	s_pipelines[0] = VK_NULL_HANDLE;
+	s_pipelines[1] = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
 	s_descriptor_pool = VK_NULL_HANDLE;
 	s_set_layout = VK_NULL_HANDLE;
@@ -771,7 +837,8 @@ void geom_forget()
 
 bool geom_upload(uint32_t slot_index, frame_record const &record)
 {
-	if ((slot_index >= s_slot_count) || (s_pipeline == VK_NULL_HANDLE))
+	// Both pipelines or neither: they come out of one vkCreateGraphicsPipelines call.
+	if ((slot_index >= s_slot_count) || (s_pipelines[0] == VK_NULL_HANDLE) || (s_pipelines[1] == VK_NULL_HANDLE))
 		return false;
 
 	// The software rasteriser still owning the 3D is not an error: it is what M2VK_SW_3D=1 asks for,
@@ -840,6 +907,8 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	uint32_t skipped_translucent = 0;
 	uint32_t skipped_offscreen = 0;
 	uint32_t frame_clipped = 0;
+	uint32_t frame_early = 0;
+	uint32_t frame_drawn = 0;
 	float    frame_worst = 0.0f;
 
 	// Window ordering, asserted rather than assumed — see the note at the top of the file.
@@ -934,9 +1003,24 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 			continue;
 		}
 
-		// Extend the open batch, or open a new one. Consecutive polygons almost always share a viewport
-		// — one batch for the whole frame is the common case, and a game with an inset window pays one
-		// extra draw per contiguous run rather than one per polygon.
+		// WHICH PIPELINE, and this predicate is the load-bearing line of the split. The early-Z variant
+		// resolves depth before the fragment shader, so it is legal only where the shader cannot discard
+		// — and the shader's two discard sites are gated on exactly these two flags, read here out of the
+		// same word that was just written for it. Any other formulation (p.renderer, p.checker, cls) is a
+		// second copy of the predicate that can fall out of step with the shader; this one cannot.
+		//
+		// Getting it wrong is invisible on most frames: an early-Z polygon that does discard claims the
+		// pixel in depth and never writes a colour to it, so the background shows through a hole that
+		// nothing later can fill. A stipple over a decal is where that would first be seen.
+		const bool early = !no_early_z() && ((gp.flags & (FLAG_TRANSLUCENT | FLAG_CHECKER)) == 0u);
+		if (early)
+			frame_early++;
+
+		// Extend the open batch, or open a new one. A batch is a run of consecutive polygons sharing both
+		// a viewport and a pipeline — one batch for the whole frame is the common case for the viewport,
+		// but the pipeline alternates with the polygon stream, so this is where the draw count comes from
+		// now. Order is submission order regardless; see the note at the top of the file about why the
+		// two classes are not swept into one draw each.
 		//
 		// With M2VK_NO_SCISSOR the one batch is opened at a rectangle nothing can be outside, which
 		// geom_draw's clamp turns back into the framebuffer extent — so the diagnostic path is the same
@@ -948,10 +1032,13 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 
 		if (slot.batches.empty()
 				|| (slot.batches.back().left != left) || (slot.batches.back().top != top)
-				|| (slot.batches.back().right != right) || (slot.batches.back().bottom != bottom))
+				|| (slot.batches.back().right != right) || (slot.batches.back().bottom != bottom)
+				|| (slot.batches.back().early != early))
 		{
-			slot.batches.push_back(draw_batch{ left, top, right, bottom, icount, 0 });
+			slot.batches.push_back(draw_batch{ left, top, right, bottom, icount, 0, early });
 		}
+
+		frame_drawn++;
 
 		const uint32_t base = vcount;
 		const float z = 1.0f - (float((n > DEPTH_MAX_INDEX) ? DEPTH_MAX_INDEX : n) * DEPTH_STEP);
@@ -1021,6 +1108,8 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 		s_max_windows = windows_seen;
 	if (slot.batches.size() > s_max_batches)
 		s_max_batches = uint32_t(slot.batches.size());
+	s_early_polys += frame_early;
+	s_drawn_polys += frame_drawn;
 	s_offscreen_total += skipped_offscreen;
 	s_clipped_polys += frame_clipped;
 	s_clipped_worst = std::max(s_clipped_worst, frame_worst);
@@ -1095,7 +1184,7 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 
 void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height)
 {
-	if ((slot_index >= s_slot_count) || (s_pipeline == VK_NULL_HANDLE))
+	if ((slot_index >= s_slot_count) || (s_pipelines[0] == VK_NULL_HANDLE) || (s_pipelines[1] == VK_NULL_HANDLE))
 		return;
 
 	geom_slot &slot = s_slots[slot_index];
@@ -1108,19 +1197,24 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 
 	const VkDeviceSize offset = 0;
 
-	s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
+	// The pipeline is bound inside the loop, per batch. The descriptor set, the push constants and the
+	// two buffers are not: both pipelines use the same layout, so binding them once outside covers both.
 	s_fns.cmd_bind_descriptor_sets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
 			0, 1, &slot.descriptor, 0, nullptr);
 	s_fns.cmd_push_constants(cmd, s_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
 	s_fns.cmd_bind_vertex_buffers(cmd, 0, 1, &slot.vertices.buffer, &offset);
 	s_fns.cmd_bind_index_buffer(cmd, slot.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	// One draw per scissor run. The rectangle is inclusive in m_destmap pixels and clamped to the
-	// framebuffer here — MAME had already intersected it with the visible rectangle, so the clamp is
-	// belt and braces against an emulated viewport register rather than something the frame needs.
+	// One draw per scissor run per pipeline. The rectangle is inclusive in m_destmap pixels and clamped
+	// to the framebuffer here — MAME had already intersected it with the visible rectangle, so the clamp
+	// is belt and braces against an emulated viewport register rather than something the frame needs.
 	//
 	// P5 puts the internal-resolution scale exactly here: the offsets and extents multiply by the same
 	// factor the vertex shader's half-extent already carries, and nothing else in this file changes.
+	VkPipeline bound = VK_NULL_HANDLE;
+	VkRect2D   set_to{};
+	bool       scissor_set = false;
+
 	for (draw_batch const &b : slot.batches)
 	{
 		if (b.index_count == 0)
@@ -1133,10 +1227,27 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 		if ((x1 < x0) || (y1 < y0))
 			continue;
 
+		VkPipeline const want = s_pipelines[b.early ? 1 : 0];
+		if (want != bound)
+		{
+			s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, want);
+			bound = want;
+		}
+
 		VkRect2D rect{};
 		rect.offset = { x0, y0 };
 		rect.extent = { uint32_t(x1 - x0 + 1), uint32_t(y1 - y0 + 1) };
-		s_fns.cmd_set_scissor(cmd, 0, 1, &rect);
+
+		// The pipeline alternates far more often than the viewport does, so most batch boundaries need a
+		// new pipeline and the same rectangle. Skipping the redundant vkCmdSetScissor is what keeps the
+		// split from costing two commands per batch instead of one.
+		if (!scissor_set || (rect.offset.x != set_to.offset.x) || (rect.offset.y != set_to.offset.y)
+				|| (rect.extent.width != set_to.extent.width) || (rect.extent.height != set_to.extent.height))
+		{
+			s_fns.cmd_set_scissor(cmd, 0, 1, &rect);
+			set_to = rect;
+			scissor_set = true;
+		}
 
 		s_fns.cmd_draw_indexed(cmd, b.index_count, 1, b.first_index, 0, 0);
 	}
@@ -1162,6 +1273,19 @@ void geom_end_run()
 				(s_offscreen_total != 0) ? ", some dropped with an off-screen viewport" : "",
 				s_windows_ascending_seen ? " — WINDOWS ASCENDING SOMEWHERE, draw order is wrong" : "");
 
+		// The pipeline split. `early` is the share of drawn polygons whose fragment shader cannot discard
+		// and which therefore resolve depth before it runs; the batch figure above is what that costs in
+		// draws, since a batch now breaks on the pipeline as well as on the viewport. Zero early polygons
+		// in a game that is not all-translucent means the predicate has stopped matching the flags — and
+		// M2VK_NO_EARLY_Z=1 is the other half of that check, since it must not move a pixel.
+		if (s_drawn_polys != 0)
+		{
+			vk_log(RETRO_LOG_INFO, "geometry: %llu of %llu drawn polygons took the early-Z pipeline (%.1f %%)%s\n",
+					(unsigned long long)s_early_polys, (unsigned long long)s_drawn_polys,
+					100.0 * double(s_early_polys) / double(s_drawn_polys),
+					no_early_z() ? " — M2VK_NO_EARLY_Z is set, so the split is off" : "");
+		}
+
 		// The three no-draw paths. `3D dropped` must be 0: anything else means a frame that had geometry
 		// lost it again, which is the 3D layer flickering. `empty` is not a fault — it is a game that
 		// stops submitting geometry, and a game known to do that reporting 0 of them means the core is
@@ -1186,8 +1310,11 @@ void geom_end_run()
 	s_dropped_frames = 0;
 	s_drew_once = false;
 	s_windows_ascending_seen = false;
+	s_early_polys = 0;
+	s_drawn_polys = 0;
 	s_no_3d_known = false;
 	s_no_scissor_known = false;
+	s_no_early_z_known = false;
 }
 
 } // namespace m2vk
