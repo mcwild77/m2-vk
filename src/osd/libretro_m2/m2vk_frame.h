@@ -86,8 +86,12 @@ struct poly
 	vertex          v[MAX_VERTICES];
 	uint8_t         num_verts;
 	uint8_t         renderer;       // bit1 = textured, bit0 = translucent; indexes m_render_callbacks
-	uint16_t        bucket;         // sort bucket (polygon::z). Within one bucket, draw order is
-	                                // submission order, and only submission order breaks the tie.
+	uint16_t        bucket;         // sort bucket (polygon::z). Within one bucket the tie is broken
+	                                // by REVERSE submission order: model2_v.cpp:520-522 prepends each
+	                                // polygon to its bucket's list, so render_polygons walks the
+	                                // newest first. Nothing here has to undo that — the record is
+	                                // taken at the seam, i.e. in traversal order, so the reversal is
+	                                // already baked into the stream and into the draw-order key.
 	uint8_t         window;
 	uint16_t        texheader[4];   // the raw header words, for anything not decoded below
 	uint8_t         luma;

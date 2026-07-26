@@ -96,8 +96,12 @@ constexpr uint32_t INITIAL_POLY_CAPACITY = 2048;
 // sanity bound on a count that comes from emulated hardware.
 constexpr uint32_t MAX_POLY_CAPACITY = 1u << 20;
 
-// 1 - n/65536 for polygon n in draw order. 16 bits is ample for 1450 polygons and D32_SFLOAT
-// represents every one of these values exactly.
+// 1 - n/65536 for polygon n in draw order. The width is not a guess against an observed frame: MAME
+// fatalerrors above MAX_POLYGONS = 32768 polygons in a frame (model2.h), so 16 bits has exactly 2x
+// headroom over a limit the emulation enforces before we ever see the stream, and the clamp below
+// can never fire. Keys land in (0.5, 1.0], where a float32 ULP is ~6e-8 against a key step of
+// 1.5e-5 — every polygon is ~256 ULP from its neighbours, and D32_SFLOAT represents every one of
+// these values exactly.
 constexpr float DEPTH_STEP = 1.0f / 65536.0f;
 constexpr uint32_t DEPTH_MAX_INDEX = 65535;
 
