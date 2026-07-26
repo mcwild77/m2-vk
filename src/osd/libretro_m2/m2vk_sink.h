@@ -66,6 +66,16 @@ extern bool g_active;
 // renderer owns it, which is also where nearly all of the emulator's CPU time goes.
 extern bool g_rasterize;
 
+// The debug filter, all four of which are set once from the environment in sink_open(). See
+// force_solid() and only_poly() below for what they are for; they live here rather than behind
+// accessors because submit() reads them for every polygon on both renderers' paths.
+extern uint8_t  g_force_solid;      // 0 off, 1 clear the textured bit, 2 force renderer 0
+extern int32_t  g_only_poly;        // -1 draws every polygon, otherwise only this one
+extern int32_t  g_only_frame;       // -1 means every frame; only meaningful with g_only_poly
+extern uint32_t g_frame_index;      // frames seen at the seam, from 0
+extern uint32_t g_poly_index;       // polygons seen in this frame, from 0
+extern bool     g_poly_dropped;     // set by submit() for the polygon it was just given
+
 } // namespace detail
 
 // Cheap enough to sit in front of the per-polygon conversion below. Two predicates because there
@@ -73,10 +83,46 @@ extern bool g_rasterize;
 // record is capturing for the hardware renderer.
 inline bool active() { return detail::g_active || capturing(); }
 
-// Read at the seam once per polygon, immediately after submit(). Default true, so a build that never
-// sets it behaves exactly as MAME does.
-inline bool rasterize() { return detail::g_rasterize; }
+// Read at the seam once per polygon, immediately after submit() — and it answers for *that*
+// polygon, not for the frame: the single-polygon debug mode below drops polygons by making this
+// false for them. Default true, so a build that never sets any of it behaves exactly as MAME does.
+inline bool rasterize() { return detail::g_rasterize && !detail::g_poly_dropped; }
+
+// Whether MAME's scanline rasteriser owns the 3D layer at all, which is the question the hardware
+// renderer asks — it must not draw the same polygons a second time. Distinct from rasterize(),
+// which is per-polygon and is the seam's question.
+//
+// It is also what render_polygons() tests before recycling poly_manager's object-data arena by
+// hand, and that is not an optimisation. model2_3d_render() takes a slot from it for every polygon
+// before the seam is reached, and poly_manager recycles the arena in wait() — which early-outs when
+// there are no work units outstanding. With the scanline dispatch skipped there never are any, so
+// nothing is ever recycled and the arena grows for the length of the run: measured at ~200 MiB over
+// 2500 frames of VF2 before the reset was added.
+inline bool sw_owns_3d() { return detail::g_rasterize; }
 void set_rasterize(bool on);
+
+//============================================================
+//  the debug modes
+//============================================================
+//
+// Both are read once from the environment and both act on *both* renderers, which is the entire
+// point of them: a difference between the two paths is only attributable if the two paths were
+// given the same polygons to draw.
+//
+//   M2VK_FORCE_SOLID=1   clears the textured bit, so every polygon takes the untextured path and
+//                        translucency still means "draw nothing" (draw_scanline_solid<true>
+//                        returns immediately). This is the faithful one.
+//   M2VK_FORCE_SOLID=2   forces renderer 0, so every polygon draws opaque. Nothing is skipped, so
+//                        the coverage comparison sees the whole stream — which is what it is for.
+//
+//   M2VK_ONLY_POLY=<n>   draws polygon n of a frame and no other. With M2VK_ONLY_FRAME=<m> it is
+//                        polygon n of frame m; without, it is polygon n of every frame. n counts
+//                        polygons arriving at the seam, so it is the same n in both renderers even
+//                        when the record has dropped some.
+//
+// Neither costs anything when unset: two predicates on an already-hot path.
+inline bool force_solid() { return detail::g_force_solid != 0; }
+inline bool only_poly() { return detail::g_only_poly >= 0; }
 
 // One machine's run. Called by the OSD from init() and osd_exit().
 void sink_open();
@@ -91,11 +137,30 @@ void frame_end();
 // The seam, driver-facing half: converts one polygon and hands it over. Templated so that this
 // header carries no dependency on the driver's headers; Polygon is model2_state::polygon, Extra is
 // m2_poly_extra_data and Rect is the clipped viewport rectangle.
+//
+// It *returns the renderer class the software rasteriser should use*, and the caller assigns it
+// back. That is deliberate and it is what keeps the upstream diff at 26 lines: M2VK_FORCE_SOLID has
+// to rewrite the class for both renderers or it proves nothing, and the seam already had this value
+// in its hands. In every other case the value comes back unchanged.
 template <typename Polygon, typename Extra, typename Rect>
-inline void submit(Polygon const &src, Extra const &extra, uint8_t renderer, Rect const &vp)
+inline uint8_t submit(Polygon const &src, Extra const &extra, uint8_t renderer, Rect const &vp)
 {
-	if (!active())
-		return;
+	// Counted for every polygon the seam sees, whether or not anything is watching, so that
+	// M2VK_ONLY_POLY names the same polygon under renderer=software as under renderer=vulkan.
+	const uint32_t index = detail::g_poly_index++;
+
+	detail::g_poly_dropped = only_poly()
+			&& ((uint32_t(detail::g_only_poly) != index)
+				|| ((detail::g_only_frame >= 0) && (uint32_t(detail::g_only_frame) != detail::g_frame_index)));
+
+	// Before the active() test: the software rasteriser obeys this even when nothing is recording.
+	if (detail::g_force_solid == 1)
+		renderer &= 1;      // textured -> untextured, translucent still means "draw nothing"
+	else if (detail::g_force_solid != 0)
+		renderer = 0;       // everything opaque and untextured, so nothing is skipped
+
+	if (!active() || detail::g_poly_dropped)
+		return renderer;
 
 	poly p;
 
@@ -168,6 +233,7 @@ inline void submit(Polygon const &src, Extra const &extra, uint8_t renderer, Rec
 	}
 
 	submit(p);
+	return renderer;
 }
 
 // The 2D half of the seam: one of the two tilemap layers that sandwich the 3D, cropped to the

@@ -17,6 +17,7 @@
 
 #include "m2vk_polytap.h"
 
+#include <cstdlib>
 #include <memory>
 #include <vector>
 
@@ -27,9 +28,44 @@ namespace detail {
 bool g_active = false;
 bool g_rasterize = true;
 
+uint8_t  g_force_solid = 0;
+int32_t  g_only_poly = -1;
+int32_t  g_only_frame = -1;
+uint32_t g_frame_index = 0;
+uint32_t g_poly_index = 0;
+bool     g_poly_dropped = false;
+
 } // namespace detail
 
 namespace {
+
+// The debug filter's whole configuration, read once per run. Numbers rather than flags because
+// M2VK_FORCE_SOLID has two modes and the other two name a polygon; an unparseable value reads as
+// "off" rather than as zero, which for M2VK_ONLY_POLY would otherwise silently mean "polygon 0".
+int32_t env_index(char const *name)
+{
+	char const *const v = std::getenv(name);
+	if ((v == nullptr) || (*v == '\0'))
+		return -1;
+
+	char *end = nullptr;
+	const long n = std::strtol(v, &end, 10);
+	if ((end == v) || (n < 0) || (n > 0x7fffffff))
+		return -1;
+
+	return int32_t(n);
+}
+
+void read_debug_filter()
+{
+	const int32_t solid = env_index("M2VK_FORCE_SOLID");
+	detail::g_force_solid = (solid <= 0) ? 0 : uint8_t((solid == 1) ? 1 : 2);
+	detail::g_only_poly = env_index("M2VK_ONLY_POLY");
+	detail::g_only_frame = env_index("M2VK_ONLY_FRAME");
+	detail::g_frame_index = 0;
+	detail::g_poly_index = 0;
+	detail::g_poly_dropped = false;
+}
 
 class sink
 {
@@ -41,6 +77,8 @@ public:
 	void open()
 	{
 		close();
+
+		read_debug_filter();
 
 		if (polytap::wanted())
 			m_consumers.push_back(std::make_unique<polytap>());
@@ -111,6 +149,12 @@ void sink_close() { g_sink.close(); }
 // consumers get whatever is left.
 void frame_begin(uint32_t submitted, frame_tables const &tables)
 {
+	// Kept in step with the record's own ordering: this counts frames that reach the seam, and
+	// g_poly_index counts polygons within one of them. Both are what M2VK_ONLY_FRAME/POLY name, and
+	// both have to be maintained whether or not anything is watching.
+	detail::g_poly_index = 0;
+	detail::g_poly_dropped = false;
+
 	geometry_begin(submitted, tables);
 	g_sink.frame_begin(submitted, tables);
 }
@@ -123,6 +167,9 @@ void submit(poly const &p)
 
 void frame_end()
 {
+	detail::g_frame_index++;
+	detail::g_poly_dropped = false;
+
 	geometry_end();
 	g_sink.frame_end();
 }

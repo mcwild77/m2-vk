@@ -318,10 +318,19 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// cost a predicate each and nothing more, which is what keeps renderer=software the reference.
 	m2vk::frame_enable(s_hw_render);
 
-	// MAME's own scanline rasteriser still draws the 3D layer. It stops when the hardware renderer
-	// takes it over; until then M2VK_NO_SW_3D=1 is how to see the gap it will be dropped into — the
-	// under layer with no polygons in it — without waiting for there to be polygons.
-	m2vk::set_rasterize(!s_hw_render || (std::getenv("M2VK_NO_SW_3D") == nullptr));
+	// The hardware renderer owns the 3D layer from P3 step 3 on, so MAME's scanline rasteriser stops
+	// drawing it — which is also where nearly all of the emulator's CPU time was going. Two overrides,
+	// both of which act on the software renderer as well so that the two stay comparable:
+	//
+	//   M2VK_SW_3D=1  puts MAME's rasteriser back in charge and takes the GPU out of it. That is the
+	//                 step-1/2 arrangement, still bit-exact against renderer=software, and it is the
+	//                 isolation tool for "is this a rendering problem or a timing one" — skipping the
+	//                 rasteriser changes the emulation thread's load substantially.
+	//   M2VK_NO_3D=1  neither draws. The picture is the two tilemap layers with a hole between them,
+	//                 identical under both renderers because neither touches those pixels, which is
+	//                 what the coverage comparison differences against.
+	const bool no_3d = std::getenv("M2VK_NO_3D") != nullptr;
+	m2vk::set_rasterize(!no_3d && (!s_hw_render || (std::getenv("M2VK_SW_3D") != nullptr)));
 
 	// The content's own directory, plus a place for sets the frontend keeps alongside the core.
 	// The second entry is what makes a clone loadable when its parent set lives elsewhere.

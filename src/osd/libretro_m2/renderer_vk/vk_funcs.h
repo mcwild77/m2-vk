@@ -165,6 +165,12 @@ struct vk_funcs
 	PFN_vkCmdSetViewport                            cmd_set_viewport = nullptr;
 	PFN_vkCmdSetScissor                             cmd_set_scissor = nullptr;
 	PFN_vkCmdDraw                                   cmd_draw = nullptr;
+
+	// device level — the polygon pass
+	PFN_vkCmdBindVertexBuffers                      cmd_bind_vertex_buffers = nullptr;
+	PFN_vkCmdBindIndexBuffer                        cmd_bind_index_buffer = nullptr;
+	PFN_vkCmdDrawIndexed                            cmd_draw_indexed = nullptr;
+	PFN_vkCmdPushConstants                          cmd_push_constants = nullptr;
 };
 
 // Fills the table. Returns false if a required entry point is missing, having logged which one:
@@ -175,6 +181,22 @@ bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDevicePr
 
 // Names a VkResult for a log line. Unknown codes come back as their number.
 char const *vk_result_name(VkResult result);
+
+
+//============================================================
+//  allocation
+//============================================================
+
+// The index of a memory type from `type_bits` that has all of `want`, or false if the device offers
+// none. Both the ring and the geometry buffers need this and neither should have its own copy of
+// it: it is pure plumbing, and two copies would drift the first time one of them learned something.
+//
+// Callers ask for preferred properties first and give up on them if refused. This device's memory
+// type 1 is device-local *and* host-visible (unified memory, see devnotes/vulkan-target.md), which
+// is why the geometry buffers are written straight into rather than staged — but that is an Apple
+// luxury and not something to depend on.
+bool find_memory_type(vk_funcs const &fns, VkPhysicalDevice gpu, uint32_t type_bits,
+		VkMemoryPropertyFlags want, uint32_t &out);
 
 } // namespace m2vk
 

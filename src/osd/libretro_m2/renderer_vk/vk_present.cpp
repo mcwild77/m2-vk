@@ -37,8 +37,10 @@
 #include "renderer_vk/vk_present.h"
 
 #include "renderer_vk/vk_context.h"
+#include "renderer_vk/vk_geom.h"
 
 #include "m2vk_frame.h"
+#include "m2vk_sink.h"
 
 #include "renderer_vk/shaders/fullscreen_vert_spv.h"
 #include "renderer_vk/shaders/overlay_frag_spv.h"
@@ -104,6 +106,14 @@ struct frame_slot
 	VkDeviceMemory  memory = VK_NULL_HANDLE;
 	VkImageView     view = VK_NULL_HANDLE;
 	VkFramebuffer   framebuffer = VK_NULL_HANDLE;
+
+	// The polygon pass's depth buffer, which holds draw order rather than z (vk_geom.h). Per slot
+	// like everything else here: it is written by this frame's draws and would be a hazard between
+	// frames still in flight if it were shared. Never read outside its own render pass, so it is
+	// cleared on entry and stored nowhere.
+	VkImage         depth = VK_NULL_HANDLE;
+	VkDeviceMemory  depth_memory = VK_NULL_HANDLE;
+	VkImageView     depth_view = VK_NULL_HANDLE;
 
 	layer_tex       layers[m2vk::LAYER_COUNT];
 
@@ -273,23 +283,11 @@ uint32_t slots_for_mask(uint32_t mask)
 	return count;
 }
 
-// A memory type from the requirement's mask that has all of `want`. Preferred properties are asked
-// for first and then given up on: the probe found this device's type 1 is device-local *and* host
-// visible (unified memory), but that is an Apple luxury and not something to depend on.
+// This file's shorthand for the shared helper in vk_funcs, which every call here wants against the
+// same device and the same funcs table.
 bool find_memory_type(uint32_t type_bits, VkMemoryPropertyFlags want, uint32_t &out)
 {
-	VkPhysicalDeviceMemoryProperties mem{};
-	s_fns.get_physical_device_memory_properties(s_iface->gpu, &mem);
-
-	for (uint32_t i = 0; i < mem.memoryTypeCount; i++)
-	{
-		if (((type_bits & (uint32_t(1) << i)) != 0) && ((mem.memoryTypes[i].propertyFlags & want) == want))
-		{
-			out = i;
-			return true;
-		}
-	}
-	return false;
+	return m2vk::find_memory_type(s_fns, s_iface->gpu, type_bits, want, out);
 }
 
 bool allocate_and_bind_image(VkImage image, VkDeviceMemory &out)
@@ -415,9 +413,15 @@ bool write_ppm(std::string const &path, void const *bgra, unsigned width, unsign
 // loadOp is CLEAR rather than DONT_CARE even though the triangle covers the whole attachment. It is
 // a diagnostic, not a correctness measure: if the draw ever fails to happen the result is black,
 // which reads as a failure, rather than whatever was last in that memory, which reads as a picture.
+//
+// The depth attachment exists for the polygon pass in the middle of the frame and for nothing else.
+// It is cleared to 0 on entry and DONT_CARE on the way out: with a GREATER test that clear means
+// "no polygon has claimed this pixel", and nothing outside the pass ever reads it.
 bool build_render_pass()
 {
-	VkAttachmentDescription colour{};
+	VkAttachmentDescription attachments[2]{};
+
+	VkAttachmentDescription &colour = attachments[0];
 	colour.format = RING_FORMAT;
 	colour.samples = VK_SAMPLE_COUNT_1_BIT;
 	colour.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -427,25 +431,42 @@ bool build_render_pass()
 	colour.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	colour.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
+	VkAttachmentDescription &depth = attachments[1];
+	depth.format = m2vk::GEOM_DEPTH_FORMAT;
+	depth.samples = VK_SAMPLE_COUNT_1_BIT;
+	depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depth.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depth.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depth.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	VkAttachmentReference colour_ref{};
 	colour_ref.attachment = 0;
 	colour_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depth_ref{};
+	depth_ref.attachment = 1;
+	depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkSubpassDescription subpass{};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colour_ref;
+	subpass.pDepthStencilAttachment = &depth_ref;
 
 	// Both directions stated rather than left to the implicit defaults, which are TOP_OF_PIPE on the
 	// way in and BOTTOM_OF_PIPE with no access mask on the way out — the latter being no dependency
-	// at all as far as the frontend's fragment shader read is concerned.
+	// at all as far as the frontend's fragment shader read is concerned. The incoming one covers the
+	// depth clear as well, which happens at EARLY_FRAGMENT_TESTS; the outgoing one does not, because
+	// the depth attachment is DONT_CARE and nothing outside the pass ever looks at it.
 	VkSubpassDependency deps[2]{};
 	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
 	deps[0].dstSubpass = 0;
-	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	deps[0].srcAccessMask = 0;
-	deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	deps[1].srcSubpass = 0;
 	deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
 	deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -455,8 +476,8 @@ bool build_render_pass()
 
 	VkRenderPassCreateInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	info.attachmentCount = 1;
-	info.pAttachments = &colour;
+	info.attachmentCount = 2;
+	info.pAttachments = attachments;
 	info.subpassCount = 1;
 	info.pSubpasses = &subpass;
 	info.dependencyCount = 2;
@@ -607,6 +628,18 @@ bool build_pipeline()
 		blend.attachmentCount = 1;
 		blend.pAttachments = &blend_attachment;
 
+		// The two 2D layers are not depth-tested and write no depth: they are a background and a
+		// foreground, and their order is the order they are recorded in. The state has to be stated
+		// all the same, because the subpass now has a depth attachment and pDepthStencilState may
+		// only be null when it does not.
+		VkPipelineDepthStencilStateCreateInfo depth{};
+		depth.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depth.depthTestEnable = VK_FALSE;
+		depth.depthWriteEnable = VK_FALSE;
+		depth.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+		depth.depthBoundsTestEnable = VK_FALSE;
+		depth.stencilTestEnable = VK_FALSE;
+
 		const VkDynamicState dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		VkPipelineDynamicStateCreateInfo dynamic{};
 		dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -622,7 +655,7 @@ bool build_pipeline()
 		info.pViewportState = &viewport_state;
 		info.pRasterizationState = &raster;
 		info.pMultisampleState = &multisample;
-		// pDepthStencilState stays null: the render pass has no depth attachment. P3 adds one.
+		info.pDepthStencilState = &depth;
 		info.pColorBlendState = &blend;
 		info.pDynamicState = &dynamic;
 		info.layout = s_pipeline_layout;
@@ -690,6 +723,9 @@ void destroy_shared()
 // device they belonged to is already gone and touching one would be worse than leaking it.
 void forget_ring()
 {
+	// The polygon pass's own handles belonged to the same device and go the same way.
+	m2vk::geom_forget();
+
 	// Zeroed rather than left stale: the frontend may still hold a pointer to a slot's handover.
 	for (frame_slot &slot : s_slots)
 		slot = frame_slot{};
@@ -751,6 +787,12 @@ void destroy_ring()
 			s_fns.destroy_fence(s_device, slot.fence, nullptr);
 		if (slot.framebuffer != VK_NULL_HANDLE)
 			s_fns.destroy_framebuffer(s_device, slot.framebuffer, nullptr);
+		if (slot.depth_view != VK_NULL_HANDLE)
+			s_fns.destroy_image_view(s_device, slot.depth_view, nullptr);
+		if (slot.depth != VK_NULL_HANDLE)
+			s_fns.destroy_image(s_device, slot.depth, nullptr);
+		if (slot.depth_memory != VK_NULL_HANDLE)
+			s_fns.free_memory(s_device, slot.depth_memory, nullptr);
 		if (slot.view != VK_NULL_HANDLE)
 			s_fns.destroy_image_view(s_device, slot.view, nullptr);
 		if (slot.image != VK_NULL_HANDLE)
@@ -779,6 +821,7 @@ void destroy_ring()
 	}
 
 	dump_destroy();
+	m2vk::geom_destroy();
 	destroy_shared();
 
 	// The frame counts are the point of this line as much as the ring is: they are what says whether
@@ -835,11 +878,32 @@ bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queu
 	slot.handover.image_view = slot.view;
 	slot.handover.image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
+	// The polygon pass's depth buffer. Same extent as the picture, so gl_FragCoord and the depth
+	// sample agree by construction, and no usage beyond the attachment itself: it is cleared on
+	// entry to the pass and discarded at the end of it.
+	VkImageCreateInfo depth_info = image_info;
+	depth_info.flags = 0;
+	depth_info.format = m2vk::GEOM_DEPTH_FORMAT;
+	depth_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	if (!check(s_fns.create_image(s_device, &depth_info, nullptr, &slot.depth), "vkCreateImage (depth)"))
+		return false;
+	if (!allocate_and_bind_image(slot.depth, slot.depth_memory))
+		return false;
+
+	VkImageViewCreateInfo depth_view_info = view_info;
+	depth_view_info.image = slot.depth;
+	depth_view_info.format = m2vk::GEOM_DEPTH_FORMAT;
+	depth_view_info.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+	if (!check(s_fns.create_image_view(s_device, &depth_view_info, nullptr, &slot.depth_view), "vkCreateImageView (depth)"))
+		return false;
+
+	const VkImageView attachments[2] = { slot.view, slot.depth_view };
+
 	VkFramebufferCreateInfo fb_info{};
 	fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	fb_info.renderPass = s_render_pass;
-	fb_info.attachmentCount = 1;
-	fb_info.pAttachments = &slot.view;
+	fb_info.attachmentCount = 2;
+	fb_info.pAttachments = attachments;
 	fb_info.width = width;
 	fb_info.height = height;
 	fb_info.layers = 1;
@@ -977,9 +1041,29 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 	s_height = height;
 	s_mask = mask;
 
+	// Asked of the device rather than assumed. D24_UNORM_S8_UINT does not exist on this GPU at all —
+	// its optimalTilingFeatures is literally zero — and a depth format that is merely *usually*
+	// present is exactly the sort of thing to find out about at build rather than at the first draw.
+	VkFormatProperties depth_props{};
+	s_fns.get_physical_device_format_properties(iface.gpu, m2vk::GEOM_DEPTH_FORMAT, &depth_props);
+	if ((depth_props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
+	{
+		vk_log(RETRO_LOG_ERROR, "this device has no depth-stencil attachment support for the polygon pass's depth format\n");
+		destroy_ring();
+		return false;
+	}
+
 	// The shared objects first: the slots' framebuffers need the render pass and their descriptor
 	// sets need the layout and the pool.
 	if (!build_render_pass() || !build_sampler() || !build_descriptors(count) || !build_pipeline())
+	{
+		destroy_ring();
+		return false;
+	}
+
+	// The polygon pass shares the render pass and is indexed by the same sync index, so it is built
+	// and torn down with the ring rather than with the context.
+	if (!m2vk::geom_build(iface, s_fns, s_render_pass, count))
 	{
 		destroy_ring();
 		return false;
@@ -1047,8 +1131,9 @@ void barrier(VkCommandBuffer cmd, VkImage image,
 }
 
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
-// passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0.
-bool record_and_submit(frame_slot &slot, bool draw_over, bool dump)
+// passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0. `draw_3d` says
+// whether the polygon pass has anything to put between the two.
+bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool draw_3d, bool dump)
 {
 	if (!check(s_fns.reset_command_pool(s_device, slot.pool, 0), "vkResetCommandPool"))
 		return false;
@@ -1092,8 +1177,12 @@ bool record_and_submit(frame_slot &slot, bool draw_over, bool dump)
 
 	// The draw. The ring image's transition into SHADER_READ_ONLY_OPTIMAL is the render pass's
 	// finalLayout, so there is no closing barrier here and none is missing.
-	VkClearValue clear{};
-	clear.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+	// Depth clears to 0, which with the polygon pass's GREATER test means "no polygon has claimed
+	// this pixel yet". It is the m_fillmap.fill(0x00) the software renderer does at the top of
+	// render_polygons.
+	VkClearValue clear[2]{};
+	clear[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+	clear[1].depthStencil = { 0.0f, 0 };
 
 	VkRenderPassBeginInfo pass{};
 	pass.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1101,8 +1190,8 @@ bool record_and_submit(frame_slot &slot, bool draw_over, bool dump)
 	pass.framebuffer = slot.framebuffer;
 	pass.renderArea.offset = { 0, 0 };
 	pass.renderArea.extent = { s_width, s_height };
-	pass.clearValueCount = 1;
-	pass.pClearValues = &clear;
+	pass.clearValueCount = 2;
+	pass.pClearValues = clear;
 	s_fns.cmd_begin_render_pass(slot.cmd, &pass, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport viewport{};
@@ -1119,15 +1208,20 @@ bool record_and_submit(frame_slot &slot, bool draw_over, bool dump)
 	scissor.extent = { s_width, s_height };
 	s_fns.cmd_set_scissor(slot.cmd, 0, 1, &scissor);
 
-	// The sandwich, bottom slice first. Both draws are the same fullscreen triangle; they differ only
-	// in the fragment shader and in which layer's descriptor is bound. The 3D goes between them in
-	// step 3, which is why this is two draws in one pass rather than one draw of a shader that samples
-	// both — a depth-tested geometry pass has to sit in the middle, and it cannot if the background
-	// and foreground are resolved in a single fragment.
+	// The sandwich, bottom slice first. The two 2D draws are the same fullscreen triangle and differ
+	// only in the fragment shader and in which layer's descriptor is bound; the polygon pass goes
+	// between them. This is why the frame is three draws in one pass rather than one draw of a shader
+	// that samples both layers — a depth-tested geometry pass has to sit in the middle, and it cannot
+	// if the background and the foreground are resolved in a single fragment.
 	s_fns.cmd_bind_pipeline(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
 	s_fns.cmd_bind_descriptor_sets(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
 			0, 1, &slot.layers[m2vk::LAYER_UNDER].descriptor, 0, nullptr);
 	s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
+
+	// The 3D. The viewport and scissor above are the visible extent, which is what makes the shader's
+	// gl_FragCoord.xy equal the software renderer's x and scanline.
+	if (draw_3d)
+		m2vk::geom_draw(index, slot.cmd, s_width, s_height);
 
 	if (draw_over)
 	{
@@ -1281,10 +1375,20 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, pixels, bytes);
 	}
 
+	// The polygon stream, turned into this slot's vertex, index and parameter buffers. Only when the
+	// 2D layers are ours to composite: without them there is no gap in the picture for the 3D to go
+	// into, because the software renderer's own 3D is already in it.
+	//
+	// A frame whose geometry did not change re-uploads and redraws the same polygons, which is
+	// exactly the "keep last frame's 3D" case — render_polygons takes its m_render_done early return
+	// without touching the record, so what is still in there is last frame's list. Redrawing it costs
+	// a frame's upload and is one behaviour rather than two.
+	const bool draw_3d = (layers != nullptr) && m2vk::geom_upload(index, *record);
+
 	const bool dump = !s_dump_done && !s_dump_prefix.empty() && (s_dump_mapped != nullptr)
 			&& (s_frames == s_dump_frame);
 
-	if (!record_and_submit(slot, layers != nullptr, dump))
+	if (!record_and_submit(slot, index, layers != nullptr, draw_3d, dump))
 	{
 		if (!s_reported_frame_error)
 		{
@@ -1363,6 +1467,7 @@ void present_abandon()
 void present_end_run()
 {
 	present_shutdown();
+	m2vk::geom_end_run();
 	s_frames = 0;
 
 	// The record's own serials restart with the run, so the watermarks that chase them have to as

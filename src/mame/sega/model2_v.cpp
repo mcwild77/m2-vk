@@ -611,7 +611,7 @@ void model2_renderer::model2_3d_render(polygon *poly, const rectangle &cliprect)
 	}
 
 #ifdef M2VK
-	m2vk::submit(*poly, extra, renderer, vp);
+	renderer = m2vk::submit(*poly, extra, renderer, vp);
 	if (!m2vk::rasterize())
 		return;
 #endif
@@ -749,6 +749,8 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
 
 #ifdef M2VK
 	m2vk::frame_end();
+	if (!m2vk::sw_owns_3d())
+		m_renderer->object_data().reset();
 #endif
 
 	copybitmap_trans(bitmap, m_renderer->destmap(), 0, 0, 0, 0, cliprect, 0x00000000);

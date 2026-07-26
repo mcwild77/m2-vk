@@ -227,6 +227,11 @@ bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDevicePr
 	M2VK_RESOLVE_DEVICE(cmd_set_scissor,                  PFN_vkCmdSetScissor,                  "vkCmdSetScissor");
 	M2VK_RESOLVE_DEVICE(cmd_draw,                         PFN_vkCmdDraw,                        "vkCmdDraw");
 
+	M2VK_RESOLVE_DEVICE(cmd_bind_vertex_buffers,          PFN_vkCmdBindVertexBuffers,           "vkCmdBindVertexBuffers");
+	M2VK_RESOLVE_DEVICE(cmd_bind_index_buffer,            PFN_vkCmdBindIndexBuffer,             "vkCmdBindIndexBuffer");
+	M2VK_RESOLVE_DEVICE(cmd_draw_indexed,                 PFN_vkCmdDrawIndexed,                 "vkCmdDrawIndexed");
+	M2VK_RESOLVE_DEVICE(cmd_push_constants,               PFN_vkCmdPushConstants,               "vkCmdPushConstants");
+
 #undef M2VK_RESOLVE_DEVICE
 
 	return ok;
@@ -267,6 +272,28 @@ char const *vk_result_name(VkResult result)
 	static char buf[24];
 	std::snprintf(buf, sizeof(buf), "VkResult %d", int(result));
 	return buf;
+}
+
+
+//============================================================
+//  allocation
+//============================================================
+
+bool find_memory_type(vk_funcs const &fns, VkPhysicalDevice gpu, uint32_t type_bits,
+		VkMemoryPropertyFlags want, uint32_t &out)
+{
+	VkPhysicalDeviceMemoryProperties mem{};
+	fns.get_physical_device_memory_properties(gpu, &mem);
+
+	for (uint32_t i = 0; i < mem.memoryTypeCount; i++)
+	{
+		if (((type_bits & (uint32_t(1) << i)) != 0) && ((mem.memoryTypes[i].propertyFlags & want) == want))
+		{
+			out = i;
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace m2vk

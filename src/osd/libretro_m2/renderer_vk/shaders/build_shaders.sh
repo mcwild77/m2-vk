@@ -74,3 +74,5 @@ echo "$GLSLC_VERSION"
 emit vert fullscreen.vert  fullscreen_vert
 emit frag passthrough.frag passthrough_frag
 emit frag overlay.frag     overlay_frag
+emit vert poly.vert        poly_vert
+emit frag poly.frag        poly_frag
