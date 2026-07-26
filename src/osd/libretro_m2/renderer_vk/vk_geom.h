@@ -30,11 +30,11 @@
         the emulation thread and not one Vulkan call may be made there. So this file's upload runs
         inside retro_run, from data the emulation thread wrote and is now parked against.
 
-    What this draws is both opaque paths: draw_scanline_solid's colour chain and the checker stipple,
-    and — since step 4 — draw_scanline_tex, which is the filtered texel, the mip chain, the
-    microtexture blend and the lumaram tail. Textured *translucent* polygons are counted and skipped;
-    the cutout is step 5. An untextured translucent polygon draws nothing at all, as in the software
-    renderer, so it is dropped at upload rather than discarded in the shader.
+    What this draws is the whole raster tail: draw_scanline_solid's colour chain and the checker
+    stipple, and draw_scanline_tex's filtered texel, mip chain, microtexture blend and lumaram tail —
+    in both its opaque and its translucent specialisation, the latter being the packed alpha lane and
+    the < 50 % cutout, which is a discard in the shader. An untextured translucent polygon draws
+    nothing at all, as in the software renderer, so it is dropped at upload rather than discarded.
 
     Buffers are per sync index and are written directly rather than staged: this device's memory
     type 1 is device-local and host-visible both (unified memory), so a staging copy would buy

@@ -38,8 +38,8 @@
 //     filter straddling the edge, MAME rewrites u0/u1 and FORCES ufrac to 0 or 0x100 depending on
 //     which side of the texel centre it fell — a hard snap, not CLAMP_TO_EDGE. Mirroring is
 //     `if (mirror && (u & (width << 8))) u = ~u` on the 8.8 fixed-point coordinate.
-//   * (step 5) the translucent filter is not a filter at all: a transparent texel takes the luma of
-//     its neighbour so the interpolation cannot drag colour out of the transparent region.
+//   * the translucent filter is not a filter at all: a transparent texel takes the luma of its
+//     neighbour so the interpolation cannot drag colour out of the transparent region.
 //
 // So the texture sheets are a storage buffer of raw u32 words exactly as they sit in RAM — no decode,
 // no atlas, no cache, because both sheets together are only 2 MB — and every step of the filter is
@@ -64,7 +64,7 @@
 //
 //   * A translucent *untextured* polygon draws nothing at all — draw_scanline_solid<true> returns
 //     before it writes a pixel. It is dropped at upload rather than discarded here, so this shader
-//     never sees one. Textured translucent is step 5 and is dropped at upload the same way for now.
+//     never sees one. A translucent *textured* one does reach here, and its cutout is a discard.
 //   * The checker flag is a 50% screen door, not a blend: MAME steps x by two and starts at the first
 //     x where (x ^ scanline) & 1 is 1. gl_FragCoord.xy is the same x and scanline, so the test is
 //     literal. This is why the vertex shader maps to the visible extent rather than to a 512-wide
@@ -182,18 +182,19 @@ uint get_texel(uint base_x, uint base_y, int x, int y, uint sheet)
 //  fetch_bilinear_texel
 //============================================================
 
-// Two 8-bit lanes packed into 0x00ff00ff: the texel in bits 0..7 and, from step 5, the alpha flag at
-// bit 23. Interpolating both in one expression is what makes the translucent path's neighbour rule
-// expressible at all, so the packing is kept here even though the opaque path only uses one lane.
+// Two 8-bit lanes packed into 0x00ff00ff: the texel in bits 0..7 and the alpha flag at bit 23.
+// Interpolating both in one expression is what makes the translucent path's neighbour rule
+// expressible at all, so the packing is here even though the opaque path only uses one lane.
 uint LERP(uint x, uint y, uint a)
 {
 	return (x + (((y - x) * a) >> 8u)) & 0x00ff00ffu;
 }
 
-// model2_renderer::fetch_bilinear_texel<false>. The translucent specialisation — the packed alpha
-// lane and the transparent-texel-takes-neighbour-luma rule at all three interpolation stages — is
-// step 5, and textured translucent polygons are dropped at upload until it exists.
-uint fetch_bilinear_texel(poly_params p, int miplevel, int u, int v)
+// model2_renderer::fetch_bilinear_texel. MAME's Translucent is a template parameter; here it is an
+// ordinary bool, uniform across the polygon, and the driver hoists the branch or it does not — the
+// alternative is two copies of a hundred lines that must stay identical, which is the more expensive
+// mistake. Texel index 15 (0xf0 once shifted) is the transparent one.
+uint fetch_bilinear_texel(poly_params p, bool translucent, int miplevel, int u, int v)
 {
 	uint tex_width, tex_height, tex_x, tex_y, sheet;
 
@@ -274,9 +275,38 @@ uint fetch_bilinear_texel(poly_params p, int miplevel, int u, int v)
 	uint tex10 = get_texel(tex_x, tex_y, int(u0), int(v1), sheet) << 4u;
 	uint tex11 = get_texel(tex_x, tex_y, int(u1), int(v1), sheet) << 4u;
 
+	if (translucent)
+	{
+		// pack the alpha components into the upper 16 bits
+		if (tex00 != 0xf0u) tex00 |= 0x00800000u;
+		if (tex01 != 0xf0u) tex01 |= 0x00800000u;
+		if (tex10 != 0xf0u) tex10 |= 0x00800000u;
+		if (tex11 != 0xf0u) tex11 |= 0x00800000u;
+
+		// If a texel is transparent, it takes the luma value of the neighbouring texel — so the two
+		// LERPs below interpolate the alpha lane down towards zero without dragging colour out of the
+		// transparent region with it. This is the whole reason the packing exists.
+		//
+		// The four tests are sequential and each reads the value the one before it may have written,
+		// exactly as in model2rd.ipp. They agree with a parallel reading in every case (two adjacent
+		// transparent texels both end up 0x000000f0 either way), but the software renderer is the
+		// reference and the order it does things in is not ours to tidy.
+		if (tex00 == 0x000000f0u) tex00 = tex01 & 0xffu;
+		if (tex01 == 0x000000f0u) tex01 = tex00 & 0xffu;
+		if (tex10 == 0x000000f0u) tex10 = tex11 & 0xffu;
+		if (tex11 == 0x000000f0u) tex11 = tex10 & 0xffu;
+	}
+
 	// linearly interpolate between left and right texels, then between the two rows
 	uint tex0x = LERP(tex00, tex01, ufrac);
 	uint tex1x = LERP(tex10, tex11, ufrac);
+
+	// the same rule again between the rows: a fully transparent row takes the other row's luma
+	if (translucent)
+	{
+		if (tex0x == 0x000000f0u) tex0x = tex1x & 0xffu;
+		if (tex1x == 0x000000f0u) tex1x = tex0x & 0xffu;
+	}
 
 	return LERP(tex0x, tex1x, vfrac);
 }
@@ -356,18 +386,33 @@ void main()
 		int u = int(uoz * z * 256.0);
 		int v = int(voz * z * 256.0);
 
-		uint t = fetch_bilinear_texel(p, level, u, v);
+		bool translucent = (p.flags & FLAG_TRANSLUCENT) != 0u;
+
+		uint t = fetch_bilinear_texel(p, translucent, level, u, v);
 
 		if ((mml > 0) && (level < p.max_level))
 		{
-			uint t2 = fetch_bilinear_texel(p, level + 1, u, v);
+			uint t2 = fetch_bilinear_texel(p, translucent, level + 1, u, v);
 			t = LERP(t, t2, uint((mml & 127) << 1));
 		}
 		else if (((p.flags & FLAG_UTEX) != 0u) && (mml < 0))
 		{
 			// microtexture; blend up to almost 50%
-			uint t2 = fetch_bilinear_texel(p, -1, u, v);
+			uint t2 = fetch_bilinear_texel(p, translucent, -1, u, v);
 			t = LERP(t, t2, uint(min((-mml) >> int(p.utexminlod), 127)));
+		}
+
+		if (translucent)
+		{
+			// The cutout, and it is the only place Model 2's "translucency" means anything: the alpha
+			// lane sits in bits 16..23, so 0x00400000 is 50%. Below that the pixel is not drawn — and
+			// because this shader has no EarlyFragmentTests execution mode, a discarded fragment does
+			// not write depth either, which is what keeps the draw-order key equal to m_fillmap.
+			if (t < 0x00400000u)
+				discard;
+
+			// remove the alpha value; no longer needed
+			t &= 0xffu;
 		}
 
 		// The filtered texel has 8 bits of precision and the translator map has 128 entries, hence the

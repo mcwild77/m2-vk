@@ -753,14 +753,6 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 			skipped_translucent++;
 			continue;
 		}
-		if (cls == 3)
-		{
-			// The translucent cutout is step 5: the packed alpha lane, the transparent-texel-takes-
-			// neighbour-luma rule and the < 50 % discard. Counted rather than approximated — drawing
-			// these opaque would produce a plausible-looking picture that is not the game.
-			skipped_textured++;
-			continue;
-		}
 		if ((cls & 2) != 0)
 		{
 			if (!have_texram)
@@ -806,7 +798,7 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	if (!s_reported_skips && ((skipped_textured != 0) || (skipped_translucent != 0)))
 	{
 		s_reported_skips = true;
-		vk_log(RETRO_LOG_INFO, "geometry: of %u polygons, %u drawn (%u textured), %u textured translucent (step 5), %u untextured translucent (drawn by neither renderer)\n",
+		vk_log(RETRO_LOG_INFO, "geometry: of %u polygons, %u drawn (%u textured), %u textured with no texture RAM, %u untextured translucent (drawn by neither renderer)\n",
 				unsigned(record.poly_count),
 				unsigned(record.poly_count - skipped_textured - skipped_translucent),
 				unsigned(drawn_textured),
