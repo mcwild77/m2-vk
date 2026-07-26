@@ -6,11 +6,19 @@
 
     The shape of one frame here is: walk the record's polygon stream in draw order, fan each polygon
     to n-2 triangles, write vertices, indices and one parameter block per polygon straight into
-    mapped device memory, and record a single indexed draw. One draw for the whole frame is possible
-    because nothing varies per polygon except data — no scissor yet (P3 step 6), no pipeline change,
-    no descriptor rebind.
+    mapped device memory, and record one indexed draw per run of polygons that share a scissor
+    rectangle. Nothing else varies per polygon — no pipeline change, no descriptor rebind — so a game
+    with one viewport for the whole frame is still a single draw, which is nearly all of them.
 
-    Two traps that are already paid for and must stay paid:
+    Three traps that are already paid for and must stay paid:
+
+      * The scissor comes from the polygon's own clipped viewport and it is not decoration. MAME
+        passes `vp` — the game's viewport registers intersected with the visible rectangle — to
+        render_triangle for every polygon, so a polygon whose geometry strays outside its viewport is
+        cut off there. Games that use an inset window (vcop2's demo panel) depend on it, and the
+        geometry merely happening to stay inside the panel is not the same thing. Scissored fragments
+        never reach the depth test, so a cut-off pixel leaves the draw-order key unclaimed for a
+        later polygon — exactly as an unwritten m_fillmap entry does.
 
       * Indices are 32-bit. Primitive restart cannot be disabled on this implementation — MoltenVK
         says so once per pipeline creation, because Metal has no way to turn it off — so an index of
@@ -25,6 +33,13 @@
         the textured paths arrive they slot in at the depth they always had rather than shifting
         everything that follows.
 
+    Window ordering costs nothing here and that is worth stating, because it looks like something that
+    ought to need handling. render_polygons walks `for (window = cur_window; window >= 0; window--)`,
+    so higher-numbered windows reach the seam FIRST and win pixels against everything behind them.
+    The record is in seam order and the draw-order depth key is the record index, so the priority the
+    window loop expresses is already in the key. There is nothing to sort and nothing to group by
+    window; the log line below asserts the record really is window-descending rather than assuming it.
+
 *********************************************************************************************************************************/
 
 #include "renderer_vk/vk_geom.h"
@@ -38,7 +53,9 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <limits>
+#include <vector>
 
 
 namespace m2vk {
@@ -151,6 +168,16 @@ struct mapped_buffer
 	VkDeviceSize   size = 0;
 };
 
+// One indexed draw: a run of consecutive polygons that share a clipped viewport. The rectangle is
+// carried in m_destmap pixels rather than as a VkRect2D, because geom_draw is where the framebuffer
+// extent is known and therefore where the clamp — and, at P5, the internal-resolution scale — belongs.
+struct draw_batch
+{
+	int32_t  left, top, right, bottom;  // inclusive, exactly as MAME's rectangle spells it
+	uint32_t first_index;
+	uint32_t index_count;
+};
+
 struct geom_slot
 {
 	mapped_buffer   vertices;
@@ -163,9 +190,13 @@ struct geom_slot
 	VkDescriptorSet descriptor = VK_NULL_HANDLE;
 
 	uint32_t        capacity = 0;       // polygons the three per-frame buffers are sized for
-	uint32_t        index_count = 0;    // what this slot's recorded draw will submit
+	uint32_t        index_count = 0;    // what this slot's recorded draws will submit in total
 	uint64_t        tables_serial = 0;  // what is in colorxlat/lumaram right now
 	bool            tables_valid = false;
+
+	// Host-side only, so it grows on its own rather than with size_slot. One entry in the common case
+	// and it reaches the run's high-water mark within a few frames, same as everything else here.
+	std::vector<draw_batch> batches;
 };
 
 std::array<geom_slot, MAX_SLOTS> s_slots{};
@@ -186,8 +217,54 @@ VkDevice s_device = VK_NULL_HANDLE;
 bool s_no_3d = false;
 bool s_no_3d_known = false;
 
+// M2VK_NO_SCISSOR=1 goes back to one unscissored draw for the whole frame — the pre-step-6 behaviour.
+// It is an attribution tool, not a symmetric harness switch: MAME's rasteriser always clips to `vp`
+// and there is no way to ask it not to, so this makes the two paths differ on purpose. Its use is
+// answering "did the scissor move these pixels", which it does in one run.
+bool s_no_scissor = false;
+bool s_no_scissor_known = false;
+
 // Said once rather than 57 times a second.
 bool s_reported_skips = false;
+
+// The window/scissor report, also once. Two things worth asserting rather than assuming: that the
+// record really arrives window-descending (the draw-order depth key is the record index, so if it did
+// not, window priority would be silently inverted) and how many separate scissor runs a frame costs.
+bool s_reported_windows = false;
+
+// Maxima over the whole run, reported at geom_end_run. This is the measurement that answers "does
+// this game scissor at all", which the once-only line above cannot: it latches on the first frame
+// with either more than one window or more than one scissor run, and those are not the same frame.
+uint32_t s_max_windows = 0;
+uint32_t s_max_batches = 0;
+uint32_t s_offscreen_total = 0;
+bool     s_windows_ascending_seen = false;
+
+// Polygons the per-polygon scissor actually cuts *and the previous build did not*, which is a much
+// narrower thing than it first looks. Every game has tens of thousands of polygons a run reaching
+// outside their viewport, but in almost all of them the viewport is the whole visible screen — and
+// that was already the scissor, and before that the NDC clip. So the count here is deliberately
+// restricted to polygons cut by a viewport TIGHTER than the visible rectangle: the ones whose picture
+// changed at step 6. Always on; it is a few float compares against vertices already in registers.
+uint32_t s_clipped_polys = 0;
+uint32_t s_clipped_frames = 0;
+
+// How far outside, in pixels. This is the number that decides whether the scissor is load-bearing or
+// merely correct: the geometry engine has ALREADY clipped every polygon against four frustum planes
+// built from the same viewport registers clip[] comes from (model2_v.cpp's clip_plane[]), so a cut of
+// a fraction of a pixel is projection rounding and a cut of many pixels would be a second, real cut.
+float s_clipped_worst = 0.0f;
+
+// The m_render_done dupe path, counted rather than assumed. render_polygons takes an early return when
+// the geometrizer has not presented a new list, without touching the record — so what is still in
+// there is last frame's stream, and re-uploading and redrawing it is the "keep last frame's 3D" case
+// with no code of its own. `dupes` is how often that happened; `dropped` is how often the 3D went
+// missing from a frame AFTER it had once been drawn, which is what a broken dupe path looks like and
+// which shows up as the 3D layer flickering. It must stay zero.
+uint64_t s_seen_serial = 0;
+uint32_t s_dupe_frames = 0;
+uint32_t s_dropped_frames = 0;
+bool     s_drew_once = false;
 
 
 //============================================================
@@ -210,6 +287,16 @@ bool no_3d()
 		s_no_3d_known = true;
 	}
 	return s_no_3d;
+}
+
+bool no_scissor()
+{
+	if (!s_no_scissor_known)
+	{
+		s_no_scissor = (std::getenv("M2VK_NO_SCISSOR") != nullptr);
+		s_no_scissor_known = true;
+	}
+	return s_no_scissor;
 }
 
 void destroy_buffer(mapped_buffer &b)
@@ -677,10 +764,23 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	if (sw_owns_3d() || no_3d())
 		return false;
 	if (!record.geometry_valid || (record.poly_count == 0) || !record.tables_valid)
+	{
+		if (s_drew_once)
+			s_dropped_frames++;
 		return false;
+	}
+
+	// Same serial as last frame means the geometrizer produced nothing and render_polygons took its
+	// m_render_done early return. The record still holds last frame's list, so everything below runs
+	// again on the same data and the 3D layer simply persists.
+	if (record.geometry_serial == s_seen_serial)
+		s_dupe_frames++;
+	else
+		s_seen_serial = record.geometry_serial;
 
 	geom_slot &slot = s_slots[slot_index];
 	slot.index_count = 0;
+	slot.batches.clear();
 
 	// Growth happens here, inside the caller's fence wait, so nothing being replaced is in flight.
 	// It happens at most a handful of times a run and then never again.
@@ -708,11 +808,34 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	uint32_t drawn_textured = 0;
 	uint32_t skipped_textured = 0;
 	uint32_t skipped_translucent = 0;
+	uint32_t skipped_offscreen = 0;
+	uint32_t frame_clipped = 0;
+	float    frame_worst = 0.0f;
+
+	// Window ordering, asserted rather than assumed — see the note at the top of the file.
+	uint32_t windows_seen = 1;
+	bool     windows_descending = true;
+	uint8_t  last_window = (record.poly_count != 0) ? record.polys[0].window : 0;
+
+	const bool scissoring = !no_scissor();
+
+	// The visible rectangle, which is what MAME already intersected every clip[] with and what the
+	// scissor was before step 6. Only the counter uses it; the batches carry clip[] unaltered.
+	const int32_t visible_right = record.layer[LAYER_UNDER].width - 1;
+	const int32_t visible_bottom = record.layer[LAYER_UNDER].height - 1;
 
 	for (uint32_t n = 0; n < record.poly_count; n++)
 	{
 		m2vk::poly const &p = record.polys[n];
 		const uint8_t cls = p.renderer & 3;
+
+		if (p.window != last_window)
+		{
+			windows_seen++;
+			if (p.window > last_window)
+				windows_descending = false;
+			last_window = p.window;
+		}
 
 		// cls is bit0 = translucent, bit1 = textured — the same two bits, in the same order, that
 		// m_render_callbacks is indexed by. Spelled out rather than passed through, so that the flag
@@ -770,8 +893,41 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 		if (nverts < 3)
 			continue;
 
+		// The clipped viewport. MAME already intersected the game's viewport registers with the visible
+		// rectangle at the seam, so an empty rectangle here means the game aimed its viewport entirely
+		// off screen — and render_triangle against an empty cliprect emits no scanlines at all. Dropping
+		// the polygon is that same decision, and it must be a drop rather than an empty-scissor draw or
+		// the batch runs fragment for nothing.
+		if (scissoring && ((p.clip[2] < p.clip[0]) || (p.clip[3] < p.clip[1])))
+		{
+			skipped_offscreen++;
+			continue;
+		}
+
+		// Extend the open batch, or open a new one. Consecutive polygons almost always share a viewport
+		// — one batch for the whole frame is the common case, and a game with an inset window pays one
+		// extra draw per contiguous run rather than one per polygon.
+		//
+		// With M2VK_NO_SCISSOR the one batch is opened at a rectangle nothing can be outside, which
+		// geom_draw's clamp turns back into the framebuffer extent — so the diagnostic path is the same
+		// code with one draw, not a second code path.
+		const int32_t left   = scissoring ? p.clip[0] : 0;
+		const int32_t top    = scissoring ? p.clip[1] : 0;
+		const int32_t right  = scissoring ? p.clip[2] : std::numeric_limits<int32_t>::max();
+		const int32_t bottom = scissoring ? p.clip[3] : std::numeric_limits<int32_t>::max();
+
+		if (slot.batches.empty()
+				|| (slot.batches.back().left != left) || (slot.batches.back().top != top)
+				|| (slot.batches.back().right != right) || (slot.batches.back().bottom != bottom))
+		{
+			slot.batches.push_back(draw_batch{ left, top, right, bottom, icount, 0 });
+		}
+
 		const uint32_t base = vcount;
 		const float z = 1.0f - (float((n > DEPTH_MAX_INDEX) ? DEPTH_MAX_INDEX : n) * DEPTH_STEP);
+
+		float bx0 = p.v[0].x, bx1 = p.v[0].x;
+		float by0 = p.v[0].y, by1 = p.v[0].y;
 
 		for (uint32_t i = 0; i < nverts; i++)
 		{
@@ -783,6 +939,30 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 			v.uz = p.v[i].uz;
 			v.vz = p.v[i].vz;
 			v.poly = n;
+
+			bx0 = (v.x < bx0) ? v.x : bx0;
+			bx1 = (v.x > bx1) ? v.x : bx1;
+			by0 = (v.y < by0) ? v.y : by0;
+			by1 = (v.y > by1) ? v.y : by1;
+		}
+
+		// Cut by a viewport tighter than the visible rectangle — see the counter's note. Conservative on
+		// purpose: a bbox poking out by less than a pixel counts, so an answer of zero really does mean
+		// the viewport never bites anywhere the previous build did not already cut.
+		float excess = 0.0f;
+		if (p.clip[0] > 0)
+			excess = std::max(excess, float(p.clip[0]) - bx0);
+		if (p.clip[2] < visible_right)
+			excess = std::max(excess, bx1 - float(p.clip[2] + 1));
+		if (p.clip[1] > 0)
+			excess = std::max(excess, float(p.clip[1]) - by0);
+		if (p.clip[3] < visible_bottom)
+			excess = std::max(excess, by1 - float(p.clip[3] + 1));
+
+		if (excess > 0.0f)
+		{
+			frame_clipped++;
+			frame_worst = std::max(frame_worst, excess);
 		}
 
 		// A fan from vertex 0. Model 2 polygons are convex — the geometry engine clips them against
@@ -793,16 +973,46 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 			indices[icount++] = base + i;
 			indices[icount++] = base + i + 1;
 		}
+
+		slot.batches.back().index_count = icount - slot.batches.back().first_index;
 	}
 
-	if (!s_reported_skips && ((skipped_textured != 0) || (skipped_translucent != 0)))
+	if (!s_reported_skips && ((skipped_textured != 0) || (skipped_translucent != 0) || (skipped_offscreen != 0)))
 	{
 		s_reported_skips = true;
-		vk_log(RETRO_LOG_INFO, "geometry: of %u polygons, %u drawn (%u textured), %u textured with no texture RAM, %u untextured translucent (drawn by neither renderer)\n",
+		vk_log(RETRO_LOG_INFO, "geometry: of %u polygons, %u drawn (%u textured), %u textured with no texture RAM, %u untextured translucent (drawn by neither renderer), %u viewport entirely off screen\n",
 				unsigned(record.poly_count),
-				unsigned(record.poly_count - skipped_textured - skipped_translucent),
+				unsigned(record.poly_count - skipped_textured - skipped_translucent - skipped_offscreen),
 				unsigned(drawn_textured),
-				unsigned(skipped_textured), unsigned(skipped_translucent));
+				unsigned(skipped_textured), unsigned(skipped_translucent), unsigned(skipped_offscreen));
+	}
+
+	if (windows_seen > s_max_windows)
+		s_max_windows = windows_seen;
+	if (slot.batches.size() > s_max_batches)
+		s_max_batches = uint32_t(slot.batches.size());
+	s_offscreen_total += skipped_offscreen;
+	s_clipped_polys += frame_clipped;
+	s_clipped_worst = std::max(s_clipped_worst, frame_worst);
+	if (frame_clipped != 0)
+		s_clipped_frames++;
+	if (!windows_descending)
+		s_windows_ascending_seen = true;
+
+	// The first frame with geometry, reported whatever it looks like: the scissor rectangle is the thing
+	// a survey wants and it is interesting even when there is only one of it, because a constant
+	// viewport smaller than the screen still clips where the pre-step-6 build did not. The window
+	// clause is the assertion — if a run prints `ASCENDING` the record is not in the order
+	// render_polygons walks and the draw-order depth key has window priority backwards, which is
+	// invisible in any single-window game.
+	if (!s_reported_windows && !slot.batches.empty())
+	{
+		s_reported_windows = true;
+		draw_batch const &b = slot.batches.front();
+		vk_log(RETRO_LOG_INFO, "geometry: %u polygons, %u window runs (windows %s), %u scissor draws, first %d,%d..%d,%d\n",
+				unsigned(record.poly_count), unsigned(windows_seen),
+				windows_descending ? "descending, as render_polygons walks them" : "ASCENDING — draw order is wrong",
+				unsigned(slot.batches.size()), int(b.left), int(b.top), int(b.right), int(b.bottom));
 	}
 
 	// Texture RAM, straight from the machine's memory shares — no snapshot on the emulation thread,
@@ -839,6 +1049,12 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	}
 
 	slot.index_count = icount;
+
+	if (icount != 0)
+		s_drew_once = true;
+	else if (s_drew_once)
+		s_dropped_frames++;
+
 	return icount != 0;
 }
 
@@ -863,13 +1079,75 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	s_fns.cmd_push_constants(cmd, s_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
 	s_fns.cmd_bind_vertex_buffers(cmd, 0, 1, &slot.vertices.buffer, &offset);
 	s_fns.cmd_bind_index_buffer(cmd, slot.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
-	s_fns.cmd_draw_indexed(cmd, slot.index_count, 1, 0, 0, 0);
+
+	// One draw per scissor run. The rectangle is inclusive in m_destmap pixels and clamped to the
+	// framebuffer here — MAME had already intersected it with the visible rectangle, so the clamp is
+	// belt and braces against an emulated viewport register rather than something the frame needs.
+	//
+	// P5 puts the internal-resolution scale exactly here: the offsets and extents multiply by the same
+	// factor the vertex shader's half-extent already carries, and nothing else in this file changes.
+	for (draw_batch const &b : slot.batches)
+	{
+		if (b.index_count == 0)
+			continue;
+
+		const int32_t x0 = (b.left < 0) ? 0 : b.left;
+		const int32_t y0 = (b.top < 0) ? 0 : b.top;
+		const int32_t x1 = (b.right >= int32_t(width)) ? int32_t(width) - 1 : b.right;
+		const int32_t y1 = (b.bottom >= int32_t(height)) ? int32_t(height) - 1 : b.bottom;
+		if ((x1 < x0) || (y1 < y0))
+			continue;
+
+		VkRect2D rect{};
+		rect.offset = { x0, y0 };
+		rect.extent = { uint32_t(x1 - x0 + 1), uint32_t(y1 - y0 + 1) };
+		s_fns.cmd_set_scissor(cmd, 0, 1, &rect);
+
+		s_fns.cmd_draw_indexed(cmd, b.index_count, 1, b.first_index, 0, 0);
+	}
+
+	// Put it back. The caller set the full extent before the under-layer draw and draws the over layer
+	// after this returns; leaving a polygon's window in the scissor would clip the foreground tilemaps
+	// to it, which is a whole-frame corruption from one line of omission.
+	VkRect2D full{};
+	full.offset = { 0, 0 };
+	full.extent = { width, height };
+	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
 }
 
 void geom_end_run()
 {
+	// The run's maxima, which is what a survey reads. A game printing `scissor draws 1` never varies
+	// its viewport within a frame and cannot be told apart from the pre-step-6 build by any picture.
+	if (s_max_windows != 0)
+	{
+		vk_log(RETRO_LOG_INFO, "geometry: over the run, at most %u window runs and %u scissor draws in a frame; %u polygons in %u frames cut by a viewport tighter than the screen, worst by %g px%s%s\n",
+				unsigned(s_max_windows), unsigned(s_max_batches),
+				unsigned(s_clipped_polys), unsigned(s_clipped_frames), double(s_clipped_worst),
+				(s_offscreen_total != 0) ? ", some dropped with an off-screen viewport" : "",
+				s_windows_ascending_seen ? " — WINDOWS ASCENDING SOMEWHERE, draw order is wrong" : "");
+
+		// The dupe path. `3D dropped` must be 0: anything else means a frame that had geometry lost it
+		// again, which is the 3D layer flickering.
+		vk_log(RETRO_LOG_INFO, "geometry: %u frames redrew last frame's list (geometrizer behind), 3D dropped from %u frames after first being drawn\n",
+				unsigned(s_dupe_frames), unsigned(s_dropped_frames));
+	}
+
 	s_reported_skips = false;
+	s_reported_windows = false;
+	s_max_windows = 0;
+	s_max_batches = 0;
+	s_offscreen_total = 0;
+	s_clipped_polys = 0;
+	s_clipped_frames = 0;
+	s_clipped_worst = 0.0f;
+	s_seen_serial = 0;
+	s_dupe_frames = 0;
+	s_dropped_frames = 0;
+	s_drew_once = false;
+	s_windows_ascending_seen = false;
 	s_no_3d_known = false;
+	s_no_scissor_known = false;
 }
 
 } // namespace m2vk
