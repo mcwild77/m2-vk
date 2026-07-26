@@ -42,6 +42,7 @@
 #include "m2vk_frame.h"
 #include "m2vk_sink.h"
 
+#include "renderer_vk/shaders/downsample_frag_spv.h"
 #include "renderer_vk/shaders/fullscreen_vert_spv.h"
 #include "renderer_vk/shaders/overlay_frag_spv.h"
 #include "renderer_vk/shaders/passthrough_frag_spv.h"
@@ -75,6 +76,10 @@ constexpr uint64_t FENCE_TIMEOUT_NS = 2000000000ull;
 
 // Ceiling on the ring, purely as a sanity bound on a mask we did not compute. RetroArch reports 3.
 constexpr uint32_t MAX_RING_SLOTS = 8;
+
+// M2VK_SS's ceiling. At 4x a slot's oversized colour and depth attachments are 12 MB each, so a ring
+// of three costs 73 MB on top of everything else; this is a diagnostic and the bound says so.
+constexpr uint32_t MAX_SUPERSAMPLE = 8;
 
 
 //============================================================
@@ -115,6 +120,18 @@ struct frame_slot
 	VkDeviceMemory  depth_memory = VK_NULL_HANDLE;
 	VkImageView     depth_view = VK_NULL_HANDLE;
 
+	// M2VK_SS only, and null otherwise: the oversized colour and depth the whole frame is drawn into
+	// before being resolved back down into `image`. Same render pass, same everything — the only
+	// difference is the extent, which is the point of the exercise.
+	VkImage         ss_image = VK_NULL_HANDLE;
+	VkDeviceMemory  ss_memory = VK_NULL_HANDLE;
+	VkImageView     ss_view = VK_NULL_HANDLE;
+	VkImage         ss_depth = VK_NULL_HANDLE;
+	VkDeviceMemory  ss_depth_memory = VK_NULL_HANDLE;
+	VkImageView     ss_depth_view = VK_NULL_HANDLE;
+	VkFramebuffer   ss_framebuffer = VK_NULL_HANDLE;
+	VkDescriptorSet ss_descriptor = VK_NULL_HANDLE;
+
 	layer_tex       layers[m2vk::LAYER_COUNT];
 
 	VkCommandPool   pool = VK_NULL_HANDLE;
@@ -143,6 +160,7 @@ VkDescriptorPool      s_descriptor_pool = VK_NULL_HANDLE;
 VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
 VkPipeline            s_pipeline = VK_NULL_HANDLE;        // opaque: the under layer
 VkPipeline            s_pipeline_over = VK_NULL_HANDLE;   // discards pixel 0: the over layer
+VkPipeline            s_pipeline_resolve = VK_NULL_HANDLE; // M2VK_SS only: the supersample resolve
 
 // Captured when the ring is built, so that teardown does not depend on the context's state having
 // survived — and so that the funcs table is one pointer chase away in the per-frame path.
@@ -153,6 +171,67 @@ VkDevice s_device = VK_NULL_HANDLE;
 unsigned s_width = 0;
 unsigned s_height = 0;
 uint32_t s_mask = 0;
+
+//============================================================
+//  the supersample diagnostic
+//============================================================
+
+// M2VK_SS=<n> draws the whole frame — both 2D layers and the polygon pass — into an attachment n
+// times the visible extent in each axis, then resolves it back down into the image the frontend is
+// handed. Everything downstream still sees 496x384, so ppmdiff.py and the whole A/B harness measure
+// it without knowing.
+//
+// It exists for P4 step 2. poly.vert's header claims the depth path is resolution-invariant — the
+// key is per polygon and carries no screen-space term — and that was an argument rather than a
+// measurement. This is how it gets measured, and P5's internal-res scaling is where the same
+// machinery becomes a feature rather than a diagnostic.
+//
+// M2VK_SS_POINT=1 takes the centre subpixel instead of the mean, which is only meaningful for an ODD
+// n (downsample.frag explains why) and is refused otherwise. It is the stronger test: at 3x point the
+// fragment shader runs at the same screen positions as the 1x render, so the two pictures are
+// comparable pixel for pixel rather than only in aggregate.
+//
+// Cost when unset: one getenv per ring build. s_ss == 1 is the ordinary path and every branch below
+// is written so that it is the one with nothing extra in it.
+uint32_t s_ss = 1;
+bool     s_ss_point = false;
+
+// downsample.frag's push block.
+struct resolve_push
+{
+	uint32_t scale;
+	uint32_t point_sample;
+};
+
+void read_supersample()
+{
+	s_ss = 1;
+	s_ss_point = false;
+
+	char const *const env = std::getenv("M2VK_SS");
+	if (env == nullptr)
+		return;
+
+	const unsigned long n = std::strtoul(env, nullptr, 10);
+	if ((n < 1) || (n > MAX_SUPERSAMPLE))
+	{
+		vk_log(RETRO_LOG_ERROR, "M2VK_SS=%s is out of range (1..%u); rendering at 1x\n", env, unsigned(MAX_SUPERSAMPLE));
+		return;
+	}
+
+	s_ss = uint32_t(n);
+
+	if (std::getenv("M2VK_SS_POINT") != nullptr)
+	{
+		// Refused rather than quietly boxed: an even scale has no subpixel whose centre coincides with
+		// the 1x pixel's, so "point" would silently become "a half-pixel shift", which is exactly the
+		// kind of result that gets believed.
+		if ((s_ss % 2) == 0)
+			vk_log(RETRO_LOG_ERROR, "M2VK_SS_POINT needs an odd M2VK_SS (it is %u); resolving with the box filter\n", unsigned(s_ss));
+		else
+			s_ss_point = true;
+	}
+}
 
 // Frames presented since the content was loaded. This deliberately survives a context loss: a
 // fixture is identified by (rom, frame), and if this restarted at every context_reset then a
@@ -531,8 +610,9 @@ bool build_descriptors(uint32_t slot_count)
 		return false;
 
 	// One set per layer per slot: the two layers are sampled by two draws in the same command buffer,
-	// so they cannot share.
-	const uint32_t sets = slot_count * uint32_t(m2vk::LAYER_COUNT);
+	// so they cannot share. Under M2VK_SS each slot needs one more, naming its oversized attachment
+	// for the resolve draw.
+	const uint32_t sets = slot_count * (uint32_t(m2vk::LAYER_COUNT) + ((s_ss > 1) ? 1u : 0u));
 
 	VkDescriptorPoolSize size{};
 	size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -550,10 +630,21 @@ bool build_descriptors(uint32_t slot_count)
 
 bool build_pipeline()
 {
+	// The push constant is the resolve's alone — the two layer pipelines declare no push block and
+	// never write one — but a pipeline layout is shared by all three, and a range no shader reads
+	// costs nothing. It is always declared rather than only under M2VK_SS so that the layout, and so
+	// the two ordinary pipelines, are identical whether the diagnostic is on or off.
+	VkPushConstantRange push{};
+	push.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	push.offset = 0;
+	push.size = sizeof(resolve_push);
+
 	VkPipelineLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	layout_info.setLayoutCount = 1;
 	layout_info.pSetLayouts = &s_set_layout;
+	layout_info.pushConstantRangeCount = 1;
+	layout_info.pPushConstantRanges = &push;
 	if (!check(s_fns.create_pipeline_layout(s_device, &layout_info, nullptr, &s_pipeline_layout), "vkCreatePipelineLayout"))
 		return false;
 
@@ -562,6 +653,7 @@ bool build_pipeline()
 	VkShaderModule vert = VK_NULL_HANDLE;
 	VkShaderModule frag = VK_NULL_HANDLE;
 	VkShaderModule frag_over = VK_NULL_HANDLE;
+	VkShaderModule frag_resolve = VK_NULL_HANDLE;
 	auto const make_module = [](uint32_t const *code, size_t bytes, VkShaderModule &out)
 	{
 		VkShaderModuleCreateInfo info{};
@@ -573,7 +665,8 @@ bool build_pipeline()
 
 	bool ok = make_module(FULLSCREEN_VERT_SPV, sizeof(FULLSCREEN_VERT_SPV), vert)
 			&& make_module(PASSTHROUGH_FRAG_SPV, sizeof(PASSTHROUGH_FRAG_SPV), frag)
-			&& make_module(OVERLAY_FRAG_SPV, sizeof(OVERLAY_FRAG_SPV), frag_over);
+			&& make_module(OVERLAY_FRAG_SPV, sizeof(OVERLAY_FRAG_SPV), frag_over)
+			&& ((s_ss == 1) || make_module(DOWNSAMPLE_FRAG_SPV, sizeof(DOWNSAMPLE_FRAG_SPV), frag_resolve));
 
 	if (ok)
 	{
@@ -676,8 +769,20 @@ bool build_pipeline()
 			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_over),
 					"vkCreateGraphicsPipelines (overlay)");
 		}
+
+		// And the resolve, for the same reason from the same structs. It differs from the opaque layer
+		// pipeline in nothing but the fragment shader: same fullscreen triangle, same descriptor, and it
+		// covers the attachment so it neither tests nor writes depth.
+		if (ok && (s_ss > 1))
+		{
+			stages[1].module = frag_resolve;
+			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_resolve),
+					"vkCreateGraphicsPipelines (resolve)");
+		}
 	}
 
+	if (frag_resolve != VK_NULL_HANDLE)
+		s_fns.destroy_shader_module(s_device, frag_resolve, nullptr);
 	if (frag_over != VK_NULL_HANDLE)
 		s_fns.destroy_shader_module(s_device, frag_over, nullptr);
 	if (frag != VK_NULL_HANDLE)
@@ -695,6 +800,8 @@ bool build_pipeline()
 
 void destroy_shared()
 {
+	if (s_pipeline_resolve != VK_NULL_HANDLE)
+		s_fns.destroy_pipeline(s_device, s_pipeline_resolve, nullptr);
 	if (s_pipeline_over != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline_over, nullptr);
 	if (s_pipeline != VK_NULL_HANDLE)
@@ -711,6 +818,7 @@ void destroy_shared()
 	if (s_render_pass != VK_NULL_HANDLE)
 		s_fns.destroy_render_pass(s_device, s_render_pass, nullptr);
 
+	s_pipeline_resolve = VK_NULL_HANDLE;
 	s_pipeline_over = VK_NULL_HANDLE;
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
@@ -735,6 +843,7 @@ void forget_ring()
 	s_dump_mapped = nullptr;
 	s_dump_buffer = VK_NULL_HANDLE;
 	s_dump_memory = VK_NULL_HANDLE;
+	s_pipeline_resolve = VK_NULL_HANDLE;
 	s_pipeline_over = VK_NULL_HANDLE;
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
@@ -788,6 +897,21 @@ void destroy_ring()
 			s_fns.destroy_fence(s_device, slot.fence, nullptr);
 		if (slot.framebuffer != VK_NULL_HANDLE)
 			s_fns.destroy_framebuffer(s_device, slot.framebuffer, nullptr);
+		// The supersample pair. Null unless M2VK_SS asked for them; the set is freed with the pool.
+		if (slot.ss_framebuffer != VK_NULL_HANDLE)
+			s_fns.destroy_framebuffer(s_device, slot.ss_framebuffer, nullptr);
+		if (slot.ss_depth_view != VK_NULL_HANDLE)
+			s_fns.destroy_image_view(s_device, slot.ss_depth_view, nullptr);
+		if (slot.ss_depth != VK_NULL_HANDLE)
+			s_fns.destroy_image(s_device, slot.ss_depth, nullptr);
+		if (slot.ss_depth_memory != VK_NULL_HANDLE)
+			s_fns.free_memory(s_device, slot.ss_depth_memory, nullptr);
+		if (slot.ss_view != VK_NULL_HANDLE)
+			s_fns.destroy_image_view(s_device, slot.ss_view, nullptr);
+		if (slot.ss_image != VK_NULL_HANDLE)
+			s_fns.destroy_image(s_device, slot.ss_image, nullptr);
+		if (slot.ss_memory != VK_NULL_HANDLE)
+			s_fns.free_memory(s_device, slot.ss_memory, nullptr);
 		if (slot.depth_view != VK_NULL_HANDLE)
 			s_fns.destroy_image_view(s_device, slot.depth_view, nullptr);
 		if (slot.depth != VK_NULL_HANDLE)
@@ -910,6 +1034,73 @@ bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queu
 	fb_info.layers = 1;
 	if (!check(s_fns.create_framebuffer(s_device, &fb_info, nullptr, &slot.framebuffer), "vkCreateFramebuffer"))
 		return false;
+
+	// The supersample diagnostic's oversized pair. Same formats, same render pass — a render pass says
+	// nothing about extent, so the frame is recorded into this one exactly as it would be into the
+	// image above, and the resolve draw below is the only thing that knows the difference. The colour
+	// image is SAMPLED as well, because the resolve reads it.
+	if (s_ss > 1)
+	{
+		const unsigned ss_width = width * s_ss;
+		const unsigned ss_height = height * s_ss;
+
+		VkImageCreateInfo ss_info = image_info;
+		ss_info.flags = 0;
+		ss_info.extent = { ss_width, ss_height, 1 };
+		ss_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		if (!check(s_fns.create_image(s_device, &ss_info, nullptr, &slot.ss_image), "vkCreateImage (supersample)"))
+			return false;
+		if (!allocate_and_bind_image(slot.ss_image, slot.ss_memory))
+			return false;
+
+		VkImageViewCreateInfo ss_view_info = view_info;
+		ss_view_info.image = slot.ss_image;
+		if (!check(s_fns.create_image_view(s_device, &ss_view_info, nullptr, &slot.ss_view), "vkCreateImageView (supersample)"))
+			return false;
+
+		VkImageCreateInfo ss_depth_info = depth_info;
+		ss_depth_info.extent = { ss_width, ss_height, 1 };
+		if (!check(s_fns.create_image(s_device, &ss_depth_info, nullptr, &slot.ss_depth), "vkCreateImage (supersample depth)"))
+			return false;
+		if (!allocate_and_bind_image(slot.ss_depth, slot.ss_depth_memory))
+			return false;
+
+		VkImageViewCreateInfo ss_depth_view_info = depth_view_info;
+		ss_depth_view_info.image = slot.ss_depth;
+		if (!check(s_fns.create_image_view(s_device, &ss_depth_view_info, nullptr, &slot.ss_depth_view), "vkCreateImageView (supersample depth)"))
+			return false;
+
+		const VkImageView ss_attachments[2] = { slot.ss_view, slot.ss_depth_view };
+
+		VkFramebufferCreateInfo ss_fb_info = fb_info;
+		ss_fb_info.pAttachments = ss_attachments;
+		ss_fb_info.width = ss_width;
+		ss_fb_info.height = ss_height;
+		if (!check(s_fns.create_framebuffer(s_device, &ss_fb_info, nullptr, &slot.ss_framebuffer), "vkCreateFramebuffer (supersample)"))
+			return false;
+
+		VkDescriptorSetAllocateInfo ss_set_alloc{};
+		ss_set_alloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		ss_set_alloc.descriptorPool = s_descriptor_pool;
+		ss_set_alloc.descriptorSetCount = 1;
+		ss_set_alloc.pSetLayouts = &s_set_layout;
+		if (!check(s_fns.allocate_descriptor_sets(s_device, &ss_set_alloc, &slot.ss_descriptor), "vkAllocateDescriptorSets (supersample)"))
+			return false;
+
+		VkDescriptorImageInfo ss_binding{};
+		ss_binding.sampler = s_sampler;
+		ss_binding.imageView = slot.ss_view;
+		ss_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		VkWriteDescriptorSet ss_write{};
+		ss_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		ss_write.dstSet = slot.ss_descriptor;
+		ss_write.dstBinding = 0;
+		ss_write.descriptorCount = 1;
+		ss_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		ss_write.pImageInfo = &ss_binding;
+		s_fns.update_descriptor_sets(s_device, 1, &ss_write, 0, nullptr);
+	}
 
 	// One of these per 2D layer. Identical in every respect but which draw samples them; the loop is
 	// the only thing that stops the two from drifting apart.
@@ -1042,6 +1233,9 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 	s_height = height;
 	s_mask = mask;
 
+	// Before anything is built: it decides the descriptor pool's size and each slot's attachments.
+	read_supersample();
+
 	// Asked of the device rather than assumed. D24_UNORM_S8_UINT does not exist on this GPU at all —
 	// its optimalTilingFeatures is literally zero — and a depth format that is merely *usually*
 	// present is exactly the sort of thing to find out about at build rather than at the first draw.
@@ -1084,6 +1278,16 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 	vk_log(RETRO_LOG_INFO, "ring of %u %ux%u B8G8R8A8_UNORM images, sync index mask 0x%x, queue family %u; %llu KiB of staging\n",
 			unsigned(count), width, height, unsigned(mask), iface.queue_index,
 			(unsigned long long)((VkDeviceSize(width) * VkDeviceSize(height) * 4 * count * m2vk::LAYER_COUNT) / 1024));
+
+	// Said out loud, every ring build, because a supersampled run's output is the ordinary 496x384 and
+	// there is otherwise nothing in the log or the picture to say which resolution produced it.
+	if (s_ss > 1)
+	{
+		vk_log(RETRO_LOG_INFO, "supersample: drawing at %ux%u (%ux) and resolving with the %s; %llu KiB of oversized attachments\n",
+				width * s_ss, height * s_ss, unsigned(s_ss), s_ss_point ? "centre subpixel" : "box filter",
+				(unsigned long long)((VkDeviceSize(width) * VkDeviceSize(height) * VkDeviceSize(s_ss) * VkDeviceSize(s_ss)
+					* 8 * count) / 1024));
+	}
 
 	// The read-back buffer only exists when someone asked for it. A ring rebuild re-reads the
 	// environment but does not re-arm a dump that has already been taken.
@@ -1185,12 +1389,19 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	clear[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 	clear[1].depthStencil = { 0.0f, 0 };
 
+	// Under M2VK_SS the sandwich is drawn into the oversized attachment and resolved into the ring
+	// image by a second pass below; otherwise these are the ring image and its extent, which is the
+	// ordinary path and the one with nothing extra in it.
+	const bool ss = (s_ss > 1) && (slot.ss_framebuffer != VK_NULL_HANDLE) && (s_pipeline_resolve != VK_NULL_HANDLE);
+	const uint32_t draw_width = ss ? (s_width * s_ss) : s_width;
+	const uint32_t draw_height = ss ? (s_height * s_ss) : s_height;
+
 	VkRenderPassBeginInfo pass{};
 	pass.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	pass.renderPass = s_render_pass;
-	pass.framebuffer = slot.framebuffer;
+	pass.framebuffer = ss ? slot.ss_framebuffer : slot.framebuffer;
 	pass.renderArea.offset = { 0, 0 };
-	pass.renderArea.extent = { s_width, s_height };
+	pass.renderArea.extent = { draw_width, draw_height };
 	pass.clearValueCount = 2;
 	pass.pClearValues = clear;
 	s_fns.cmd_begin_render_pass(slot.cmd, &pass, VK_SUBPASS_CONTENTS_INLINE);
@@ -1198,15 +1409,15 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	VkViewport viewport{};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = float(s_width);
-	viewport.height = float(s_height);
+	viewport.width = float(draw_width);
+	viewport.height = float(draw_height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	s_fns.cmd_set_viewport(slot.cmd, 0, 1, &viewport);
 
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
-	scissor.extent = { s_width, s_height };
+	scissor.extent = { draw_width, draw_height };
 	s_fns.cmd_set_scissor(slot.cmd, 0, 1, &scissor);
 
 	// The sandwich, bottom slice first. The two 2D draws are the same fullscreen triangle and differ
@@ -1219,10 +1430,16 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 			0, 1, &slot.layers[m2vk::LAYER_UNDER].descriptor, 0, nullptr);
 	s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
 
-	// The 3D. The viewport and scissor above are the visible extent, which is what makes the shader's
-	// gl_FragCoord.xy equal the software renderer's x and scanline.
+	// The 3D. It is handed the VISIBLE extent and the scale separately, not the attachment's: the
+	// polygon stream is in m_destmap pixels and the vertex shader turns those into NDC, so the scale
+	// belongs to the viewport and the scissor and to nothing else.
+	//
+	// At 1x the viewport above is the visible extent and that is what makes the shader's
+	// gl_FragCoord.xy equal the software renderer's x and scanline. Under M2VK_SS it deliberately does
+	// not: gl_FragCoord is then a subpixel coordinate, which is exactly why the checker stipple is not
+	// resolution-invariant and is P5's problem rather than this file's.
 	if (draw_3d)
-		m2vk::geom_draw(index, slot.cmd, s_width, s_height);
+		m2vk::geom_draw(index, slot.cmd, s_width, s_height, s_ss);
 
 	if (draw_over)
 	{
@@ -1233,6 +1450,38 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	}
 
 	s_fns.cmd_end_render_pass(slot.cmd);
+
+	// The resolve. A second pass over the ring image, sampling what the first one drew — the render
+	// pass's finalLayout has already put the oversized image into SHADER_READ_ONLY_OPTIMAL and its
+	// outgoing subpass dependency already covers a fragment-shader read, so there is no barrier here
+	// and none is missing. The triangle covers the attachment, so the colour clear and the depth
+	// attachment along with it are along for the ride.
+	if (ss)
+	{
+		pass.framebuffer = slot.framebuffer;
+		pass.renderArea.extent = { s_width, s_height };
+		s_fns.cmd_begin_render_pass(slot.cmd, &pass, VK_SUBPASS_CONTENTS_INLINE);
+
+		viewport.width = float(s_width);
+		viewport.height = float(s_height);
+		s_fns.cmd_set_viewport(slot.cmd, 0, 1, &viewport);
+
+		scissor.extent = { s_width, s_height };
+		s_fns.cmd_set_scissor(slot.cmd, 0, 1, &scissor);
+
+		resolve_push push{};
+		push.scale = s_ss;
+		push.point_sample = s_ss_point ? 1u : 0u;
+
+		s_fns.cmd_bind_pipeline(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_resolve);
+		s_fns.cmd_bind_descriptor_sets(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
+				0, 1, &slot.ss_descriptor, 0, nullptr);
+		s_fns.cmd_push_constants(slot.cmd, s_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+				0, sizeof(push), &push);
+		s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
+
+		s_fns.cmd_end_render_pass(slot.cmd);
+	}
 
 	// The diagnostic read-back, in this same command buffer so that what lands in the dump buffer is
 	// exactly what the frontend is about to be handed. The image is put back into the layout the

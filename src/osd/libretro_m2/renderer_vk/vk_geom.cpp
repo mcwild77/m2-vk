@@ -1182,7 +1182,7 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	return icount != 0;
 }
 
-void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height)
+void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height, unsigned scale)
 {
 	if ((slot_index >= s_slot_count) || (s_pipelines[0] == VK_NULL_HANDLE) || (s_pipelines[1] == VK_NULL_HANDLE))
 		return;
@@ -1191,9 +1191,16 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	if (slot.index_count == 0)
 		return;
 
+	// The VISIBLE half-extent, at every scale. The vertex shader turns m_destmap pixels into NDC and
+	// NDC is what does not depend on the resolution; handing it the scaled extent instead puts the
+	// whole frame in a 1/scale corner of the attachment, which is what happened the first time.
 	gpu_push push{};
 	push.half_width = float(width) * 0.5f;
 	push.half_height = float(height) * 0.5f;
+
+	// The attachment's, which is what the scissor is measured in.
+	const unsigned draw_width = width * scale;
+	const unsigned draw_height = height * scale;
 
 	const VkDeviceSize offset = 0;
 
@@ -1209,8 +1216,11 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	// to the framebuffer here — MAME had already intersected it with the visible rectangle, so the clamp
 	// is belt and braces against an emulated viewport register rather than something the frame needs.
 	//
-	// P5 puts the internal-resolution scale exactly here: the offsets and extents multiply by the same
-	// factor the vertex shader's half-extent already carries, and nothing else in this file changes.
+	// The internal-resolution scale is exactly here, and nowhere else in this file: an m_destmap pixel
+	// spans `scale` attachment pixels, so an inclusive [left, right] becomes [left*scale, (right+1)*scale
+	// - 1] and the vertex shader's half-extent — the caller's width/height — has already been scaled. It
+	// is the whole of what M2VK_SS costs the polygon pass, which is P4 step 2's point: the depth key
+	// carries no screen-space term, so nothing else here can depend on the resolution.
 	VkPipeline bound = VK_NULL_HANDLE;
 	VkRect2D   set_to{};
 	bool       scissor_set = false;
@@ -1220,10 +1230,13 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 		if (b.index_count == 0)
 			continue;
 
-		const int32_t x0 = (b.left < 0) ? 0 : b.left;
-		const int32_t y0 = (b.top < 0) ? 0 : b.top;
-		const int32_t x1 = (b.right >= int32_t(width)) ? int32_t(width) - 1 : b.right;
-		const int32_t y1 = (b.bottom >= int32_t(height)) ? int32_t(height) - 1 : b.bottom;
+		const int32_t s = int32_t(scale);
+		const int32_t x0 = (b.left < 0) ? 0 : (b.left * s);
+		const int32_t y0 = (b.top < 0) ? 0 : (b.top * s);
+		const int32_t right = ((b.right + 1) * s) - 1;
+		const int32_t bottom = ((b.bottom + 1) * s) - 1;
+		const int32_t x1 = (right >= int32_t(draw_width)) ? int32_t(draw_width) - 1 : right;
+		const int32_t y1 = (bottom >= int32_t(draw_height)) ? int32_t(draw_height) - 1 : bottom;
 		if ((x1 < x0) || (y1 < y0))
 			continue;
 
@@ -1257,7 +1270,7 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	// to it, which is a whole-frame corruption from one line of omission.
 	VkRect2D full{};
 	full.offset = { 0, 0 };
-	full.extent = { width, height };
+	full.extent = { draw_width, draw_height };
 	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
 }
 

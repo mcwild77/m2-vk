@@ -88,14 +88,21 @@ void geom_forget();
 bool geom_upload(uint32_t slot, frame_record const &record);
 
 // Records the polygon pass, inside the ring's render pass and between the two 2D layer draws. The
-// caller has already set the viewport and scissor to the visible extent, which is what makes
+// caller has already set the viewport and scissor to the attachment's extent, which is what makes
 // gl_FragCoord equal the software renderer's x/scanline.
 //
 // It is one indexed draw per run of polygons sharing a clipped viewport AND a pipeline — the two
 // pipelines differ only in whether the fragment shader can discard, and a polygon that cannot takes the
 // EarlyFragmentTests variant. It SETS THE SCISSOR, then restores the full extent before returning,
 // because the caller draws the foreground tilemaps after it.
-void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height);
+//
+// `width`/`height` are the VISIBLE extent — m_destmap's, whatever the attachment's is — and `scale`
+// how many attachment pixels one m_destmap pixel spans: 1 for the ordinary frame, n under M2VK_SS=n.
+// The vertex shader takes the visible half-extent at every scale and must not be given the scaled
+// one: it turns m_destmap pixels into NDC, and NDC is what is resolution-independent. So the scale is
+// applied here and only here, to the scissor rectangles, which are the one thing in this file
+// expressed in attachment pixels.
+void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height, unsigned scale = 1);
 
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.
 void geom_end_run();

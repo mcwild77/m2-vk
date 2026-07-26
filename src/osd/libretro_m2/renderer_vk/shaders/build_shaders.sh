@@ -75,6 +75,7 @@ echo "$GLSLC_VERSION"
 emit vert fullscreen.vert  fullscreen_vert
 emit frag passthrough.frag passthrough_frag
 emit frag overlay.frag     overlay_frag
+emit frag downsample.frag  downsample_frag
 emit vert poly.vert        poly_vert
 
 # poly.frag twice: the general variant, and the specialisation for polygons that cannot discard, which

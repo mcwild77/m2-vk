@@ -10,8 +10,14 @@
 // or origin disagreement inverts the whole pattern.
 //
 // This is also scale-invariant, which is what P5's internal-res scaling needs: rendering at S x is
-// a viewport of S*width by S*height and nothing here changes, because the perspective divide has
-// already happened and a uniform screen-space scale commutes with it.
+// a viewport of S*width by S*height and NOTHING HERE CHANGES — pc.half_size stays the *visible*
+// half-extent at every scale — because the perspective divide has already happened, this produces
+// NDC, and NDC is the resolution-independent quantity. Scaling half_size along with the viewport is
+// the obvious wrong move and it puts the whole frame in a 1/S corner of the attachment.
+//
+// P4 step 2 measured this rather than leaving it as the argument it was until 2026-07-27: M2VK_SS=n
+// renders into an n x attachment and resolves back down, and no polygon that won a pixel at 1x loses
+// it at 2x, 3x or 4x on any fixture. See devnotes/p4-depth-and-decals.md §3 step 2.
 //
 // in_pos.z is NOT depth in any geometric sense. It is the draw-order key — 1 - n/65536 for the nth
 // polygon in draw order — and with a GREATER test and depth writes on it reproduces the software
