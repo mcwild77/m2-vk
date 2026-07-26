@@ -708,16 +708,18 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
 		return;
 	}
 
+#ifdef M2VK
+	// Above the empty-list bail below, not merely for tidiness: an empty list has to reach the record or
+	// it reads as the m_render_done dupe and the 3D never goes away. See m2vk::frame_begin.
+	m2vk::frame_begin(raster->poly_list_index, { m_colorxlat.get(), m_lumaram.get(), m_gamma_table, { m_textureram0, m_textureram1 }, { u32(m_textureram0.length()), u32(m_textureram1.length()) } });
+#endif
+
 	/* if we have nothing to render, bail */
 	if (raster->poly_list_index == 0)
 		return;
 
 	m_renderer->destmap().fill(0x00000000, cliprect);
 	m_renderer->fillmap().fill(0x00, cliprect);
-
-#ifdef M2VK
-	m2vk::frame_begin(raster->poly_list_index, { m_colorxlat.get(), m_lumaram.get(), m_gamma_table, { m_textureram0, m_textureram1 }, { u32(m_textureram0.length()), u32(m_textureram1.length()) } });
-#endif
 
 	for (int window = raster->cur_window; window >= 0; window--)
 	{

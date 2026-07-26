@@ -43,6 +43,13 @@
     return) leaves the record alone, so the renderer re-presents what it already has. That matches
     what MAME does with its own bitmap, and it is the "keep last frame's 3D" case.
 
+    An EMPTY DISPLAY LIST is not that case and the difference is the whole of geometry_none(). When
+    the geometry engine queues no polygons at all, render_polygons bails without copying its previous
+    destmap, so MAME's 3D layer for that frame is blank. Left to look like the dupe above it, the
+    hardware renderer would go on drawing the last list it was handed for the rest of the run —
+    measured, before this was fixed, as vstriker compositing a whole football pitch under the
+    copyright card. So the empty list is recorded as a real frame with zero polygons in it.
+
 *********************************************************************************************************************************/
 #ifndef MAME_OSD_LIBRETRO_M2_M2VK_FRAME_H
 #define MAME_OSD_LIBRETRO_M2_M2VK_FRAME_H
@@ -232,6 +239,12 @@ inline bool capturing() { return detail::g_capturing; }
 void geometry_begin(uint32_t submitted, frame_tables const &tables);
 void geometry_submit(poly const &p);
 void geometry_end();
+
+// The third case: a new display list that is empty. render_polygons bails on it before it draws
+// anything, so MAME's own 3D layer is blank for that frame — which is the opposite of the dupe case
+// above it, where the blank record means "keep what you have". There is no stream to bracket, so this
+// does begin and end in one call and marks the record valid with no polygons in it.
+void geometry_none();
 
 // Emulation thread, from the screen_update hooks. Returns where to write width*height pixels, or
 // nullptr if nobody is capturing. layer_end() is what marks it valid, so a capture abandoned

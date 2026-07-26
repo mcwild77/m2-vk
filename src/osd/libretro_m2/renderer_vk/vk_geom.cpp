@@ -255,14 +255,30 @@ uint32_t s_clipped_frames = 0;
 // a fraction of a pixel is projection rounding and a cut of many pixels would be a second, real cut.
 float s_clipped_worst = 0.0f;
 
-// The m_render_done dupe path, counted rather than assumed. render_polygons takes an early return when
-// the geometrizer has not presented a new list, without touching the record — so what is still in
-// there is last frame's stream, and re-uploading and redrawing it is the "keep last frame's 3D" case
-// with no code of its own. `dupes` is how often that happened; `dropped` is how often the 3D went
-// missing from a frame AFTER it had once been drawn, which is what a broken dupe path looks like and
-// which shows up as the 3D layer flickering. It must stay zero.
+// The three ways a frame can produce no new draw, counted rather than assumed, because two of them are
+// correct and one is a bug and they are not distinguishable by looking at the picture.
+//
+//   dupes   — render_polygons took its m_render_done early return: the geometrizer has not presented a
+//             new list, the record still holds last frame's stream, and re-uploading and redrawing it
+//             is the "keep last frame's 3D" case with no code of its own. MAME re-copies its own
+//             destmap on that path, so redrawing is what agrees with it.
+//   empty   — the display list was new and had nothing in it. MAME draws no 3D at all for such a frame,
+//             so matching it means drawing nothing. The record can only say this because the core
+//             brackets that early return too (m2vk::frame_begin(0, ...)); before it did, an empty list
+//             was indistinguishable from a dupe here and the GPU redrew a stale list for the rest of
+//             the run — vstriker composited a football pitch under the copyright card. So this count
+//             is the evidence that the notification is arriving, and it is the only thing on this side
+//             that can show it: EVERY game boots through empty frames, so a run reporting zero of them
+//             means the core has stopped telling the record about empty lists and the stale-3D bug is
+//             back. The second figure — empty frames after the 3D had been drawn once — is the part
+//             the bug was actually about, and is where vstriker's football pitch used to live.
+//   dropped — the 3D went missing from a frame that should have had it, AFTER it had once been drawn.
+//             That is the 3D layer flickering and it must stay zero. Deliberately NOT fired for the
+//             `empty` case, which is a correct blank rather than a lost one.
 uint64_t s_seen_serial = 0;
 uint32_t s_dupe_frames = 0;
+uint32_t s_empty_frames = 0;
+uint32_t s_empty_after_draw = 0;
 uint32_t s_dropped_frames = 0;
 bool     s_drew_once = false;
 
@@ -763,7 +779,21 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	// layer, exactly as it was in steps 1 and 2.
 	if (sw_owns_3d() || no_3d())
 		return false;
-	if (!record.geometry_valid || (record.poly_count == 0) || !record.tables_valid)
+	// A new frame that is genuinely empty, and the record says so rather than merely failing to say
+	// anything. Drawing nothing is what agrees with the software renderer here — see the counter block
+	// at the top of this file for why this must not be reported as a drop.
+	if (record.geometry_valid && (record.poly_count == 0))
+	{
+		s_empty_frames++;
+		if (s_drew_once)
+			s_empty_after_draw++;
+		s_seen_serial = record.geometry_serial;
+		return false;
+	}
+
+	// Nothing usable in the record at all. Before the first drawn frame that is simply a run that has
+	// not started rendering; after one, the capture has broken and the 3D layer is flickering.
+	if (!record.geometry_valid || !record.tables_valid)
 	{
 		if (s_drew_once)
 			s_dropped_frames++;
@@ -1050,9 +1080,14 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 
 	slot.index_count = icount;
 
+	// The record had polygons and this produced no draw from them. Whether that is a drop depends on
+	// why: an untextured translucent polygon and one whose viewport is entirely off screen are drawn by
+	// neither renderer, so a frame made only of those is a correct blank and MAME's 3D layer is blank
+	// too. A polygon skipped for want of texture RAM is not — that one the software renderer would have
+	// drawn, and its absence is the flicker this counter exists to catch.
 	if (icount != 0)
 		s_drew_once = true;
-	else if (s_drew_once)
+	else if (s_drew_once && (record.poly_count > (skipped_translucent + skipped_offscreen)))
 		s_dropped_frames++;
 
 	return icount != 0;
@@ -1127,10 +1162,13 @@ void geom_end_run()
 				(s_offscreen_total != 0) ? ", some dropped with an off-screen viewport" : "",
 				s_windows_ascending_seen ? " — WINDOWS ASCENDING SOMEWHERE, draw order is wrong" : "");
 
-		// The dupe path. `3D dropped` must be 0: anything else means a frame that had geometry lost it
-		// again, which is the 3D layer flickering.
-		vk_log(RETRO_LOG_INFO, "geometry: %u frames redrew last frame's list (geometrizer behind), 3D dropped from %u frames after first being drawn\n",
-				unsigned(s_dupe_frames), unsigned(s_dropped_frames));
+		// The three no-draw paths. `3D dropped` must be 0: anything else means a frame that had geometry
+		// lost it again, which is the 3D layer flickering. `empty` is not a fault — it is a game that
+		// stops submitting geometry, and a game known to do that reporting 0 of them means the core is
+		// no longer telling the record about empty display lists.
+		vk_log(RETRO_LOG_INFO, "geometry: %u frames redrew last frame's list (geometrizer behind), %u frames drew nothing on an empty display list (%u of them after the 3D had been drawn), 3D dropped from %u frames after first being drawn\n",
+				unsigned(s_dupe_frames), unsigned(s_empty_frames), unsigned(s_empty_after_draw),
+				unsigned(s_dropped_frames));
 	}
 
 	s_reported_skips = false;
@@ -1143,6 +1181,8 @@ void geom_end_run()
 	s_clipped_worst = 0.0f;
 	s_seen_serial = 0;
 	s_dupe_frames = 0;
+	s_empty_frames = 0;
+	s_empty_after_draw = 0;
 	s_dropped_frames = 0;
 	s_drew_once = false;
 	s_windows_ascending_seen = false;

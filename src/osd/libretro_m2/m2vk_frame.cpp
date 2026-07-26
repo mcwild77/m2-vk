@@ -142,6 +142,25 @@ void geometry_end()
 	g_record.geometry_serial++;
 }
 
+void geometry_none()
+{
+	if (!detail::g_capturing)
+		return;
+
+	// What geometry_begin and geometry_end would do between them for a frame with no polygons, minus
+	// the two things that would only be waste. The tables are not snapshotted — 56 KB scanned on the
+	// emulation thread to shade nothing, on 47 % of vstriker's frames — and the texture shares are not
+	// refreshed; neither is read while poly_count is zero, and both are left holding whatever the last
+	// frame with geometry put there.
+	//
+	// The serial is bumped, and that is the point of the whole call: it is what tells the renderer this
+	// is a new frame that is empty rather than the same frame over again.
+	g_record.poly_count = 0;
+	g_record.submitted = 0;
+	g_record.geometry_valid = true;
+	g_record.geometry_serial++;
+}
+
 
 //============================================================
 //  the 2D layers

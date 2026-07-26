@@ -141,6 +141,11 @@ void sink_close();
 
 // The seam, driver-type-free half. The tables are pointers into model2_state and are read — and
 // copied — before frame_begin returns; nothing keeps them.
+//
+// frame_begin(0, ...) is the empty-display-list case and it is asymmetric on purpose: it completes the
+// frame record on its own and no frame_end() follows, because render_polygons bails immediately after
+// making the call. It also does not reach the consumers — see m2vk_sink.cpp for why the polytap must
+// go on numbering only the frames that carry polygons.
 void frame_begin(uint32_t submitted, frame_tables const &tables);
 void submit(poly const &p);
 void frame_end();

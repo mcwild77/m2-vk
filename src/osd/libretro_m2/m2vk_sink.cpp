@@ -157,6 +157,20 @@ void frame_begin(uint32_t submitted, frame_tables const &tables)
 	detail::g_poly_index = 0;
 	detail::g_poly_dropped = false;
 
+	// An empty display list is a frame as far as the record is concerned and not a frame as far as
+	// anything else is. render_polygons calls this and then returns, so there is no stream to bracket
+	// and no frame_end() to come — geometry_none() therefore opens and closes the record in one go.
+	//
+	// The consumers are deliberately not told. "Rendered frame" in the polytap means a frame carrying
+	// polygons: it is what M2VK_POLYTAP_DUMP=N counts, what the committed vf2 frame-800 fixture is keyed
+	// on, and what g_frame_index — M2VK_ONLY_FRAME's numbering — has to stay in step with. VF2 alone
+	// queues nothing for its first ~990 frames, so counting those would renumber every one of them.
+	if (submitted == 0)
+	{
+		geometry_none();
+		return;
+	}
+
 	geometry_begin(submitted, tables);
 	g_sink.frame_begin(submitted, tables);
 }
