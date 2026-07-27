@@ -46,6 +46,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <thread>
@@ -173,14 +174,64 @@ const struct retro_input_descriptor INPUT_DESCRIPTORS[] = {
 	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Stick Y" }, \
 	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Stick X" }, \
 	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Stick Y" },
+// The gun controls, on the two ports that can have a gun — see MAX_GUNS. The pad descriptors above
+// still apply to a gun port: a port set to RETRO_DEVICE_LIGHTGUN keeps its RetroPad buttons here
+// (libretro_m2_input.cpp gates the stick and nothing else), which is what keeps coin, start and the
+// service switches reachable on a gun cabinet.
+#define M2_GUN_DESCRIPTORS(port) \
+	{ port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_TRIGGER, "Trigger" }, \
+	{ port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_A,   "Button 2" }, \
+	{ port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_B,   "Button 3" },
+
 	M2_PORT_DESCRIPTORS(0)
+	M2_GUN_DESCRIPTORS(0)
 	M2_PORT_DESCRIPTORS(1)
+	M2_GUN_DESCRIPTORS(1)
 	// Ports 2 and 3 exist for airwlkrs, the one four-player cabinet — see MAX_PADS. Every other set
 	// leaves them bound to input types it does not declare, which costs nothing.
 	M2_PORT_DESCRIPTORS(2)
 	M2_PORT_DESCRIPTORS(3)
+#undef M2_GUN_DESCRIPTORS
 #undef M2_PORT_DESCRIPTORS
 	{ 0, 0, 0, 0, nullptr } };
+
+
+//============================================================
+//  controller types
+//============================================================
+
+// What a port can be set to. Every port offers the same list, because from the core's side every
+// port is the same hardware and whether a gun means anything is a property of the loaded set rather
+// than of the port — a gun on vf2 simply binds to types vf2 does not declare.
+//
+// A later step adds the FBNeo-style pad layouts as RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, n)
+// entries; they belong in this array beside the RetroPad rather than in a second call, which is why
+// SET_CONTROLLER_INFO is sent once and this list is the only thing that has to grow.
+const struct retro_controller_description PORT_DEVICES[] = {
+	{ "RetroPad",  RETRO_DEVICE_JOYPAD },
+	{ "Light Gun", RETRO_DEVICE_LIGHTGUN } };
+
+const struct retro_controller_info CONTROLLER_INFO[] = {
+	{ PORT_DEVICES, unsigned(std::size(PORT_DEVICES)) },
+	{ PORT_DEVICES, unsigned(std::size(PORT_DEVICES)) },
+	{ PORT_DEVICES, unsigned(std::size(PORT_DEVICES)) },
+	{ PORT_DEVICES, unsigned(std::size(PORT_DEVICES)) },
+	{ nullptr, 0 } };
+
+static_assert(std::size(CONTROLLER_INFO) == libretro_m2_input::MAX_PADS + 1,
+		"one entry per port, plus the terminator the frontend scans for");
+
+// Which libretro device each port is set to. Read every frame by retro_run and written by
+// retro_set_controller_port_device, both on the libretro thread, so there is nothing to synchronise.
+//
+// It lives here rather than in the input module because the frontend owns the ordering: the call is
+// allowed to arrive before content is loaded, when there is no module to tell, and it must survive
+// retro_unload_game so that a second load keeps the player's choice.
+unsigned s_port_device[libretro_m2_input::MAX_PADS] = {
+	RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD };
+
+static_assert(std::size(s_port_device) == libretro_m2_input::MAX_PADS,
+		"the initialiser above has one entry per port and has to keep up with MAX_PADS");
 
 } // anonymous namespace
 
@@ -266,10 +317,27 @@ RETRO_API void retro_init(void)
 
 RETRO_API void retro_deinit(void) { }
 
-// Every port is a RetroPad and nothing else. The analogue sticks and triggers are always read, so
-// RETRO_DEVICE_ANALOG and RETRO_DEVICE_JOYPAD are the same device here and there is nothing to
+// This was a no-op for a reason, and the reason no longer holds. It used to be that every port was
+// a RetroPad and nothing else: the analogue sticks and triggers are always read, so
+// RETRO_DEVICE_ANALOG and RETRO_DEVICE_JOYPAD were the same device here and there was nothing to
 // switch between.
-RETRO_API void retro_set_controller_port_device(unsigned port, unsigned device) { }
+//
+// There is now, because a port can be set to RETRO_DEVICE_LIGHTGUN. That is a real choice rather
+// than a superset — MAME ORs the pad's stick and the gun into IPT_LIGHTGUN_X, and OR'd absolute
+// axes are summed and then saturated, so the two have to take turns. All this records is what the
+// port is set to; the gate itself is in libretro_m2_input.cpp. See devnotes/lightgun.md §1.2, §2.2.
+//
+// Nothing here needs a reload, and that is by design: -lightgun is passed unconditionally and both
+// kinds of device are created for every set, so a change mid-run only alters which of them moves.
+RETRO_API void retro_set_controller_port_device(unsigned port, unsigned device)
+{
+	if (port >= std::size(s_port_device))
+		return;
+
+	if (s_port_device[port] != device)
+		s_log_cb(RETRO_LOG_INFO, "[model2] port %u set to device 0x%x\n", port, device);
+	s_port_device[port] = device;
+}
 
 RETRO_API bool retro_load_game(const struct retro_game_info *game)
 {
@@ -289,6 +357,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	}
 
 	s_environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, const_cast<struct retro_input_descriptor *>(INPUT_DESCRIPTORS));
+	s_environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, const_cast<struct retro_controller_info *>(CONTROLLER_INFO));
 
 	const std::string path(game->path);
 	const std::string system = system_name_from_path(path);
@@ -361,6 +430,17 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		"-samplerate", "48000",
 		"-skip_gameinfo",
 		"-nomouse",
+
+		// The lightgun class is enabled for every set, not just the six with a gun, and that is what
+		// makes retro_set_controller_port_device free to honour at any moment: MAME's options are
+		// fixed when the machine is built, so a conditional -lightgun would mean a device change
+		// needed a reload. It costs nothing to leave on — a device reporting 0 contributes 0 to the
+		// port it is OR'd into.
+		//
+		// -lightgun_device is deliberately absent rather than forgotten: init_autoselect_devices
+		// returns early once the class is enabled, so it would have nothing left to do.
+		// devnotes/lightgun.md §1.3, §2.1.
+		"-lightgun",
 	};
 
 	// MAME writes NVRAM, per-game input remaps, snapshots and the rest to paths relative to the
@@ -485,7 +565,7 @@ RETRO_API void retro_run(void)
 	// on the baton right now, which is what makes writing its device state here safe — and it also
 	// means a frame sees exactly one input sample, so a run stays reproducible.
 	if (libretro_m2_input *const input = s_osd->input())
-		input->poll_frontend(s_input_state_cb);
+		input->poll_frontend(s_input_state_cb, s_port_device);
 
 	// let the emulation thread run one frame, then wait for it to park again
 	s_osd->release_frame();

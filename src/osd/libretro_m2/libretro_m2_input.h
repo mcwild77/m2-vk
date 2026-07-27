@@ -17,6 +17,11 @@
       * there is no enumeration, no hotplug and no availability testing — the RetroPad always has
         every control, so configure() is the SDL controller path with the probing removed.
 
+    A second device class sits alongside the pads: one DEVICE_CLASS_LIGHTGUN device per gun-capable
+    port, for the six lightgun sets.  Both kinds of device always exist and both are always polled;
+    which of them is allowed to *move* is decided per frame by the port's selected libretro device,
+    because MAME sums OR'd absolute axes rather than picking one.  See devnotes/lightgun.md §2.
+
     Polling is inverted relative to a normal OSD.  MAME never asks the frontend for anything: the
     item pointers handed to add_item() address this object's state directly, and retro_run() writes
     that state on the libretro thread while the emulation thread is parked on the frame baton.
@@ -43,9 +48,35 @@
 // argument, so libretro_m2_osd_interface has to be complete here, not merely declared.
 
 
+// What the two device kinds have in common: a port, and a per-frame update that is handed the
+// libretro device that port is currently set to.  They differ in what they read from the frontend,
+// not in how or when they are read, so one list holds both and one call drives both.
+class libretro_m2_device : public device_info
+{
+public:
+	libretro_m2_device(std::string &&name, std::string &&id, input_module &module, unsigned port)
+		: device_info(std::move(name), std::move(id), module)
+		, m_port(port)
+	{
+	}
+
+	// state is written by update(), not pulled from a device; nothing to do per poll
+	virtual void poll(bool relative_reset) override { }
+
+	// Called on the libretro thread from retro_run(), while the emulation thread is parked.
+	// device is the port's current retro_set_controller_port_device value.
+	virtual void update(retro_input_state_t state_cb, unsigned device) = 0;
+
+	unsigned port() const { return m_port; }
+
+protected:
+	unsigned m_port;
+};
+
+
 // One RetroPad.  Axis and button storage is indexed by RetroPad id so the mapping from a
 // retro_input_state_t call to a slot is the identity.
-class libretro_m2_pad_device : public device_info, protected osd::joystick_assignment_helper
+class libretro_m2_pad_device : public libretro_m2_device, protected osd::joystick_assignment_helper
 {
 public:
 	// the six RetroPad axes, in the order they are exposed to MAME
@@ -64,23 +95,51 @@ public:
 
 	libretro_m2_pad_device(std::string &&name, std::string &&id, input_module &module, unsigned port, bool service_buttons);
 
-	// state is written by update(), not pulled from a device; nothing to do per poll
-	virtual void poll(bool relative_reset) override { }
 	virtual void reset() override;
 	virtual void configure(osd::input_device &device) override;
-
-	// called on the libretro thread from retro_run(), while the emulation thread is parked
-	void update(retro_input_state_t state_cb);
+	virtual void update(retro_input_state_t state_cb, unsigned device) override;
 
 private:
-	unsigned  m_port;
 	bool      m_service_buttons;
 	int32_t   m_axes[AXIS_COUNT];
 	int32_t   m_buttons[BUTTON_COUNT];
 };
 
 
-class libretro_m2_input : public input_module_impl<libretro_m2_pad_device, libretro_m2_osd_interface>
+// One emulated lightgun.  Deliberately small: MAME's own defaults for IPT_LIGHTGUN_X/Y and
+// IPT_BUTTON1/2 already name GUNCODE_*_INDEXED(n), so the items below are bound the moment they
+// exist and configure() has almost nothing to add.  devnotes/lightgun.md §1.1, §2.3.
+class libretro_m2_gun_device : public libretro_m2_device
+{
+public:
+	enum : unsigned
+	{
+		AXIS_X = 0,
+		AXIS_Y,
+		AXIS_COUNT
+	};
+
+	enum : unsigned
+	{
+		BUTTON_TRIGGER = 0,
+		BUTTON_AUX_A,
+		BUTTON_AUX_B,
+		BUTTON_COUNT
+	};
+
+	libretro_m2_gun_device(std::string &&name, std::string &&id, input_module &module, unsigned port);
+
+	virtual void reset() override;
+	virtual void configure(osd::input_device &device) override;
+	virtual void update(retro_input_state_t state_cb, unsigned device) override;
+
+private:
+	int32_t m_axes[AXIS_COUNT];
+	int32_t m_buttons[BUTTON_COUNT];
+};
+
+
+class libretro_m2_input : public input_module_impl<libretro_m2_device, libretro_m2_osd_interface>
 {
 public:
 	// Four, because airwlkrs is a genuine four-player cabinet: four PLAYER(n) blocks of three
@@ -94,6 +153,8 @@ public:
 	// count would silently become four guns.
 	static inline constexpr unsigned MAX_GUNS = 2;
 
+	static_assert(MAX_GUNS <= MAX_PADS, "a gun's port index has to be a valid pad port index too");
+
 	// service_buttons is the model2_service_buttons core option, carried down to the pads because
 	// it changes what configure() puts in their default assignment vector.
 	explicit libretro_m2_input(bool service_buttons);
@@ -101,8 +162,10 @@ public:
 
 	virtual void input_init(running_machine &machine) override;
 
-	// called on the libretro thread from retro_run(), while the emulation thread is parked
-	void poll_frontend(retro_input_state_t state_cb);
+	// Called on the libretro thread from retro_run(), while the emulation thread is parked.
+	// port_device is MAX_PADS entries of retro_set_controller_port_device state, owned by the
+	// entry-point file because a frontend may set it before there is a machine to tell.
+	void poll_frontend(retro_input_state_t state_cb, unsigned const *port_device);
 
 private:
 	bool m_service_buttons;
