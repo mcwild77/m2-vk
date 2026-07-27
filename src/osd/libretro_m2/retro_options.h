@@ -36,8 +36,43 @@ namespace m2opt {
 // the fallback where Vulkan is unavailable.
 inline constexpr char const *KEY_RENDERER = "model2_renderer";
 
-// Puts the cabinet's service coin and test switch on the stick clicks. Off by default.
-inline constexpr char const *KEY_SERVICE_BUTTONS = "model2_service_buttons";
+// The button combination that flips the cabinet's test switch, and with it whether the service coin
+// is on L3 at all. "None" by default. FBNeo's fbneo-diagnostic-input, value list unchanged, because
+// a player arriving from any other libretro arcade core should find the same words in the same order.
+inline constexpr char const *KEY_DIAGNOSTIC_INPUT = "model2_diagnostic_input";
+
+// The values of that option. Declaration order, and the numbering is what the input module keys its
+// combo table on — so the two lists cannot drift apart, because there is only one list.
+enum diagnostic_input : unsigned
+{
+	DIAG_NONE = 0,
+	DIAG_HOLD_START,
+	DIAG_START_AB,
+	DIAG_HOLD_START_AB,
+	DIAG_START_LR,
+	DIAG_HOLD_START_LR,
+	DIAG_HOLD_SELECT,
+	DIAG_SELECT_AB,
+	DIAG_HOLD_SELECT_AB,
+	DIAG_SELECT_LR,
+	DIAG_HOLD_SELECT_LR,
+	DIAG_COUNT
+};
+
+// The names are RetroPad controls, not MAME button numbers: "A" is the pad's A button under either
+// pad layout, and which MAME button that produces is the layout's business and not this option's.
+inline constexpr char const *DIAGNOSTIC_VALUES[DIAG_COUNT] = {
+	"None",
+	"Hold Start",
+	"Start + A + B",
+	"Hold Start + A + B",
+	"Start + L + R",
+	"Hold Start + L + R",
+	"Hold Select",
+	"Select + A + B",
+	"Hold Select + A + B",
+	"Select + L + R",
+	"Hold Select + L + R" };
 
 // Publish the option set to the frontend. Must be called from retro_set_environment(), which is
 // where a frontend expects to find out about options — it is called before retro_init().
@@ -47,8 +82,10 @@ void declare(retro_environment_t environ_cb);
 // (or supports no options at all, which is the retrohost case).
 std::string get(retro_environment_t environ_cb, char const *key);
 
-// Same, for the enabled/disabled options.
-bool get_bool(retro_environment_t environ_cb, char const *key);
+// KEY_DIAGNOSTIC_INPUT resolved to its position in DIAGNOSTIC_VALUES. A value the frontend invented,
+// or one left over from an older option set, resolves to DIAG_NONE rather than to a guess — losing a
+// test-menu combo is recoverable from the options menu, an unasked-for one is not.
+unsigned get_diagnostic(retro_environment_t environ_cb);
 
 // True once after the user changes anything; the frontend clears the flag as we read it.
 bool updated(retro_environment_t environ_cb);

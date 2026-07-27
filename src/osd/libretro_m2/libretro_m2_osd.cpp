@@ -4,6 +4,8 @@
 #include "libretro_m2_osd.h"
 
 #include "libretro_m2_input.h"
+#include "m2vk_frame.h"
+#include "m2vk_reticle.h"
 #include "m2vk_sink.h"
 
 #include "emu.h"
@@ -128,7 +130,7 @@ void libretro_m2_osd_interface::init_subsystems()
 // polls the module directly rather than going through poll_input_modules().
 bool libretro_m2_osd_interface::input_init()
 {
-	m_input = std::make_unique<libretro_m2_input>(m_service_buttons);
+	m_input = std::make_unique<libretro_m2_input>(m_diagnostic);
 	if (m_input->init(*this, options()) != 0)
 	{
 		osd_printf_error("libretro input module failed to initialise\n");
@@ -310,6 +312,17 @@ void libretro_m2_osd_interface::capture_frame()
 
 	for (int y = 0; y < h; y++)
 		std::memcpy(&m_fb[size_t(y) * w], &bm.pix(vis.min_y + y, vis.min_x), size_t(w) * sizeof(uint32_t));
+
+	// The lightgun reticle, for the software path only — MAME draws no crosshair this OSD can see
+	// (m2vk_reticle.h), and this buffer is what renderer=software hands the frontend.
+	//
+	// m2vk::capturing() is precisely "the Vulkan path is compositing", which is the question being
+	// asked: that path never presents this buffer except for the frame or two before the 2D layers
+	// exist, and it draws the same cross itself, after the foreground layer where it belongs. Blitting
+	// here as well would put one into MAME's frame, where the hardware renderer's 3D would then be
+	// composited over the top of it.
+	if (!m2vk::capturing())
+		m2vk::reticle_blit(m_fb.data(), w, h);
 }
 
 

@@ -40,13 +40,16 @@
 #include "renderer_vk/vk_geom.h"
 
 #include "m2vk_frame.h"
+#include "m2vk_reticle.h"
 #include "m2vk_sink.h"
 
 #include "renderer_vk/shaders/downsample_frag_spv.h"
 #include "renderer_vk/shaders/fullscreen_vert_spv.h"
 #include "renderer_vk/shaders/overlay_frag_spv.h"
 #include "renderer_vk/shaders/passthrough_frag_spv.h"
+#include "renderer_vk/shaders/reticle_frag_spv.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -161,6 +164,7 @@ VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
 VkPipeline            s_pipeline = VK_NULL_HANDLE;        // opaque: the under layer
 VkPipeline            s_pipeline_over = VK_NULL_HANDLE;   // discards pixel 0: the over layer
 VkPipeline            s_pipeline_resolve = VK_NULL_HANDLE; // M2VK_SS only: the supersample resolve
+VkPipeline            s_pipeline_reticle = VK_NULL_HANDLE; // the lightgun crosshair, over everything
 
 // Captured when the ring is built, so that teardown does not depend on the context's state having
 // survived — and so that the funcs table is one pointer chase away in the per-frame path.
@@ -202,6 +206,36 @@ struct resolve_push
 	uint32_t scale;
 	uint32_t point_sample;
 };
+
+
+//============================================================
+//  the lightgun reticle
+//============================================================
+
+// reticle.frag's push block, and the whole of what the shader knows: MAME draws no crosshair that
+// this OSD can see (m2vk_reticle.h), so the cross is generated from these numbers.
+//
+// The geometry is not restated here — it is copied out of m2vk::RETICLE_SHAPE at fill time, so the
+// software blitter and this share one definition. What travels per draw is the centre and the scale;
+// the centre is in PICTURE pixels and the scale is M2VK_SS, so the shader can put gl_FragCoord back
+// into picture pixels and one set of constants serves every internal resolution.
+struct reticle_push
+{
+	float    cx, cy;
+	float    scale;
+	float    half_thick;
+	float    gap;
+	float    arm;
+	float    outline;
+	uint32_t colour;
+	uint32_t outline_colour;
+};
+
+// std430 in the shader: a vec2 at offset 0 aligned to 8, then seven scalars. No padding anywhere, so
+// the struct above is the block verbatim — but the two are edited in different files, and a silent
+// disagreement here reads as a reticle drawn at the wrong place or the wrong size rather than as an
+// error.
+static_assert(sizeof(reticle_push) == 36, "reticle.frag's push block is 9 words");
 
 void read_supersample()
 {
@@ -630,14 +664,15 @@ bool build_descriptors(uint32_t slot_count)
 
 bool build_pipeline()
 {
-	// The push constant is the resolve's alone — the two layer pipelines declare no push block and
-	// never write one — but a pipeline layout is shared by all three, and a range no shader reads
-	// costs nothing. It is always declared rather than only under M2VK_SS so that the layout, and so
-	// the two ordinary pipelines, are identical whether the diagnostic is on or off.
+	// The push constant belongs to the resolve and the reticle — the two layer pipelines declare no
+	// push block and never write one — but a pipeline layout is shared by all of them, and a range no
+	// shader reads costs nothing. One range covering the larger of the two blocks rather than a second
+	// layout: the ordinary pipelines then stay identical whether either extra is in play, which is
+	// what makes "M2VK_SS unset changes nothing" and "no gun changes nothing" cheap to believe.
 	VkPushConstantRange push{};
 	push.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	push.offset = 0;
-	push.size = sizeof(resolve_push);
+	push.size = uint32_t(std::max(sizeof(resolve_push), sizeof(reticle_push)));
 
 	VkPipelineLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -654,6 +689,7 @@ bool build_pipeline()
 	VkShaderModule frag = VK_NULL_HANDLE;
 	VkShaderModule frag_over = VK_NULL_HANDLE;
 	VkShaderModule frag_resolve = VK_NULL_HANDLE;
+	VkShaderModule frag_reticle = VK_NULL_HANDLE;
 	auto const make_module = [](uint32_t const *code, size_t bytes, VkShaderModule &out)
 	{
 		VkShaderModuleCreateInfo info{};
@@ -666,7 +702,8 @@ bool build_pipeline()
 	bool ok = make_module(FULLSCREEN_VERT_SPV, sizeof(FULLSCREEN_VERT_SPV), vert)
 			&& make_module(PASSTHROUGH_FRAG_SPV, sizeof(PASSTHROUGH_FRAG_SPV), frag)
 			&& make_module(OVERLAY_FRAG_SPV, sizeof(OVERLAY_FRAG_SPV), frag_over)
-			&& ((s_ss == 1) || make_module(DOWNSAMPLE_FRAG_SPV, sizeof(DOWNSAMPLE_FRAG_SPV), frag_resolve));
+			&& ((s_ss == 1) || make_module(DOWNSAMPLE_FRAG_SPV, sizeof(DOWNSAMPLE_FRAG_SPV), frag_resolve))
+			&& make_module(RETICLE_FRAG_SPV, sizeof(RETICLE_FRAG_SPV), frag_reticle);
 
 	if (ok)
 	{
@@ -779,8 +816,22 @@ bool build_pipeline()
 			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_resolve),
 					"vkCreateGraphicsPipelines (resolve)");
 		}
+
+		// And the reticle, again from the same structs: the same fullscreen triangle, scissored down to
+		// the cross's bounding box at draw time, discarding everything outside it. Built even on a run
+		// with no gun in it — the alternative is a pipeline whose existence depends on a per-frame
+		// decision, and it would have to be created on the frame a port first becomes a gun, which is
+		// the worst moment to compile a shader. One compile per ring build costs a millisecond once.
+		if (ok)
+		{
+			stages[1].module = frag_reticle;
+			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_reticle),
+					"vkCreateGraphicsPipelines (reticle)");
+		}
 	}
 
+	if (frag_reticle != VK_NULL_HANDLE)
+		s_fns.destroy_shader_module(s_device, frag_reticle, nullptr);
 	if (frag_resolve != VK_NULL_HANDLE)
 		s_fns.destroy_shader_module(s_device, frag_resolve, nullptr);
 	if (frag_over != VK_NULL_HANDLE)
@@ -800,6 +851,8 @@ bool build_pipeline()
 
 void destroy_shared()
 {
+	if (s_pipeline_reticle != VK_NULL_HANDLE)
+		s_fns.destroy_pipeline(s_device, s_pipeline_reticle, nullptr);
 	if (s_pipeline_resolve != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline_resolve, nullptr);
 	if (s_pipeline_over != VK_NULL_HANDLE)
@@ -818,6 +871,7 @@ void destroy_shared()
 	if (s_render_pass != VK_NULL_HANDLE)
 		s_fns.destroy_render_pass(s_device, s_render_pass, nullptr);
 
+	s_pipeline_reticle = VK_NULL_HANDLE;
 	s_pipeline_resolve = VK_NULL_HANDLE;
 	s_pipeline_over = VK_NULL_HANDLE;
 	s_pipeline = VK_NULL_HANDLE;
@@ -843,6 +897,7 @@ void forget_ring()
 	s_dump_mapped = nullptr;
 	s_dump_buffer = VK_NULL_HANDLE;
 	s_dump_memory = VK_NULL_HANDLE;
+	s_pipeline_reticle = VK_NULL_HANDLE;
 	s_pipeline_resolve = VK_NULL_HANDLE;
 	s_pipeline_over = VK_NULL_HANDLE;
 	s_pipeline = VK_NULL_HANDLE;
@@ -1335,6 +1390,81 @@ void barrier(VkCommandBuffer cmd, VkImage image,
 	s_fns.cmd_pipeline_barrier(cmd, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &b);
 }
 
+// The lightgun reticle, last of the pass and over everything in it — it is a pointer, not part of the
+// picture. One scissored fullscreen triangle per active gun; nothing is drawn, and no state is
+// touched, when no port is set to a gun, which is what keeps every accuracy fixture unmoved
+// (m2vk_reticle.h).
+//
+// `fallback_set` is bound before the draw even though reticle.frag samples nothing. The pipeline
+// layout declares the combined image sampler, and the polygon pass ahead of this one binds
+// descriptors with a DIFFERENT layout, which leaves set 0 undefined for ours. One bind is cheaper
+// than reasoning about whether a validation layer will mind.
+void draw_reticles(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height, VkDescriptorSet fallback_set)
+{
+	if ((s_pipeline_reticle == VK_NULL_HANDLE) || !m2vk::reticle_any())
+		return;
+
+	bool bound = false;
+
+	for (unsigned port = 0; port < m2vk::RETICLE_MAX; port++)
+	{
+		m2vk::reticle_state const &r = m2vk::reticle_get(port);
+		if (!r.on)
+			continue;
+
+		reticle_push push{};
+		push.cx = r.x * float(s_width);
+		push.cy = r.y * float(s_height);
+		push.scale = float(s_ss);
+		push.half_thick = m2vk::RETICLE_SHAPE.half_thick;
+		push.gap = m2vk::RETICLE_SHAPE.gap;
+		push.arm = m2vk::RETICLE_SHAPE.arm;
+		push.outline = m2vk::RETICLE_SHAPE.outline;
+		push.colour = r.colour;
+		push.outline_colour = r.outline;
+
+		// The bounding box, in attachment pixels, clamped to the attachment. The shader would discard
+		// everything outside it anyway; the scissor is what stops the other 190000 fragments from being
+		// shaded to find that out.
+		const float half = m2vk::RETICLE_RADIUS * float(s_ss);
+		const float left = (push.cx * float(s_ss)) - half;
+		const float top = (push.cy * float(s_ss)) - half;
+		const int32_t x0 = std::max(0, int32_t(left));
+		const int32_t y0 = std::max(0, int32_t(top));
+		const int32_t x1 = std::min(int32_t(draw_width), int32_t(left + (2.0f * half)) + 1);
+		const int32_t y1 = std::min(int32_t(draw_height), int32_t(top + (2.0f * half)) + 1);
+		if ((x1 <= x0) || (y1 <= y0))
+			continue;   // entirely off the picture
+
+		if (!bound)
+		{
+			s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_reticle);
+			s_fns.cmd_bind_descriptor_sets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
+					0, 1, &fallback_set, 0, nullptr);
+			bound = true;
+		}
+
+		VkRect2D box{};
+		box.offset = { x0, y0 };
+		box.extent = { uint32_t(x1 - x0), uint32_t(y1 - y0) };
+		s_fns.cmd_set_scissor(cmd, 0, 1, &box);
+
+		s_fns.cmd_push_constants(cmd, s_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
+		s_fns.cmd_draw(cmd, 3, 1, 0, 0);
+	}
+
+	// Put the scissor back. Nothing is drawn after this today — the pass ends on the next line — but
+	// leaving dynamic state narrowed for whoever adds a draw here is the same trap vk_geom.cpp's
+	// per-polygon scissor has to avoid, and it costs one command.
+	if (bound)
+	{
+		VkRect2D full{};
+		full.offset = { 0, 0 };
+		full.extent = { draw_width, draw_height };
+		s_fns.cmd_set_scissor(cmd, 0, 1, &full);
+	}
+}
+
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
 // passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0. `draw_3d` says
 // whether the polygon pass has anything to put between the two.
@@ -1448,6 +1578,11 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 				0, 1, &slot.layers[m2vk::LAYER_OVER].descriptor, 0, nullptr);
 		s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
 	}
+
+	// The reticle goes over the foreground too, and inside the supersampled pass rather than after the
+	// resolve, so that at n>1 it is drawn at n times the size and comes back down antialiased along
+	// with everything else.
+	draw_reticles(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
 
 	s_fns.cmd_end_render_pass(slot.cmd);
 

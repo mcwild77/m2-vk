@@ -3,6 +3,8 @@
 
 #include "libretro_m2_input.h"
 
+#include "retro_options.h"
+
 #include "emu.h"
 #include "emuopts.h"
 
@@ -21,7 +23,9 @@ namespace {
 //============================================================
 
 // Names as they appear in MAME's input menus. Indexed by RETRO_DEVICE_ID_JOYPAD_*.
-char const *const RETROPAD_BUTTON_NAMES[libretro_m2_pad_device::BUTTON_COUNT] = {
+constexpr unsigned RETROPAD_ID_COUNT = RETRO_DEVICE_ID_JOYPAD_R3 + 1;
+
+char const *const RETROPAD_BUTTON_NAMES[RETROPAD_ID_COUNT] = {
 	"B", "Y", "Select", "Start", "D-pad Up", "D-pad Down", "D-pad Left", "D-pad Right",
 	"A", "X", "L", "R", "L2", "R2", "L3", "R3" };
 
@@ -33,40 +37,72 @@ char const *const RETROPAD_AXIS_NAMES[libretro_m2_pad_device::AXIS_COUNT] = {
 constexpr input_item_id AXIS_ITEMS[libretro_m2_pad_device::AXIS_COUNT] = {
 	ITEM_ID_XAXIS, ITEM_ID_YAXIS, ITEM_ID_ZAXIS, ITEM_ID_RZAXIS, ITEM_ID_SLIDER1, ITEM_ID_SLIDER2 };
 
-// Buttons that get automatically numbered into ITEM_ID_BUTTON1.. and IPT_BUTTON1.. , in order.
-// RetroPad's face layout is SNES-style, so the diamond maps to SDL's A/B/X/Y as
-// B=bottom, A=right, Y=left, X=top. L2/R2 are absent here because they are exposed as the
-// analogue trigger axes below and get their button item from a threshold on the axis.
-constexpr unsigned NUMBERED_BUTTONS[] = {
-	RETRO_DEVICE_ID_JOYPAD_B,
-	RETRO_DEVICE_ID_JOYPAD_A,
-	RETRO_DEVICE_ID_JOYPAD_Y,
-	RETRO_DEVICE_ID_JOYPAD_X,
-	RETRO_DEVICE_ID_JOYPAD_L,
-	RETRO_DEVICE_ID_JOYPAD_R };
-
-constexpr unsigned NUMBERED_BUTTON_COUNT = std::size(NUMBERED_BUTTONS);
-
-// Buttons with a fixed MAME item id rather than a number.
+// Which RetroPad control produces each MAME button, indexed by button number minus one. Read once
+// per frame in update() and nowhere else, which is what makes a mid-run layout change free.
 //
-// The stick clicks are here rather than in NUMBERED_BUTTONS on purpose: they are the two controls
-// the cabinet layouts have no use for, so they carry whatever is left over — the service switches,
-// the UI menu, and daytona's ninth button. They still need items of their own — an assignment
-// naming an item the device never added is dropped on the floor by add_assignment(), which is what
-// used to happen to the UI_MENU binding below.
+// These are FBNeo's, resolved from its RETRO_DEVICE_ID_FIREnn macros (src/burner/libretro/
+// retro_input.cpp) — matching it was the point, because a player coming from any other libretro
+// arcade core arrives with those fingers already trained. Buttons 1-4 are the face diamond in both
+// — RetroPad's face is SNES-style, so the diamond maps to SDL's A/B/X/Y as B=bottom, A=right,
+// Y=left, X=top — and only the shoulder pair moves. L2/R2 are absent from Classic for the reason
+// they always were: they are exposed as the analogue trigger axes below and take their MAME button
+// item (IPT_BUTTON7/8) from a threshold on the axis.
+//
+// ⚠ Modern puts button 5 on R2, which is also the accelerator pedal. Both fire, and that is
+// accepted rather than gated: the sets with a button 5 are the driving sets, so a player who chose
+// Modern on one of those chose it knowing what is under that finger. devnotes/lightgun.md §2.5.1.
+enum : unsigned
+{
+	LAYOUT_CLASSIC = 0,
+	LAYOUT_MODERN,
+	LAYOUT_COUNT
+};
+
+constexpr unsigned BUTTON_LAYOUTS[LAYOUT_COUNT][libretro_m2_pad_device::NUMBERED_BUTTONS] = {
+	{
+		RETRO_DEVICE_ID_JOYPAD_B,
+		RETRO_DEVICE_ID_JOYPAD_A,
+		RETRO_DEVICE_ID_JOYPAD_Y,
+		RETRO_DEVICE_ID_JOYPAD_X,
+		RETRO_DEVICE_ID_JOYPAD_R,
+		RETRO_DEVICE_ID_JOYPAD_L
+	},
+	{
+		RETRO_DEVICE_ID_JOYPAD_B,
+		RETRO_DEVICE_ID_JOYPAD_A,
+		RETRO_DEVICE_ID_JOYPAD_Y,
+		RETRO_DEVICE_ID_JOYPAD_X,
+		RETRO_DEVICE_ID_JOYPAD_R2,
+		RETRO_DEVICE_ID_JOYPAD_R
+	} };
+
+// Buttons with a fixed MAME item id rather than a number: their slot is not in the layout table
+// above, so no device type can move them.
+//
+// The stick clicks are here rather than among the numbered buttons on purpose: they are the two
+// controls the cabinet layouts have no use for, so they carry whatever is left over — the service
+// switches, the UI menu, and daytona's ninth button. They still need items of their own — an
+// assignment naming an item the device never added is dropped on the floor by add_assignment(),
+// which is what used to happen to the UI_MENU binding below.
 //
 // This used to say "no Model 2 game has nine buttons", and that was wrong: daytona has exactly nine.
 // Buttons 1-5 are the gearbox, read back through daytona_gearbox_r, and 6-9 are the VR camera
 // buttons. IPT_BUTTON10 is still unassigned because nothing needs it.
-constexpr std::pair<unsigned, input_item_id> FIXED_BUTTONS[] = {
-	{ RETRO_DEVICE_ID_JOYPAD_SELECT, ITEM_ID_SELECT },
-	{ RETRO_DEVICE_ID_JOYPAD_START,  ITEM_ID_START },
-	{ RETRO_DEVICE_ID_JOYPAD_UP,     ITEM_ID_HAT1UP },
-	{ RETRO_DEVICE_ID_JOYPAD_DOWN,   ITEM_ID_HAT1DOWN },
-	{ RETRO_DEVICE_ID_JOYPAD_LEFT,   ITEM_ID_HAT1LEFT },
-	{ RETRO_DEVICE_ID_JOYPAD_RIGHT,  ITEM_ID_HAT1RIGHT },
-	{ RETRO_DEVICE_ID_JOYPAD_L3,     ITEM_ID_BUTTON9 },
-	{ RETRO_DEVICE_ID_JOYPAD_R3,     ITEM_ID_BUTTON10 } };
+struct fixed_button { unsigned slot; unsigned id; input_item_id item; };
+
+constexpr fixed_button FIXED_BUTTONS[] = {
+	{ libretro_m2_pad_device::BUTTON_SELECT, RETRO_DEVICE_ID_JOYPAD_SELECT, ITEM_ID_SELECT },
+	{ libretro_m2_pad_device::BUTTON_START,  RETRO_DEVICE_ID_JOYPAD_START,  ITEM_ID_START },
+	{ libretro_m2_pad_device::BUTTON_UP,     RETRO_DEVICE_ID_JOYPAD_UP,     ITEM_ID_HAT1UP },
+	{ libretro_m2_pad_device::BUTTON_DOWN,   RETRO_DEVICE_ID_JOYPAD_DOWN,   ITEM_ID_HAT1DOWN },
+	{ libretro_m2_pad_device::BUTTON_LEFT,   RETRO_DEVICE_ID_JOYPAD_LEFT,   ITEM_ID_HAT1LEFT },
+	{ libretro_m2_pad_device::BUTTON_RIGHT,  RETRO_DEVICE_ID_JOYPAD_RIGHT,  ITEM_ID_HAT1RIGHT },
+	{ libretro_m2_pad_device::BUTTON_L3,     RETRO_DEVICE_ID_JOYPAD_L3,     ITEM_ID_BUTTON9 },
+	{ libretro_m2_pad_device::BUTTON_R3,     RETRO_DEVICE_ID_JOYPAD_R3,     ITEM_ID_BUTTON10 } };
+
+static_assert(std::size(FIXED_BUTTONS) + libretro_m2_pad_device::NUMBERED_BUTTONS
+				== libretro_m2_pad_device::BUTTON_COUNT,
+		"every slot is filled by exactly one of the layout table or the fixed list");
 
 // A trigger axis read as a switch. The axis rests at 0 and runs to ABSOLUTE_MIN when pulled
 // (see update()), so the threshold matches the one sdl_game_controller_device uses.
@@ -75,6 +111,47 @@ int trigger_button_get_state(void *device_internal, void *item_internal)
 	return (*reinterpret_cast<int32_t const *>(item_internal) <= -16'384) ? 1 : 0;
 }
 
+
+//============================================================
+//  the diagnostic combo
+//============================================================
+
+// What each model2_diagnostic_input value means, in RetroPad ids and one flag. Indexed by
+// m2opt::diagnostic_input, which is also the position of the value in the option's own list, so the
+// words the player picked and the controls read here are one table apart and cannot drift.
+//
+// These are RetroPad ids on purpose and not slots: the option says "Start + A + B", meaning the pad's
+// A and B, and it has to keep meaning that under either pad layout. What the layout decides is which
+// MAME buttons the combo then has to *consume*, which update_diagnostic() works back through it.
+//
+// ⚠ Model 2 has two switches where FBNeo models one. This drives IPT_SERVICE, the test switch that
+// opens the menu; IPT_SERVICE1, the service coin, has no equivalent in FBNeo's vocabulary and stays
+// on L3 whenever the option is not None. devnotes/lightgun.md §2.5.3.
+constexpr unsigned COMBO_NO_ID = ~0U;
+
+struct diagnostic_combo { unsigned ids[3]; bool hold; };
+
+constexpr diagnostic_combo DIAGNOSTIC_COMBOS[m2opt::DIAG_COUNT] = {
+	/* None                */ { { COMBO_NO_ID, COMBO_NO_ID, COMBO_NO_ID }, false },
+	/* Hold Start          */ { { RETRO_DEVICE_ID_JOYPAD_START,  COMBO_NO_ID, COMBO_NO_ID }, true },
+	/* Start + A + B       */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, false },
+	/* Hold Start + A + B  */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, true },
+	/* Start + L + R       */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, false },
+	/* Hold Start + L + R  */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, true },
+	/* Hold Select         */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, COMBO_NO_ID, COMBO_NO_ID }, true },
+	/* Select + A + B      */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, false },
+	/* Hold Select + A + B */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, true },
+	/* Select + L + R      */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, false },
+	/* Hold Select + L + R */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, true } };
+
+static_assert(std::size(DIAGNOSTIC_COMBOS) == m2opt::DIAG_COUNT,
+		"one combo per declared value of model2_diagnostic_input, in the same order");
+
+// How long a "Hold …" combo wants. About a second at the driver's 57.52 Hz — named once here rather
+// than spelled out at the comparison, because a frame count with no name is a frame count nobody
+// dares change.
+constexpr unsigned COMBO_HOLD_FRAMES = 58;
+
 } // anonymous namespace
 
 
@@ -82,35 +159,38 @@ int trigger_button_get_state(void *device_internal, void *item_internal)
 //  libretro_m2_pad_device
 //============================================================
 
-libretro_m2_pad_device::libretro_m2_pad_device(std::string &&name, std::string &&id, input_module &module, unsigned port, bool service_buttons)
+libretro_m2_pad_device::libretro_m2_pad_device(std::string &&name, std::string &&id, input_module &module, unsigned port, unsigned diagnostic)
 	: libretro_m2_device(std::move(name), std::move(id), module, port)
-	, m_service_buttons(service_buttons)
+	, m_diagnostic((diagnostic < m2opt::DIAG_COUNT) ? diagnostic : unsigned(m2opt::DIAG_NONE))
 {
-	std::memset(m_axes, 0, sizeof(m_axes));
-	std::memset(m_buttons, 0, sizeof(m_buttons));
+	reset();
 }
 
 void libretro_m2_pad_device::reset()
 {
 	std::memset(m_axes, 0, sizeof(m_axes));
 	std::memset(m_buttons, 0, sizeof(m_buttons));
+	m_combo = 0;
+	m_combo_frames = 0;
 }
 
 // Reads one RetroPad. Runs on the libretro thread from retro_run(), between the emulation thread
 // parking on the frame baton and being released for the next frame, so no locking is needed: the
 // only reader is asleep.
 //
-// device is what the frontend last selected for this port. Only two things about it matter here,
-// and the second is the entire reason this parameter exists:
+// device is what the frontend last selected for this port. Three things about it matter here, and
+// the second and third are the entire reason this parameter exists:
 //
 //   * RETRO_DEVICE_NONE reports nothing. This states an intent rather than fixing anything — a
 //     frontend with a port set to None already answers 0 to every state_cb for it — which is also
 //     why it is safe to leave unexercised by the harness, which cannot select None.
+//   * RETRO_DEVICE_M2_PAD_MODERN picks the second button layout. Nothing else changes with it: the
+//     d-pad, the sticks, coin and start are the same controls under every layout.
 //   * on a gun port the two primary stick axes are silenced, and nothing else is. See the gate at
 //     the bottom of this function.
 //
-// Any other value keeps today's behaviour, deliberately: an unrecognised device type — including
-// the pad subclasses a later step adds — must not silently stop the pad working.
+// Any other value is Classic, deliberately: an unrecognised device type must not silently stop the
+// pad working.
 void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned device)
 {
 	const unsigned kind = device & RETRO_DEVICE_MASK;
@@ -120,9 +200,19 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 		return;
 	}
 
+	// The numbered buttons, through the port's layout: slot n holds MAME button n+1, whichever
+	// RetroPad control the selected device type says produces it. The full device value is compared,
+	// not the masked class, because the layouts are subclasses of the same class.
 	// generic_button_get_state<> shifts right by 7, hence 0x80 rather than 1
-	for (unsigned id = 0; id < BUTTON_COUNT; id++)
-		m_buttons[id] = state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, id) ? 0x80 : 0x00;
+	unsigned const *const layout = BUTTON_LAYOUTS[(device == RETRO_DEVICE_M2_PAD_MODERN) ? LAYOUT_MODERN : LAYOUT_CLASSIC];
+	for (unsigned n = 0; n < NUMBERED_BUTTONS; n++)
+		m_buttons[BUTTON_1 + n] = state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, layout[n]) ? 0x80 : 0x00;
+
+	for (auto const &fixed : FIXED_BUTTONS)
+		m_buttons[fixed.slot] = state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, fixed.id) ? 0x80 : 0x00;
+
+	// After both button reads, because a fired combo takes its controls back out of them.
+	update_diagnostic(state_cb, layout);
 
 	const std::pair<unsigned, unsigned> sticks[] = {
 		{ RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X },
@@ -145,7 +235,7 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 	for (auto [axis, button] : triggers)
 	{
 		int16_t raw = state_cb(m_port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_BUTTON, button);
-		if ((raw <= 0) && m_buttons[button])
+		if ((raw <= 0) && state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, button))
 			raw = 32'767;
 		m_axes[axis] = -normalize_absolute_axis(raw, -32'767, 32'767);
 	}
@@ -169,6 +259,74 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 		m_axes[AXIS_LEFT_X] = m_axes[AXIS_LEFT_Y] = 0;
 }
 
+// The cabinet's test switch, as a button that does not exist on the pad. m_combo is an ordinary
+// button item to MAME (configure() below assigns IPT_SERVICE to it), so nothing about how the switch
+// reaches the machine is new — only how its state is arrived at.
+//
+// Reading the combo's controls straight from the frontend rather than from m_buttons is what keeps
+// the option's words true under either layout: the slots hold MAME button numbers, and "A" is a pad
+// control. layout is passed in so the consumption below can go the other way, from a pad id back to
+// whichever slot that layout fills from it.
+//
+// 🚨 Consumption is the part that is not optional. Without it "Start + A + B" also presses Start —
+// the machine would take a credit on the way into its own test menu — so every control the fired
+// combo names is cleared for the frame. That is also why this runs after both button reads rather
+// than instead of them: a control that is part of the combo is still an ordinary button until the
+// combo fires.
+//
+// A "Hold …" combo fires only after its controls have been down together for COMBO_HOLD_FRAMES, and
+// then goes on firing for as long as they stay down — a held switch is a held switch. The frames
+// before it fires are deliberately *not* consumed, so a tap of Start on "Hold Start" still starts a
+// game. devnotes/lightgun.md §2.5.3.
+void libretro_m2_pad_device::update_diagnostic(retro_input_state_t state_cb, unsigned const *layout)
+{
+	m_combo = 0x00;
+	if (m_diagnostic == m2opt::DIAG_NONE)
+		return;
+
+	diagnostic_combo const &combo = DIAGNOSTIC_COMBOS[m_diagnostic];
+
+	bool down = true;
+	for (unsigned id : combo.ids)
+		down = down && ((id == COMBO_NO_ID) || (state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, id) != 0));
+
+	if (!down)
+	{
+		m_combo_frames = 0;
+		return;
+	}
+
+	// saturating, so a combo held for minutes cannot wrap back below the threshold
+	if (m_combo_frames < COMBO_HOLD_FRAMES)
+		m_combo_frames++;
+	if (combo.hold && (m_combo_frames < COMBO_HOLD_FRAMES))
+		return;
+
+	// generic_button_get_state<> shifts right by 7, as with every other button here
+	m_combo = 0x80;
+
+	auto const in_combo = [&combo] (unsigned id)
+	{
+		for (unsigned which : combo.ids)
+		{
+			if ((which != COMBO_NO_ID) && (which == id))
+				return true;
+		}
+		return false;
+	};
+
+	for (unsigned n = 0; n < NUMBERED_BUTTONS; n++)
+	{
+		if (in_combo(layout[n]))
+			m_buttons[BUTTON_1 + n] = 0x00;
+	}
+	for (auto const &fixed : FIXED_BUTTONS)
+	{
+		if (in_combo(fixed.id))
+			m_buttons[fixed.slot] = 0x00;
+	}
+}
+
 // The SDL game-controller configure() with the availability probing taken out: every control
 // listed here always exists on a RetroPad.
 void libretro_m2_pad_device::configure(osd::input_device &device)
@@ -188,24 +346,28 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 	}
 
 	// --- automatically numbered buttons ---
+	// Named for the MAME button number rather than for a pad control, because which control fills
+	// the slot is a per-port choice the player can change while the machine runs and these names
+	// are fixed here for its lifetime.
+	//
 	// The trigger pair follows the six switch buttons, taking its state from a threshold on the
 	// trigger axis so it works whether or not the frontend reports analogue triggers.
 	input_item_id buttonitems[BUTTON_COUNT];
 	std::fill(std::begin(buttonitems), std::end(buttonitems), ITEM_ID_INVALID);
 
-	input_item_id numbereditems[NUMBERED_BUTTON_COUNT + 2];
+	input_item_id numbereditems[NUMBERED_BUTTONS + 2];
 	input_item_id button_item = ITEM_ID_BUTTON1;
 	unsigned buttoncount = 0;
 
-	for (unsigned which : NUMBERED_BUTTONS)
+	for (unsigned n = 0; n < NUMBERED_BUTTONS; n++)
 	{
-		numbereditems[buttoncount] = buttonitems[which] = device.add_item(
-				RETROPAD_BUTTON_NAMES[which],
+		numbereditems[buttoncount] = buttonitems[BUTTON_1 + n] = device.add_item(
+				util::string_format("Button %u", n + 1),
 				std::string_view(),
 				button_item++,
 				generic_button_get_state<int32_t>,
-				&m_buttons[which]);
-		add_button_assignment(assignments, ioport_type(IPT_BUTTON1 + buttoncount), { buttonitems[which] });
+				&m_buttons[BUTTON_1 + n]);
+		add_button_assignment(assignments, ioport_type(IPT_BUTTON1 + buttoncount), { buttonitems[BUTTON_1 + n] });
 		buttoncount++;
 	}
 
@@ -224,14 +386,14 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 	}
 
 	// --- buttons with fixed item ids ---
-	for (auto [which, item] : FIXED_BUTTONS)
+	for (auto [slot, which, item] : FIXED_BUTTONS)
 	{
-		buttonitems[which] = device.add_item(
+		buttonitems[slot] = device.add_item(
 				RETROPAD_BUTTON_NAMES[which],
 				std::string_view(),
 				item,
 				generic_button_get_state<int32_t>,
-				&m_buttons[which]);
+				&m_buttons[slot]);
 	}
 
 	// --- movement ---
@@ -250,10 +412,10 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 			assignments,
 			diraxis[0][0],
 			diraxis[0][1],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_LEFT],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_RIGHT],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_UP],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_DOWN]);
+			buttonitems[BUTTON_LEFT],
+			buttonitems[BUTTON_RIGHT],
+			buttonitems[BUTTON_UP],
+			buttonitems[BUTTON_DOWN]);
 
 	// the secondary stick drives the third analogue axis; failing that, combine the triggers
 	if (!add_assignment(assignments, IPT_AD_STICK_Z, SEQ_TYPE_STANDARD, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NONE, { diraxis[1][1], diraxis[1][0] }))
@@ -273,33 +435,40 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 	// so flooring the accelerator also presses VR3. It is not fixable by moving something — daytona
 	// wants nine buttons, steering and two pedals, and a RetroPad has nothing free once coin, start
 	// and the d-pad are spoken for. The fix is a per-set layout table, which is a later phase.
+	//
+	// IPT_PEDAL3 (srallyc's hand brake, the one set that has it) rides on the button-5 slot rather
+	// than on a named pad control, and that is deliberate: srallyc PORT_INCLUDEs gears, whose GEAR 4
+	// is IPT_BUTTON5, so the two already shared a control before there were layouts. Tying the hand
+	// brake to the slot keeps them sharing one under every layout instead of having them collide on
+	// some and not others.
 	add_assignment(assignments, IPT_PEDAL,  SEQ_TYPE_STANDARD, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NEG, { axisitems[AXIS_R2] });
 	add_assignment(assignments, IPT_PEDAL2, SEQ_TYPE_STANDARD, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NEG, { axisitems[AXIS_L2] });
-	add_assignment(assignments, IPT_PEDAL3, SEQ_TYPE_INCREMENT, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, { buttonitems[RETRO_DEVICE_ID_JOYPAD_L] });
+	add_assignment(assignments, IPT_PEDAL3, SEQ_TYPE_INCREMENT, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, { buttonitems[BUTTON_5] });
 
 	// twin sticks (Virtual On) off the two analogue sticks, with the D-pad and face diamond as
-	// the digital fallback
+	// the digital fallback. The diamond is named by slot, i.e. by MAME button number — buttons 3, 2,
+	// 4 and 1 are Y, A, X and B in every layout offered, because only the shoulder pair moves.
 	add_twin_stick_assignments(
 			assignments,
 			axisitems[AXIS_LEFT_X],
 			axisitems[AXIS_LEFT_Y],
 			axisitems[AXIS_RIGHT_X],
 			axisitems[AXIS_RIGHT_Y],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_LEFT],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_RIGHT],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_UP],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_DOWN],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_Y],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_A],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_X],
-			buttonitems[RETRO_DEVICE_ID_JOYPAD_B]);
+			buttonitems[BUTTON_LEFT],
+			buttonitems[BUTTON_RIGHT],
+			buttonitems[BUTTON_UP],
+			buttonitems[BUTTON_DOWN],
+			buttonitems[BUTTON_3],
+			buttonitems[BUTTON_2],
+			buttonitems[BUTTON_4],
+			buttonitems[BUTTON_1]);
 
 	// --- fixed functions ---
 	// IPT_SELECT/IPT_START are the per-player types; COIN1..n and START1..n already default to
 	// JOYCODE_SELECT_INDEXED(n) / JOYCODE_START_INDEXED(n) in inpttype.ipp, so the arcade coin and
 	// start controls come from the ITEM_ID_SELECT/ITEM_ID_START items added above.
-	add_button_assignment(assignments, IPT_SELECT, { buttonitems[RETRO_DEVICE_ID_JOYPAD_SELECT] });
-	add_button_assignment(assignments, IPT_START,  { buttonitems[RETRO_DEVICE_ID_JOYPAD_START] });
+	add_button_assignment(assignments, IPT_SELECT, { buttonitems[BUTTON_SELECT] });
+	add_button_assignment(assignments, IPT_START,  { buttonitems[BUTTON_START] });
 
 	// MAME's own UI is not drawn in a libretro core, but the assignments cost nothing and keep
 	// the input-remapping menus navigable if it ever is.
@@ -309,26 +478,42 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 	add_button_assignment(assignments, IPT_UI_HELP,   { numbereditems[3] });
 	add_button_pair_assignment(assignments, IPT_UI_PAGE_UP, IPT_UI_PAGE_DOWN, triggeritems[0], triggeritems[1]);
 
-	// The cabinet's service coin and test switch, on the two controls nothing else wants. Since
-	// this core draws no MAME menu, these are the only way into a game's test mode — but they are
-	// off by default, because a stick clicked by accident should not drop a service coin. Both
-	// types are player 0 in inpttype.ipp, so apply_device_defaults() lands them on pad 1 alone and
-	// pad 2's copy is skipped.
-	if (m_service_buttons)
+	// The cabinet's test switch, on the synthetic combo item rather than on a pad control. The item
+	// is added whichever way the option is set: it is 0 forever when the combo is None, and keeping
+	// the item list independent of an option means a ctrlr file or a saved remap cannot change
+	// meaning underneath the player when they change it.
+	//
+	// ITEM_ID_BUTTON11 is free: L3 and R3 take 9 and 10, the six numbered buttons and the two
+	// triggers take 1..8, and IPT_BUTTON11's own default in inpttype.ipp is KEYCODE_M — a keyboard
+	// code, and this OSD registers no keyboard, so nothing else can arrive at this item.
+	const input_item_id comboitem = device.add_item(
+			"Diagnostic Combo",
+			std::string_view(),
+			ITEM_ID_BUTTON11,
+			generic_button_get_state<int32_t>,
+			&m_combo);
+
+	// Since this core draws no MAME menu, the combo is the only way into a game's test mode — and it
+	// is None by default, because a combination nobody asked for is worse than a menu they have to
+	// enable. IPT_SERVICE1, the service coin, has no combination of its own and rides on L3 whenever
+	// the option is set to anything: it is a free credit, so it should not be one held button away,
+	// but losing it entirely is not acceptable either. Both types are player 0 in inpttype.ipp, so
+	// apply_device_defaults() lands them on pad 1 alone and pad 2's copy is skipped.
+	if (m_diagnostic != m2opt::DIAG_NONE)
 	{
-		add_button_assignment(assignments, IPT_SERVICE1, { buttonitems[RETRO_DEVICE_ID_JOYPAD_L3] });
-		add_button_assignment(assignments, IPT_SERVICE,  { buttonitems[RETRO_DEVICE_ID_JOYPAD_R3] });
+		add_button_assignment(assignments, IPT_SERVICE,  { comboitem });
+		add_button_assignment(assignments, IPT_SERVICE1, { buttonitems[BUTTON_L3] });
 	}
 	else
 	{
-		add_button_assignment(assignments, IPT_UI_MENU, { buttonitems[RETRO_DEVICE_ID_JOYPAD_L3] });
-
-		// daytona's VR4 (Green). Only reachable with the service switches off, because they take
-		// this control when they are on — which is the right way round: a cabinet running its test
-		// menu is not also changing camera. The other three VR buttons are 6, 7 and 8, and 7/8 land
-		// on the trigger thresholds alongside the pedals; see the note above IPT_PEDAL below.
-		add_button_assignment(assignments, IPT_BUTTON9, { buttonitems[RETRO_DEVICE_ID_JOYPAD_R3] });
+		add_button_assignment(assignments, IPT_UI_MENU, { buttonitems[BUTTON_L3] });
 	}
+
+	// daytona's VR4 (Green), and it is outside the branch above deliberately: the test switch used to
+	// take R3 and no longer takes any pad control, so this binding no longer depends on an option
+	// being off. The other three VR buttons are 6, 7 and 8, and 7/8 land on the trigger thresholds
+	// alongside the pedals; see the note above IPT_PEDAL below.
+	add_button_assignment(assignments, IPT_BUTTON9, { buttonitems[BUTTON_R3] });
 
 	device.set_default_assignments(std::move(assignments));
 }
@@ -452,9 +637,9 @@ void libretro_m2_gun_device::configure(osd::input_device &device)
 //  libretro_m2_input
 //============================================================
 
-libretro_m2_input::libretro_m2_input(bool service_buttons)
+libretro_m2_input::libretro_m2_input(unsigned diagnostic)
 	: input_module_impl<libretro_m2_device, libretro_m2_osd_interface>(OSD_JOYSTICKINPUT_PROVIDER, "libretro")
-	, m_service_buttons(service_buttons)
+	, m_diagnostic(diagnostic)
 {
 }
 
@@ -476,7 +661,7 @@ void libretro_m2_input::input_init(running_machine &machine)
 				util::string_format("RetroPad %u", port + 1),
 				util::string_format("RETROPAD_%u", port + 1),
 				port,
-				m_service_buttons);
+				m_diagnostic);
 	}
 
 	// The guns, on the same terms and for the same reason: created unconditionally, in port order so

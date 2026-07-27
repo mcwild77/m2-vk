@@ -48,6 +48,14 @@
 // argument, so libretro_m2_osd_interface has to be complete here, not merely declared.
 
 
+// The second pad layout, as a libretro device subclass.  Plain RETRO_DEVICE_JOYPAD is the first
+// one, which is deliberate: a frontend that has never heard of the subclass — or that resets a port
+// — lands on Classic, the default, rather than on something it had to be told about.  Everything
+// that is neither this nor RETRO_DEVICE_LIGHTGUN is treated as Classic, so an unrecognised device
+// type can never leave a port with no working buttons.  See devnotes/lightgun.md §2.5.1.
+#define RETRO_DEVICE_M2_PAD_MODERN RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
+
+
 // What the two device kinds have in common: a port, and a per-frame update that is handed the
 // libretro device that port is currently set to.  They differ in what they read from the frontend,
 // not in how or when they are read, so one list holds both and one call drives both.
@@ -74,8 +82,7 @@ protected:
 };
 
 
-// One RetroPad.  Axis and button storage is indexed by RetroPad id so the mapping from a
-// retro_input_state_t call to a slot is the identity.
+// One RetroPad.  Axis storage is indexed by RetroPad id; button storage is not — see the slot enum.
 class libretro_m2_pad_device : public libretro_m2_device, protected osd::joystick_assignment_helper
 {
 public:
@@ -91,18 +98,55 @@ public:
 		AXIS_COUNT
 	};
 
-	static inline constexpr unsigned BUTTON_COUNT = 16; // RETRO_DEVICE_ID_JOYPAD_B .. _R3
+	// How many MAME buttons the face and shoulder controls produce.  The trigger pair adds
+	// IPT_BUTTON7/8 from a threshold on an axis and is not part of this.
+	static inline constexpr unsigned NUMBERED_BUTTONS = 6;
 
-	libretro_m2_pad_device(std::string &&name, std::string &&id, input_module &module, unsigned port, bool service_buttons);
+	// Button state slots.  The first NUMBERED_BUTTONS of them are MAME button *numbers*, not
+	// RetroPad ids, and that indirection is the whole of the pad-layout mechanism: configure()
+	// fixes each MAME item's pointer to a slot once and for all, so a layout change can only be a
+	// change to which RetroPad id update() reads into the slot.  Rebuilding the assignment vector
+	// instead would fight MAME, whose item state pointers are set when the device is created.
+	// devnotes/lightgun.md §2.5.2.
+	enum : unsigned
+	{
+		BUTTON_1 = 0,
+		BUTTON_2,
+		BUTTON_3,
+		BUTTON_4,
+		BUTTON_5,
+		BUTTON_6,
+		BUTTON_SELECT,
+		BUTTON_START,
+		BUTTON_UP,
+		BUTTON_DOWN,
+		BUTTON_LEFT,
+		BUTTON_RIGHT,
+		BUTTON_L3,
+		BUTTON_R3,
+		BUTTON_COUNT
+	};
+
+	// diagnostic is an m2opt::diagnostic_input; it is an unsigned here so that this header keeps out
+	// of the core-options one, which the emulation side has no other reason to see.
+	libretro_m2_pad_device(std::string &&name, std::string &&id, input_module &module, unsigned port, unsigned diagnostic);
 
 	virtual void reset() override;
 	virtual void configure(osd::input_device &device) override;
 	virtual void update(retro_input_state_t state_cb, unsigned device) override;
 
 private:
-	bool      m_service_buttons;
+	void update_diagnostic(retro_input_state_t state_cb, unsigned const *layout);
+
+	unsigned  m_diagnostic;
 	int32_t   m_axes[AXIS_COUNT];
 	int32_t   m_buttons[BUTTON_COUNT];
+
+	// The diagnostic combo as a button, and how long its controls have been down. Not a slot in
+	// m_buttons because no RetroPad control feeds it — it is computed from several of them, which is
+	// exactly the invariant the static_assert over the slot enum protects.
+	int32_t   m_combo;
+	unsigned  m_combo_frames;
 };
 
 
@@ -155,9 +199,10 @@ public:
 
 	static_assert(MAX_GUNS <= MAX_PADS, "a gun's port index has to be a valid pad port index too");
 
-	// service_buttons is the model2_service_buttons core option, carried down to the pads because
-	// it changes what configure() puts in their default assignment vector.
-	explicit libretro_m2_input(bool service_buttons);
+	// diagnostic is the model2_diagnostic_input core option, carried down to the pads because it
+	// changes both what configure() puts in their default assignment vector and what update()
+	// watches for. An m2opt::diagnostic_input, as unsigned — see the pad's constructor.
+	explicit libretro_m2_input(unsigned diagnostic);
 	virtual ~libretro_m2_input();
 
 	virtual void input_init(running_machine &machine) override;
@@ -168,7 +213,7 @@ public:
 	void poll_frontend(retro_input_state_t state_cb, unsigned const *port_device);
 
 private:
-	bool m_service_buttons;
+	unsigned m_diagnostic;
 };
 
 #endif // MAME_OSD_LIBRETRO_M2_INPUT_H

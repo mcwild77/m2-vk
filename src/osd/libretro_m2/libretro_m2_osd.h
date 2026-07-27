@@ -126,9 +126,10 @@ public:
 	bool machine_started() const { return m_started.load(std::memory_order_acquire); }
 	uint32_t audio_rate() const { return m_audio_rate; }
 
-	// The model2_service_buttons core option. Set from retro_load_game() before the emulation
-	// thread starts; read once, when the input devices are configured at machine start.
-	void set_service_buttons(bool enable) { m_service_buttons = enable; }
+	// The model2_diagnostic_input core option, as an m2opt::diagnostic_input. Set from
+	// retro_load_game() before the emulation thread starts; read once, when the input devices are
+	// configured at machine start.
+	void set_diagnostic_input(unsigned diagnostic) { m_diagnostic = diagnostic; }
 
 	// Screen geometry and timing for retro_get_system_av_info. Valid once a frame has been
 	// produced; sampled on the emulation thread, read while it is parked.
@@ -159,7 +160,7 @@ private:
 	// keeps the emulated screen "visible" so its SCREEN_UPDATE callback keeps firing
 	render_target *m_target = nullptr;
 
-	bool m_service_buttons = false;
+	unsigned m_diagnostic = 0;   // m2opt::DIAG_NONE
 
 	// the frame, written on the emulation thread while the libretro thread is blocked, so
 	// no locking is needed around it — the baton below is the synchronisation

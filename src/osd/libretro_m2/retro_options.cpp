@@ -33,21 +33,33 @@ const retro_core_option_v2_definition DEFINITIONS[] = {
 		"vulkan"
 	},
 	{
-		m2opt::KEY_SERVICE_BUTTONS,
-		"Test/Service on Stick Clicks",
+		m2opt::KEY_DIAGNOSTIC_INPUT,
+		"Diagnostic Input (Test Menu)",
 		nullptr,
-		"Puts the cabinet's service coin on L3 and its test switch on R3, for player 1. This core "
-		"draws none of MAME's menus, so with this off there is no way to reach a game's test mode "
-		"or change its settings. Off by default: an accidental stick click should not drop a "
-		"service coin mid-game. Applied when content is loaded.",
+		"Button combination that flips the cabinet's test switch, for player 1. This core draws none "
+		"of MAME's menus, so with this set to None there is no way to reach a game's test mode or "
+		"change its settings. The buttons a combination names are consumed by it, so Start is not "
+		"also pressed; the Hold variants want about a second. Setting anything other than None also "
+		"puts the service coin (a free credit) on L3. Applied when content is loaded.",
 		nullptr,
 		nullptr,
 		{
-			{ "disabled", nullptr },
-			{ "enabled",  nullptr },
+			// One entry per m2opt::diagnostic_input, in that order — get_diagnostic() below returns
+			// the position in this list, so a reordering here silently renames every combo.
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE],             nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_START],       nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_START_AB],         nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_START_AB],    nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_START_LR],         nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_START_LR],    nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT],      nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_SELECT_AB],        nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT_AB],   nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_SELECT_LR],        nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT_LR],   nullptr },
 			{ nullptr, nullptr }
 		},
-		"disabled"
+		m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE]
 	},
 	{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, { { nullptr, nullptr } }, nullptr }
 };
@@ -169,9 +181,15 @@ std::string m2opt::get(retro_environment_t environ_cb, char const *key)
 	return std::string(default_value(key));
 }
 
-bool m2opt::get_bool(retro_environment_t environ_cb, char const *key)
+unsigned m2opt::get_diagnostic(retro_environment_t environ_cb)
 {
-	return get(environ_cb, key) == "enabled";
+	const std::string value = get(environ_cb, KEY_DIAGNOSTIC_INPUT);
+	for (unsigned i = 0; i < DIAG_COUNT; i++)
+	{
+		if (value == DIAGNOSTIC_VALUES[i])
+			return i;
+	}
+	return DIAG_NONE;
 }
 
 bool m2opt::updated(retro_environment_t environ_cb)

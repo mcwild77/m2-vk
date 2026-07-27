@@ -32,6 +32,7 @@
 #include "retro_options.h"
 
 #include "m2vk_frame.h"
+#include "m2vk_reticle.h"
 #include "m2vk_sink.h"
 
 #include "renderer_vk/vk_context.h"
@@ -154,6 +155,15 @@ std::string frontend_directory(unsigned query)
 // button is whatever MAME's per-game input ports make of IPT_BUTTONn, and this core spans
 // fighters, driving games, lightguns and twin sticks. The two axes are named for the driving
 // games, which are the sets where a wrong guess is most obvious.
+//
+// One set of labels for both pad layouts, and they describe Classic. Descriptors are sent once when
+// content is loaded and a layout is a per-port choice the player can change at any moment, so the
+// alternative is not "labels that follow the layout" but "two arrays, one of them stale". The two
+// that Modern moves are the shoulder pair.
+//
+// R3 is listed and L3 is not, for the same reason: R3 is daytona's fourth view button under every
+// option value, and what L3 does depends on model2_diagnostic_input — a label that is wrong in the
+// default configuration is worse than no label.
 const struct retro_input_descriptor INPUT_DESCRIPTORS[] = {
 #define M2_PORT_DESCRIPTORS(port) \
 	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "Left" }, \
@@ -170,6 +180,7 @@ const struct retro_input_descriptor INPUT_DESCRIPTORS[] = {
 	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,     "Accelerator / Button 8" }, \
 	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Coin" }, \
 	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "Start" }, \
+	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,     "View / Button 9" }, \
 	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Steering / Stick X" }, \
 	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Stick Y" }, \
 	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Stick X" }, \
@@ -204,12 +215,16 @@ const struct retro_input_descriptor INPUT_DESCRIPTORS[] = {
 // port is the same hardware and whether a gun means anything is a property of the loaded set rather
 // than of the port — a gun on vf2 simply binds to types vf2 does not declare.
 //
-// A later step adds the FBNeo-style pad layouts as RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, n)
-// entries; they belong in this array beside the RetroPad rather than in a second call, which is why
-// SET_CONTROLLER_INFO is sent once and this list is the only thing that has to grow.
+// The two pad entries are FBNeo's Classic and Modern layouts and differ only in where MAME buttons
+// 5 and 6 sit; buttons 1-4, the d-pad, the sticks, coin and start are identical. Classic is plain
+// RETRO_DEVICE_JOYPAD rather than a subclass of its own, so it is what a frontend that knows
+// nothing about this list ends up with. 6-Panel is deliberately not offered: it exists for
+// six-button fighters, and the whole platform's button histogram is 37/30/27/11/4/3/1/1 for
+// IPT_BUTTON1..8 — vf2 is a three-button game. devnotes/lightgun.md §2.5.1.
 const struct retro_controller_description PORT_DEVICES[] = {
-	{ "RetroPad",  RETRO_DEVICE_JOYPAD },
-	{ "Light Gun", RETRO_DEVICE_LIGHTGUN } };
+	{ "RetroPad (Classic)", RETRO_DEVICE_JOYPAD },
+	{ "RetroPad (Modern)",  RETRO_DEVICE_M2_PAD_MODERN },
+	{ "Light Gun",          RETRO_DEVICE_LIGHTGUN } };
 
 const struct retro_controller_info CONTROLLER_INFO[] = {
 	{ PORT_DEVICES, unsigned(std::size(PORT_DEVICES)) },
@@ -232,6 +247,59 @@ unsigned s_port_device[libretro_m2_input::MAX_PADS] = {
 
 static_assert(std::size(s_port_device) == libretro_m2_input::MAX_PADS,
 		"the initialiser above has one entry per port and has to keep up with MAX_PADS");
+
+static_assert(m2vk::RETICLE_MAX == libretro_m2_input::MAX_GUNS,
+		"one reticle per gun; m2vk_reticle.h keeps its own copy so that it needs no MAME headers");
+
+
+//============================================================
+//  the lightgun reticle
+//============================================================
+
+// Where each gun is pointing, published once a frame for whichever renderer is presenting. This is
+// the only place that reads the frontend's pointer for a reason other than driving MAME: the input
+// module's gun device turns the same two axes into ioport values and deliberately keeps no state a
+// renderer could reach, since it lives behind the OSD and the Vulkan side is on the other side of it.
+//
+// Reading the pointer twice rather than plumbing one read through is the cheap side of the trade —
+// two state_cb calls per gun port per frame — and it keeps the drawn position honest: it is the
+// frontend's coordinate, not something derived from what MAME made of it. The port value has already
+// been through PORT_MINMAX by then, so working back from it would put a calibration of ours between
+// the pointer and the cross, which is exactly what devnotes/lightgun.md §5 forbids.
+//
+// Offscreen counts as no reticle. RELOAD is offscreen too: the gun device pins both axes to
+// ABSOLUTE_MIN for it, so the shot really is going into the corner, and drawing a cross where the
+// player is pointing would say otherwise.
+void publish_reticles()
+{
+	if (s_input_state_cb == nullptr)
+		return;
+
+	for (unsigned port = 0; port < m2vk::RETICLE_MAX; port++)
+	{
+		if ((s_port_device[port] & RETRO_DEVICE_MASK) != RETRO_DEVICE_LIGHTGUN)
+		{
+			m2vk::reticle_publish(port, false, 0.0f, 0.0f);
+			continue;
+		}
+
+		const bool off = (s_input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN) != 0)
+				|| (s_input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD) != 0);
+		if (off)
+		{
+			m2vk::reticle_publish(port, false, 0.0f, 0.0f);
+			continue;
+		}
+
+		// SCREEN_X/Y are -0x8000..0x7fff across the viewport; the reticle wants 0..1 across the
+		// picture, and the picture's size is not this function's business.
+		const int16_t x = s_input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
+		const int16_t y = s_input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
+		m2vk::reticle_publish(port, true,
+				(float(x) + 32768.0f) / 65536.0f,
+				(float(y) + 32768.0f) / 65536.0f);
+	}
+}
 
 } // anonymous namespace
 
@@ -363,14 +431,18 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	const std::string system = system_name_from_path(path);
 
 	// Options are read once, here. Both of them are settled before the machine starts — the
-	// renderer picks a draw path, the service buttons are baked into the input devices' default
+	// renderer picks a draw path, the diagnostic combo is baked into the input devices' default
 	// assignments — so a change made later is reported by retro_run() and applied at the next load.
+	//
+	// The diagnostic option is logged as the value it *resolved to*, not as the frontend's string:
+	// an unrecognised one silently becomes None, and a log line agreeing with the options menu while
+	// the combo does nothing is the shape of bug that costs an afternoon.
 	const std::string renderer = m2opt::get(s_environ_cb, m2opt::KEY_RENDERER);
-	const bool service_buttons = m2opt::get_bool(s_environ_cb, m2opt::KEY_SERVICE_BUTTONS);
+	const unsigned diagnostic = m2opt::get_diagnostic(s_environ_cb);
 
 	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s\n",
 			m2opt::KEY_RENDERER, renderer.c_str(),
-			m2opt::KEY_SERVICE_BUTTONS, service_buttons ? "enabled" : "disabled");
+			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic]);
 
 	// Hardware render is declared here, before the machine starts, and only when the option asked
 	// for it: with renderer=software the core must not declare it at all, so that the P1
@@ -473,7 +545,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 
 	s_options = std::make_unique<libretro_m2_options>();
 	s_osd = std::make_unique<libretro_m2_osd_interface>(*s_options);
-	s_osd->set_service_buttons(service_buttons);
+	s_osd->set_diagnostic_input(diagnostic);
 	s_running = true;
 	s_emu_thread = std::thread(emu_thread_main, args);
 
@@ -532,6 +604,11 @@ RETRO_API void retro_unload_game(void)
 	m2vk::forget_hw_render();
 	m2vk::frame_end_run();
 
+	// The port selection survives an unload by design (it is the player's choice, not the machine's),
+	// so the aim must not: a second game would otherwise open with the first one's crosshair on it
+	// until the frontend next moved the pointer.
+	m2vk::reticle_end_run();
+
 	s_osd.reset();
 	s_options.reset();
 }
@@ -566,6 +643,11 @@ RETRO_API void retro_run(void)
 	// means a frame sees exactly one input sample, so a run stays reproducible.
 	if (libretro_m2_input *const input = s_osd->input())
 		input->poll_frontend(s_input_state_cb, s_port_device);
+
+	// Same snapshot, same reason, and it has to be on this side of release_frame(): the software
+	// path's blit happens on the emulation thread, in capture_frame(), so the reticle it draws is the
+	// aim the frame was emulated from rather than the one after it.
+	publish_reticles();
 
 	// let the emulation thread run one frame, then wait for it to park again
 	s_osd->release_frame();

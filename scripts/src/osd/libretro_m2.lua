@@ -256,6 +256,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_polytap.h",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.h",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.cpp",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_reticle.h",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_reticle.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/module_stubs.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.cpp",
@@ -271,6 +273,7 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/fullscreen_vert_spv.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/passthrough_frag_spv.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/overlay_frag_spv.h",
+		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/reticle_frag_spv.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/poly_vert_spv.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/shaders/poly_frag_spv.h",
 	}
