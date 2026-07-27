@@ -175,6 +175,10 @@ const struct retro_input_descriptor INPUT_DESCRIPTORS[] = {
 	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Stick Y" },
 	M2_PORT_DESCRIPTORS(0)
 	M2_PORT_DESCRIPTORS(1)
+	// Ports 2 and 3 exist for airwlkrs, the one four-player cabinet — see MAX_PADS. Every other set
+	// leaves them bound to input types it does not declare, which costs nothing.
+	M2_PORT_DESCRIPTORS(2)
+	M2_PORT_DESCRIPTORS(3)
 #undef M2_PORT_DESCRIPTORS
 	{ 0, 0, 0, 0, nullptr } };
 

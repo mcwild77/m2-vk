@@ -49,10 +49,15 @@ constexpr unsigned NUMBERED_BUTTON_COUNT = std::size(NUMBERED_BUTTONS);
 
 // Buttons with a fixed MAME item id rather than a number.
 //
-// The stick clicks are here rather than in NUMBERED_BUTTONS on purpose: no Model 2 game has nine
-// buttons, so automatic IPT_BUTTON9/IPT_BUTTON10 assignments would be clutter. They still need
-// items of their own — an assignment naming an item the device never added is dropped on the floor
-// by add_assignment(), which is what used to happen to the UI_MENU binding below.
+// The stick clicks are here rather than in NUMBERED_BUTTONS on purpose: they are the two controls
+// the cabinet layouts have no use for, so they carry whatever is left over — the service switches,
+// the UI menu, and daytona's ninth button. They still need items of their own — an assignment
+// naming an item the device never added is dropped on the floor by add_assignment(), which is what
+// used to happen to the UI_MENU binding below.
+//
+// This used to say "no Model 2 game has nine buttons", and that was wrong: daytona has exactly nine.
+// Buttons 1-5 are the gearbox, read back through daytona_gearbox_r, and 6-9 are the VR camera
+// buttons. IPT_BUTTON10 is still unassigned because nothing needs it.
 constexpr std::pair<unsigned, input_item_id> FIXED_BUTTONS[] = {
 	{ RETRO_DEVICE_ID_JOYPAD_SELECT, ITEM_ID_SELECT },
 	{ RETRO_DEVICE_ID_JOYPAD_START,  ITEM_ID_START },
@@ -225,7 +230,13 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 						make_code(ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_REVERSE, axisitems[AXIS_R2])));
 	}
 
-	// pedals on the triggers — accelerator right, brake left, as every driving game expects
+	// pedals on the triggers — accelerator right, brake left, as every driving game expects.
+	//
+	// Known limitation, measured rather than suspected: on daytona these share the triggers with
+	// IPT_BUTTON7/BUTTON8 (VR2/VR3), which take their state from a threshold on the same two axes,
+	// so flooring the accelerator also presses VR3. It is not fixable by moving something — daytona
+	// wants nine buttons, steering and two pedals, and a RetroPad has nothing free once coin, start
+	// and the d-pad are spoken for. The fix is a per-set layout table, which is a later phase.
 	add_assignment(assignments, IPT_PEDAL,  SEQ_TYPE_STANDARD, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NEG, { axisitems[AXIS_R2] });
 	add_assignment(assignments, IPT_PEDAL2, SEQ_TYPE_STANDARD, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NEG, { axisitems[AXIS_L2] });
 	add_assignment(assignments, IPT_PEDAL3, SEQ_TYPE_INCREMENT, ITEM_CLASS_SWITCH, ITEM_MODIFIER_NONE, { buttonitems[RETRO_DEVICE_ID_JOYPAD_L] });
@@ -275,6 +286,12 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 	else
 	{
 		add_button_assignment(assignments, IPT_UI_MENU, { buttonitems[RETRO_DEVICE_ID_JOYPAD_L3] });
+
+		// daytona's VR4 (Green). Only reachable with the service switches off, because they take
+		// this control when they are on — which is the right way round: a cabinet running its test
+		// menu is not also changing camera. The other three VR buttons are 6, 7 and 8, and 7/8 land
+		// on the trigger thresholds alongside the pedals; see the note above IPT_PEDAL below.
+		add_button_assignment(assignments, IPT_BUTTON9, { buttonitems[RETRO_DEVICE_ID_JOYPAD_R3] });
 	}
 
 	device.set_default_assignments(std::move(assignments));

@@ -83,8 +83,16 @@ private:
 class libretro_m2_input : public input_module_impl<libretro_m2_pad_device, libretro_m2_osd_interface>
 {
 public:
-	// Model 2 tops out at two players; no set in src/mame/sega/model2.cpp declares PLAYER3.
-	static inline constexpr unsigned MAX_PADS = 2;
+	// Four, because airwlkrs is a genuine four-player cabinet: four PLAYER(n) blocks of three
+	// buttons and a four-way stick, plus COIN3/COIN4 and START3/START4. It is the only such set,
+	// and it is MACHINE_NOT_WORKING, so the ports are wired and nothing is claimed about playing it.
+	// Every other set uses at most two, and pads 3 and 4 simply bind to types those sets do not have.
+	static inline constexpr unsigned MAX_PADS = 4;
+
+	// Deliberately NOT MAX_PADS. The gun cabinets are all two-player, so whatever creates lightgun
+	// devices sizes off this instead; one constant serving both meanings is how a four-player pad
+	// count would silently become four guns.
+	static inline constexpr unsigned MAX_GUNS = 2;
 
 	// service_buttons is the model2_service_buttons core option, carried down to the pads because
 	// it changes what configure() puts in their default assignment vector.
