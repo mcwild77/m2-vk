@@ -11,6 +11,9 @@
 #include "render.h"
 #include "screen.h"
 
+// after emu.h, which it reads MAME's ioport types out of and which only a .cpp may include
+#include "m2vk_gunlog.h"
+
 #include "modules/monitor/monitor_module.h"
 #include "modules/output/output_module.h"
 #include "modules/render/render_module.h"
@@ -164,6 +167,9 @@ void libretro_m2_osd_interface::osd_exit()
 	// last point at which the run's polygon stream is complete
 	m2vk::sink_close();
 
+	// the gun read-out holds ioport pointers into the machine being torn down
+	m2vk::gun_log_close();
+
 	if (m_input)
 	{
 		m_input->exit();
@@ -237,6 +243,11 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// thread, so the libretro side just sets a flag and this picks it up at the frame boundary.
 	if (!m_exiting && m_reset_requested.exchange(false, std::memory_order_acq_rel))
 		machine().schedule_soft_reset();
+
+	// The lightgun read-out (M2VK_GUN_LOG), taken here so that it reports the state the frame being
+	// handed over was drawn from. Off unless the variable is set, and it reads ports rather than
+	// writing anything, so a run without it is unchanged.
+	m2vk::gun_log_frame(machine());
 
 	if (!skip_redraw)
 		capture_frame();
