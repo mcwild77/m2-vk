@@ -71,8 +71,13 @@
 //     shader maps to the visible extent rather than to a 512-wide target — and why the divisor is a
 //     per-frame decision rather than the resolution, which is the comment at the discard.
 //
-// Nothing blends anywhere in this renderer. Model 2's translucency is a cutout and checker is a
-// stipple; both are per-pixel discards and every surviving fragment is opaque.
+// Nothing blends anywhere in this renderer AS THE HARDWARE DREW IT. Model 2's translucency is a cutout
+// and checker is a stipple; both are per-pixel discards and every surviving fragment is opaque, and
+// that is what pc.blend == 0 — the default, and the only thing the A/B harness ever measures — gets.
+// The model2_transparency option turns the screen door into a real 50% blend instead, which is an
+// enhancement and not an accuracy fix; the two discards below and the alpha at the bottom are the
+// whole of it here, and vk_geom.cpp's deferred second pass is the rest. See that file's header for why
+// blending cannot happen in the polygon's own place in the stream.
 //
 // THIS FILE COMPILES TWICE. -DEARLY_Z=1 produces the specialisation for polygons that cannot discard,
 // which is MAME's draw_scanline_tex<false> reached by a preprocessor symbol instead of a template
@@ -94,12 +99,13 @@ layout(location = 0) noperspective in vec3 v_param;
 layout(location = 1) flat in uint v_poly;
 
 // Declared identically in poly.vert, because the push constant range covers both stages. This shader
-// reads only `stipple_div` and the vertex shader reads only `half_size`; both must declare both, or
-// the offsets disagree.
+// reads only `stipple_div` and `blend`, the vertex shader only `half_size`; both must declare all
+// three, or the offsets disagree.
 layout(push_constant) uniform push_block
 {
 	vec2 half_size;
 	uint stipple_div;
+	uint blend;
 } pc;
 
 layout(location = 0) out vec4 out_colour;
@@ -383,7 +389,11 @@ void main()
 	poly_params p = polys[v_poly];
 
 #ifndef EARLY_Z
-	if ((p.flags & FLAG_CHECKER) != 0u)
+	// pc.blend is the model2_transparency option, and a checkered polygon under it is not stippled at
+	// all: it is deferred to the renderer's second pass and blended there, so the screen door has to be
+	// switched off rather than blended on top of. Every other polygon reads this as false, because the
+	// flag test comes first — the two never both apply to one fragment.
+	if (((p.flags & FLAG_CHECKER) != 0u) && (pc.blend == 0u))
 	{
 		// One square of the screen door spans pc.stipple_div attachment pixels, and the renderer sets
 		// that per FRAME rather than deriving it from the resolution, because the two things it can
@@ -490,6 +500,13 @@ void main()
 	uint g = fetch_xlat(0x2000u + (((colour >>  5u) & 0x1fu) << 8u) + luma);
 	uint b = fetch_xlat(0x4000u + (((colour >> 10u) & 0x1fu) << 8u) + luma);
 
+	// The blend pipeline's source factor is SRC_ALPHA, so this is the whole of what "half transparent"
+	// means under the option — one half, matching the screen door's one-in-two coverage exactly, so the
+	// two modes average to the same picture over any region larger than a texel. Alpha is 1.0 for every
+	// other polygon, which is what the other two pipelines need: they have blending disabled and write
+	// this straight into the attachment, where the 2D composite expects an opaque frame.
+	const float alpha = (((p.flags & FLAG_CHECKER) != 0u) && (pc.blend != 0u)) ? 0.5 : 1.0;
+
 	// Exact: a UNORM attachment stores round(f * 255), so n/255 comes back as n for every n.
-	out_colour = vec4(vec3(float(r), float(g), float(b)) / 255.0, 1.0);
+	out_colour = vec4(vec3(float(r), float(g), float(b)) / 255.0, alpha);
 }

@@ -106,6 +106,24 @@ const retro_core_option_v2_definition DEFINITIONS[] = {
 		},
 		"off"
 	},
+	{
+		m2opt::KEY_TRANSPARENCY,
+		"Transparency",
+		nullptr,
+		"How see-through surfaces are drawn. Model 2 has no alpha blender, so the hardware fakes them "
+		"with a 50% screen door — a checkerboard of holes, which is what Screen Door reproduces. "
+		"Blended draws them as real half-transparency instead: smoke, glass, shadows and headlight "
+		"cones stop shimmering, at the cost of no longer matching the arcade. Vulkan only; the "
+		"software renderer always uses the screen door. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "stipple", "Screen Door (accurate)" },
+			{ "blended", "Blended" },
+			{ nullptr, nullptr }
+		},
+		"stipple"
+	},
 	{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, { { nullptr, nullptr } }, nullptr }
 };
 
@@ -279,6 +297,13 @@ unsigned m2opt::get_flat_shading(retro_environment_t environ_cb)
 {
 	// 2, not 1: mode 1 leaves translucent polygons undrawn. See the header.
 	return (get(environ_cb, KEY_FLAT_SHADING) == "flat") ? 2 : 0;
+}
+
+unsigned m2opt::get_transparency(retro_environment_t environ_cb)
+{
+	// Tested against the enhancement rather than against the default, so that anything unrecognised —
+	// a frontend's invention, a hand-written .opt file — lands on the accurate screen door.
+	return (get(environ_cb, KEY_TRANSPARENCY) == "blended") ? 1 : 0;
 }
 
 bool m2opt::updated(retro_environment_t environ_cb)

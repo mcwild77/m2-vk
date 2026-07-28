@@ -37,6 +37,7 @@
 
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
+#include "renderer_vk/vk_geom.h"
 #include "renderer_vk/vk_present.h"
 
 #include "emu.h"
@@ -45,6 +46,8 @@
 
 #include "corestr.h"
 
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -86,6 +89,16 @@ std::unique_ptr<libretro_m2_osd_interface> s_osd;
 std::thread                                s_emu_thread;
 bool                                       s_running = false;
 
+// Set as the emulation thread falls out of emu_thread_main, i.e. "join() will not block". Only the
+// process-exit path needs it: everywhere else the libretro thread has already stopped releasing
+// frames and can afford to wait.
+std::atomic<bool>                          s_emu_finished{ false };
+
+// How long that path waits for the machine to unwind before giving up on it. Generous — MAME's
+// teardown is a few file writes — and bounded because a hang at exit is worse than the crash it
+// replaces: the window is already gone, so there is nothing for the player to see or dismiss.
+constexpr int SHUTDOWN_WAIT_MS = 2000;
+
 // Set at load if the renderer option asked for Vulkan and the frontend accepted the declaration.
 // It decides which of the two presentation paths retro_run takes, and it is deliberately not the
 // same question as "is there a context right now" — a declared context can be absent for the first
@@ -106,6 +119,51 @@ void emu_thread_main(std::vector<std::string> args)
 
 	// Release anyone waiting on a frame that will now never arrive.
 	s_osd->signal_died();
+
+	s_emu_finished.store(true, std::memory_order_release);
+}
+
+
+//============================================================
+//  process exit with the machine still running
+//============================================================
+
+// The frontend is not obliged to unload the content before the process ends, and on macOS the
+// ordinary way to quit does not: closing RetroArch's window takes AppKit's
+// -[NSApplication terminate:] path, which calls exit() directly, so neither retro_unload_game nor
+// retro_deinit is ever reached. exit() then runs this image's destructors — and destroying a
+// joinable std::thread calls std::terminate(), so the core aborted every time the player closed
+// the window. The crash report blames __cxa_finalize_ranges with the emulation thread still parked
+// on the baton in libretro_m2_osd_interface::update().
+//
+// The abort is the loud half. The quiet half is that the machine never exits, so MAME writes
+// neither NVRAM nor cfg: a quit taken this way silently discarded the game's settings and its high
+// scores. Bringing the thread down properly fixes both, which is why this joins rather than simply
+// detaching to dodge the terminate().
+//
+// Registered from retro_init, i.e. after this image's static constructors have run. Destructors and
+// atexit handlers share one list and run last-registered-first, so registering later puts this
+// ahead of them: everything the teardown touches — s_osd, s_options, MAME's own statics — is still
+// alive when it runs. Registering it any earlier would invert that and is the thing not to "tidy".
+void shutdown_at_exit()
+{
+	if (!s_running || !s_emu_thread.joinable() || !s_osd)
+		return;
+
+	s_osd->request_exit();
+
+	for (int i = 0; (i < SHUTDOWN_WAIT_MS) && !s_emu_finished.load(std::memory_order_acquire); i++)
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+	// Either way the thread must not still be joinable when its destructor runs, which is the whole
+	// point of being here. Detaching is the giving-up branch: the process is going down regardless,
+	// and a thread parked in the emulator is less harmful than a guaranteed abort.
+	if (s_emu_finished.load(std::memory_order_acquire))
+		s_emu_thread.join();
+	else
+		s_emu_thread.detach();
+
+	s_running = false;
 }
 
 
@@ -471,6 +529,13 @@ RETRO_API void retro_get_system_av_info(struct retro_system_av_info *info)
 
 RETRO_API void retro_init(void)
 {
+	// Bring the emulation thread down if the process exits with content still loaded — see
+	// shutdown_at_exit() for why that is an ordinary quit rather than an edge case, and for why it
+	// has to be registered here rather than at load or at static-init time. Once, because a
+	// frontend may init the core more than once and the handler list keeps every registration.
+	static const bool registered = (std::atexit(shutdown_at_exit) == 0);
+	(void)registered;
+
 	// Says which headers the Vulkan side was built against, before any of it has run. What the
 	// frontend's implementation actually is gets logged at context_reset, and the two are allowed
 	// to differ — but when something goes wrong there, this is the other half of the comparison.
@@ -536,6 +601,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	unsigned res_width = 0, res_height = 0;
 	m2opt::get_internal_size(s_environ_cb, res_width, res_height);
 	const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
+	const unsigned transparency = m2opt::get_transparency(s_environ_cb);
 
 	// The resolution is logged as "native" rather than as the 0x0 the parser produces for a value it
 	// did not recognise: "model2_internal_res=0x0" reads as a bug in the option, when what it means is
@@ -547,11 +613,12 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	else
 		std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
-	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s\n",
+	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s\n",
 			m2opt::KEY_RENDERER, renderer.c_str(),
 			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic],
 			m2opt::KEY_INTERNAL_RES, res_text,
-			m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off");
+			m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
+			m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple");
 
 	// 🚨 The corresponding M2VK_* switch overrides each of the two options below, and the harness
 	// depends on that: ab.sh's MODE= and res.sh's scale arrive in the environment, and a .opt file left
@@ -562,7 +629,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	//
 	// Presence, not value: M2VK_SS=99 is refused back to 1x by its reader, and a line saying the switch
 	// was set is still the right thing to have printed.
-	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID" })
+	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_BLEND" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -595,6 +662,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// no core options at all and must keep the switches working.
 	m2vk::set_option_resolution(res_width, res_height);
 	m2vk::set_option_force_solid(flat_shading);
+	m2vk::set_option_blend(transparency);
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
 	// composites them itself (m2vk_frame.h). On the software path the two hooks in screen_update()
@@ -685,6 +753,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	s_osd = std::make_unique<libretro_m2_osd_interface>(*s_options);
 	s_osd->set_diagnostic_input(diagnostic);
 	s_running = true;
+	s_emu_finished.store(false, std::memory_order_release);
 	s_emu_thread = std::thread(emu_thread_main, args);
 
 	// Block until the machine has produced a frame with an actual picture in it:
@@ -774,7 +843,7 @@ RETRO_API void retro_run(void)
 	if (!s_running)
 		return;
 
-	// Two of the four options apply live; two cannot. The frontend clears the flag as this reads it,
+	// Three of the five options apply live; two cannot. The frontend clears the flag as this reads it,
 	// so this runs once per change rather than once per frame.
 	//
 	// 🚨 "Applied when content is loaded" is the wrong answer for anything a player is meant to *play*
@@ -788,6 +857,10 @@ RETRO_API void retro_run(void)
 	//   internal res    — parked in the renderer; present_frame() compares it against the ring it
 	//                     built and rebuilds when they differ, exactly as it does for a sync-mask
 	//                     change. Takes effect on the next presented frame.
+	//   transparency    — parked in the polygon pass, which latches it at the top of each upload so
+	//                     that one frame's deferral decision and its push constant agree. Takes effect
+	//                     on the next uploaded frame. Nothing to rebuild: all three pipelines were
+	//                     created at context_reset.
 	//
 	// model2_renderer and model2_diagnostic_input genuinely cannot: one decides whether hardware
 	// render was declared at all, before the machine started, and the other is baked into the input
@@ -797,9 +870,11 @@ RETRO_API void retro_run(void)
 		unsigned res_width = 0, res_height = 0;
 		m2opt::get_internal_size(s_environ_cb, res_width, res_height);
 		const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
+		const unsigned transparency = m2opt::get_transparency(s_environ_cb);
 
 		m2vk::set_option_resolution(res_width, res_height);
 		m2vk::set_option_force_solid(flat_shading);
+		m2vk::set_option_blend(transparency);
 
 		char res_text[32];
 		if ((res_width == 0) || (res_height == 0))
@@ -808,9 +883,10 @@ RETRO_API void retro_run(void)
 			std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
 		s_log_cb(RETRO_LOG_INFO,
-				"[model2] core options changed: %s=%s %s=%s applied now; %s and %s need a reload\n",
+				"[model2] core options changed: %s=%s %s=%s %s=%s applied now; %s and %s need a reload\n",
 				m2opt::KEY_INTERNAL_RES, res_text,
 				m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
+				m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple",
 				m2opt::KEY_RENDERER, m2opt::KEY_DIAGNOSTIC_INPUT);
 	}
 

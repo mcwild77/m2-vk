@@ -8,11 +8,12 @@
     core, MAME's own options are not exposed, and anything a frontend already does better (video
     scaling, audio latency, input remapping) is left to the frontend.
 
-    Every option is read in retro_load_game(). Two of the four are then re-read by retro_run() when
+    Every option is read in retro_load_game(). Three of the five are then re-read by retro_run() when
     the frontend raises GET_VARIABLE_UPDATE, and apply on the next frame:
 
       model2_internal_res    the renderer compares it against the ring it built and rebuilds
       model2_flat_shading    a global the polygon seam reads, so the next frame simply sees it
+      model2_transparency    a global the polygon pass latches at the top of each upload
 
     The other two cannot be live and retro_run() says so rather than half-applying them:
     model2_renderer decides whether hardware render was declared at all, which happens before the
@@ -66,6 +67,15 @@ inline constexpr char const *KEY_INTERNAL_RES = "model2_internal_res";
 // on BOTH renderers, which is the standing rule for anything that removes a feature.
 inline constexpr char const *KEY_FLAT_SHADING = "model2_flat_shading";
 
+// How the `checker` polygon flag is drawn. Model 2 has no alpha blender: a translucent surface is a
+// 50 % screen door, one pixel on and one off, and that is what the hardware and MAME both produce.
+// "blended" replaces it with a real 50 % blend.
+//
+// ⚠️ An ENHANCEMENT, not an accuracy fix, and off by default for that reason. Vulkan only — MAME's
+// rasteriser has nothing to blend with — so like model2_internal_res it cannot obey the
+// both-renderers rule, and an A/B or resolution-invariance run must leave it alone.
+inline constexpr char const *KEY_TRANSPARENCY = "model2_transparency";
+
 // The values of that option. Declaration order, and the numbering is what the input module keys its
 // combo table on — so the two lists cannot drift apart, because there is only one list.
 enum diagnostic_input : unsigned
@@ -118,6 +128,11 @@ void get_internal_size(retro_environment_t environ_cb, unsigned &width, unsigned
 // the picture, so it stays a harness switch (M2VK_FORCE_SOLID=1) rather than something a player can
 // pick by accident.
 unsigned get_flat_shading(retro_environment_t environ_cb);
+
+// KEY_TRANSPARENCY resolved to the 0/1 m2vk::set_option_blend() takes. Anything unrecognised is the
+// accurate screen door, which is the same rule get_diagnostic() follows: a value we do not declare
+// resolves to the default rather than to a guess.
+unsigned get_transparency(retro_environment_t environ_cb);
 
 // The frontend's value for an option, or our declared default if the frontend has no value for it
 // (or supports no options at all, which is the retrohost case).

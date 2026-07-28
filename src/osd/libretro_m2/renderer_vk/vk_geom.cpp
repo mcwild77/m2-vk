@@ -10,11 +10,12 @@
     rectangle. Nothing else varies per polygon — no pipeline change, no descriptor rebind — so a game
     with one viewport for the whole frame is still a single draw, which is nearly all of them.
 
-    There are TWO pipelines and they differ in one thing: whether the fragment shader can discard.
-    A polygon that is neither translucent nor checkered cannot, so it takes the variant that declares
-    EarlyFragmentTests and has its depth resolved before the shader runs; everything else takes the
-    late-test variant, because a discarded fragment must leave the draw-order key unclaimed. The
-    predicate is the two flag bits and nothing else — see the note above the split in geom_upload.
+    There are THREE pipelines. The first two differ in one thing: whether the fragment shader can
+    discard. A polygon that is neither translucent nor checkered cannot, so it takes the variant that
+    declares EarlyFragmentTests and has its depth resolved before the shader runs; everything else
+    takes the late-test variant, because a discarded fragment must leave the draw-order key unclaimed.
+    The predicate is the two flag bits and nothing else — see the note above the split in geom_upload.
+    The third exists only under the model2_transparency option and is described at the deferred list.
 
     Four traps that are already paid for and must stay paid:
 
@@ -180,9 +181,10 @@ struct gpu_push
 {
 	float half_width, half_height;
 	uint32_t stipple_div;
+	uint32_t blend;             // model2_transparency: 0 stipples the screen door, 1 defers and blends
 };
 
-static_assert(sizeof(gpu_push) == 12, "poly.vert/poly.frag's push block is three words");
+static_assert(sizeof(gpu_push) == 16, "poly.vert/poly.frag's push block is four words");
 
 
 //============================================================
@@ -208,7 +210,27 @@ struct draw_batch
 	int32_t  left, top, right, bottom;  // inclusive, exactly as MAME's rectangle spells it
 	uint32_t first_index;
 	uint32_t index_count;
-	bool     early;                     // the no-discard variant; geom_draw maps it to a VkPipeline
+	uint8_t  pipe;                      // an index into s_pipelines; see PIPE_* below
+};
+
+// Which of the three pipelines a batch wants. GENERAL and EARLY interleave through the stream in
+// submission order; BLEND batches are all appended after every one of them, which is what makes the
+// blended-transparency pass a second pass rather than a third kind of polygon in the first.
+enum : uint8_t
+{
+	PIPE_GENERAL = 0,
+	PIPE_EARLY   = 1,
+	PIPE_BLEND   = 2,
+	PIPE_COUNT   = 3
+};
+
+// One polygon held back for the blended pass: everything the index emission needs, since its vertices
+// and its parameter block were already written in stream order and only its indices are deferred.
+struct deferred_poly
+{
+	uint32_t base;                      // first vertex of the fan
+	uint32_t nverts;
+	int32_t  left, top, right, bottom;  // its own clipped viewport, as draw_batch spells it
 };
 
 struct geom_slot
@@ -230,6 +252,11 @@ struct geom_slot
 	// Host-side only, so it grows on its own rather than with size_slot. One entry in the common case
 	// and it reaches the run's high-water mark within a few frames, same as everything else here.
 	std::vector<draw_batch> batches;
+
+	// The polygons the blended-transparency pass owes, in stream order. Empty on the accurate path,
+	// which is the default and the whole of what the A/B harness runs; a member rather than a local so
+	// that the option costs no allocation per frame once a run is going.
+	std::vector<deferred_poly> deferred;
 };
 
 std::array<geom_slot, MAX_SLOTS> s_slots{};
@@ -239,10 +266,11 @@ VkDescriptorSetLayout s_set_layout = VK_NULL_HANDLE;
 VkDescriptorPool      s_descriptor_pool = VK_NULL_HANDLE;
 VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
 
-// Indexed by draw_batch::early. [0] is the general variant, which can discard and therefore tests
+// Indexed by draw_batch::pipe. [0] is the general variant, which can discard and therefore tests
 // depth late; [1] declares EarlyFragmentTests and is only ever selected for polygons whose fragment
-// shader has no discard in it at all. Same layout, same descriptor set, same everything else.
-VkPipeline            s_pipelines[2] = { VK_NULL_HANDLE, VK_NULL_HANDLE };
+// shader has no discard in it at all; [2] is the blended-transparency pass. Same layout, same
+// descriptor set, same shaders — [2] differs from [0] only in its depth-write and blend state.
+VkPipeline            s_pipelines[PIPE_COUNT] = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE };
 
 const retro_hw_render_interface_vulkan *s_iface = nullptr;
 vk_funcs s_fns;
@@ -267,6 +295,18 @@ bool s_no_scissor_known = false;
 bool s_no_early_z = false;
 bool s_no_early_z_known = false;
 
+// model2_transparency, parked here by retro_load_game and re-parked whenever the option changes.
+// M2VK_BLEND overrides it — the standing rule, and it takes a value rather than a presence so that a
+// harness run can pin the accurate path ON as well as off. -1 is "no switch set".
+bool s_option_blend = false;
+int  s_env_blend = -1;
+bool s_env_blend_known = false;
+
+// Latched at the top of each upload so that the whole frame agrees with itself: geom_upload decides
+// which polygons to defer, and geom_draw pushes the flag the shader reads, and a change landing between
+// the two would stipple polygons that were deferred — i.e. draw them twice, once with a screen door.
+bool s_blend_frame = false;
+
 // Said once rather than 57 times a second.
 bool s_reported_skips = false;
 
@@ -289,6 +329,12 @@ bool     s_windows_ascending_seen = false;
 // here, and the report is how that is seen rather than assumed.
 uint64_t s_early_polys = 0;
 uint64_t s_drawn_polys = 0;
+
+// Polygons the blended pass took, over the run. Reported for the same reason the early-Z share is: it
+// is the one number that says the option reached the geometry rather than merely being read, and a run
+// with the option on and zero here is a stream with no checkered polygons in it — which the feature
+// survey says does not exist, since all 29 games use the stipple.
+uint64_t s_blend_polys = 0;
 
 // Polygons the per-polygon scissor actually cuts *and the previous build did not*, which is a much
 // narrower thing than it first looks. Every game has tens of thousands of polygons a run reaching
@@ -373,6 +419,19 @@ bool no_early_z()
 		s_no_early_z_known = true;
 	}
 	return s_no_early_z;
+}
+
+// The option, unless the switch is set. Anything M2VK_BLEND cannot be read as a number is taken as 1,
+// because the reason to type it at all is to turn the thing on.
+bool blend_stipple()
+{
+	if (!s_env_blend_known)
+	{
+		char const *const env = std::getenv("M2VK_BLEND");
+		s_env_blend = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+		s_env_blend_known = true;
+	}
+	return (s_env_blend < 0) ? s_option_blend : (s_env_blend != 0);
 }
 
 void destroy_buffer(mapped_buffer &b)
@@ -577,10 +636,14 @@ bool build_pipeline(VkRenderPass render_pass)
 
 	if (ok)
 	{
-		// The two pipelines share every piece of state below and differ only in the fragment module,
-		// which is the point: anything that has to be true of one is true of the other by construction.
-		VkPipelineShaderStageCreateInfo stages[2][2]{};
-		for (uint32_t i = 0; i < 2; i++)
+		// The three pipelines share every piece of state below except the two that are spelled out per
+		// pipeline further down, which is the point: anything that has to be true of one is true of the
+		// others by construction. PIPE_BLEND takes the GENERAL fragment module — a deferred polygon is
+		// checkered and may also carry the translucent cutout, so it can discard and must test late.
+		VkShaderModule const frag_for[PIPE_COUNT] = { frag[0], frag[1], frag[0] };
+
+		VkPipelineShaderStageCreateInfo stages[PIPE_COUNT][2]{};
+		for (uint32_t i = 0; i < PIPE_COUNT; i++)
 		{
 			stages[i][0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 			stages[i][0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -588,7 +651,7 @@ bool build_pipeline(VkRenderPass render_pass)
 			stages[i][0].pName = "main";
 			stages[i][1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 			stages[i][1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-			stages[i][1].module = frag[i];
+			stages[i][1].module = frag_for[i];
 			stages[i][1].pName = "main";
 		}
 
@@ -650,25 +713,59 @@ bool build_pipeline(VkRenderPass render_pass)
 		// EarlyFragmentTests, so its depth is resolved before the shader — but what it computes does not,
 		// and that is the only reason the split is safe: a shader with no discard cannot tell the two
 		// apart, and one with a discard never reaches the early pipeline.
-		VkPipelineDepthStencilStateCreateInfo depth{};
-		depth.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-		depth.depthTestEnable = VK_TRUE;
-		depth.depthWriteEnable = VK_TRUE;
-		depth.depthCompareOp = VK_COMPARE_OP_GREATER;
-		depth.depthBoundsTestEnable = VK_FALSE;
-		depth.stencilTestEnable = VK_FALSE;
-		depth.minDepthBounds = 0.0f;
-		depth.maxDepthBounds = 1.0f;
+		VkPipelineDepthStencilStateCreateInfo depth[PIPE_COUNT]{};
+		for (uint32_t i = 0; i < PIPE_COUNT; i++)
+		{
+			depth[i].sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+			depth[i].depthTestEnable = VK_TRUE;
+			depth[i].depthWriteEnable = VK_TRUE;
+			depth[i].depthCompareOp = VK_COMPARE_OP_GREATER;
+			depth[i].depthBoundsTestEnable = VK_FALSE;
+			depth[i].stencilTestEnable = VK_FALSE;
+			depth[i].minDepthBounds = 0.0f;
+			depth[i].maxDepthBounds = 1.0f;
+		}
 
-		VkPipelineColorBlendAttachmentState blend_attachment{};
-		blend_attachment.blendEnable = VK_FALSE;
-		blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-				| VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		// PIPE_BLEND TESTS DEPTH AND DOES NOT WRITE IT, and both halves are load-bearing.
+		//
+		// It tests, because the depth buffer the first pass leaves behind already answers the only
+		// question a deferred polygon has: the key at a pixel belongs to the LOWEST record index that
+		// claimed it, and GREATER passes exactly where the deferred polygon's own index is lower still —
+		// i.e. where nothing opaque is in front of it. That is the same occlusion the screen door gets
+		// from first-writer-wins, obtained from the same buffer, with no sorting of the opaque stream.
+		//
+		// It does not write, because a transparent surface occludes nothing: leaving the key unclaimed is
+		// what lets two overlapping deferred polygons both draw, and it is why the pass can be walked
+		// back to front without any of them hiding each other.
+		depth[PIPE_BLEND].depthWriteEnable = VK_FALSE;
 
-		VkPipelineColorBlendStateCreateInfo blend{};
-		blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-		blend.attachmentCount = 1;
-		blend.pAttachments = &blend_attachment;
+		VkPipelineColorBlendAttachmentState blend_attachment[PIPE_COUNT]{};
+		for (uint32_t i = 0; i < PIPE_COUNT; i++)
+		{
+			blend_attachment[i].blendEnable = VK_FALSE;
+			blend_attachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
+					| VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		}
+
+		// The ordinary over operator on colour, and the destination's alpha left exactly as it was:
+		// poly.frag hands this 0.5, which is the coverage the screen door it replaces has, but the
+		// attachment's alpha channel is what the 2D composite and the presented frame read as opaque and
+		// a half-transparent polygon must not punch a hole in it.
+		blend_attachment[PIPE_BLEND].blendEnable = VK_TRUE;
+		blend_attachment[PIPE_BLEND].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		blend_attachment[PIPE_BLEND].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		blend_attachment[PIPE_BLEND].colorBlendOp = VK_BLEND_OP_ADD;
+		blend_attachment[PIPE_BLEND].srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		blend_attachment[PIPE_BLEND].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		blend_attachment[PIPE_BLEND].alphaBlendOp = VK_BLEND_OP_ADD;
+
+		VkPipelineColorBlendStateCreateInfo blend[PIPE_COUNT]{};
+		for (uint32_t i = 0; i < PIPE_COUNT; i++)
+		{
+			blend[i].sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+			blend[i].attachmentCount = 1;
+			blend[i].pAttachments = &blend_attachment[i];
+		}
 
 		const VkDynamicState dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		VkPipelineDynamicStateCreateInfo dynamic{};
@@ -676,8 +773,8 @@ bool build_pipeline(VkRenderPass render_pass)
 		dynamic.dynamicStateCount = 2;
 		dynamic.pDynamicStates = dynamic_states;
 
-		VkGraphicsPipelineCreateInfo info[2]{};
-		for (uint32_t i = 0; i < 2; i++)
+		VkGraphicsPipelineCreateInfo info[PIPE_COUNT]{};
+		for (uint32_t i = 0; i < PIPE_COUNT; i++)
 		{
 			info[i].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 			info[i].stageCount = 2;
@@ -687,16 +784,19 @@ bool build_pipeline(VkRenderPass render_pass)
 			info[i].pViewportState = &viewport_state;
 			info[i].pRasterizationState = &raster;
 			info[i].pMultisampleState = &multisample;
-			info[i].pDepthStencilState = &depth;
-			info[i].pColorBlendState = &blend;
+			info[i].pDepthStencilState = &depth[i];
+			info[i].pColorBlendState = &blend[i];
 			info[i].pDynamicState = &dynamic;
 			info[i].layout = s_pipeline_layout;
 			info[i].renderPass = render_pass;
 			info[i].subpass = 0;
 		}
 
-		// One call for both, so a driver that can share compilation work between them gets the chance.
-		ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 2, info, nullptr, s_pipelines),
+		// One call for all three, so a driver that can share compilation work between them gets the
+		// chance. PIPE_BLEND is built whether or not the option is on: it costs one compile at
+		// context_reset, and building it lazily would put a pipeline creation in the middle of the first
+		// frame after somebody changes the option from the menu.
+		ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, PIPE_COUNT, info, nullptr, s_pipelines),
 				"vkCreateGraphicsPipelines (geometry)");
 	}
 
@@ -842,8 +942,8 @@ void geom_forget()
 		slot = geom_slot{};
 	s_slot_count = 0;
 
-	s_pipelines[0] = VK_NULL_HANDLE;
-	s_pipelines[1] = VK_NULL_HANDLE;
+	for (VkPipeline &p : s_pipelines)
+		p = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
 	s_descriptor_pool = VK_NULL_HANDLE;
 	s_set_layout = VK_NULL_HANDLE;
@@ -853,8 +953,9 @@ void geom_forget()
 
 bool geom_upload(uint32_t slot_index, frame_record const &record)
 {
-	// Both pipelines or neither: they come out of one vkCreateGraphicsPipelines call.
-	if ((slot_index >= s_slot_count) || (s_pipelines[0] == VK_NULL_HANDLE) || (s_pipelines[1] == VK_NULL_HANDLE))
+	// All three pipelines or none: they come out of one vkCreateGraphicsPipelines call.
+	if ((slot_index >= s_slot_count) || (s_pipelines[PIPE_GENERAL] == VK_NULL_HANDLE)
+			|| (s_pipelines[PIPE_EARLY] == VK_NULL_HANDLE) || (s_pipelines[PIPE_BLEND] == VK_NULL_HANDLE))
 		return false;
 
 	// The software rasteriser still owning the 3D is not an error: it is what M2VK_SW_3D=1 asks for,
@@ -894,6 +995,11 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	geom_slot &slot = s_slots[slot_index];
 	slot.index_count = 0;
 	slot.batches.clear();
+	slot.deferred.clear();
+
+	// Latched once for the whole frame. geom_draw pushes this same value, so the shader's stipple test
+	// and this function's decision to defer can never disagree about one polygon.
+	s_blend_frame = blend_stipple();
 
 	// Growth happens here, inside the caller's fence wait, so nothing being replaced is in flight.
 	// It happens at most a handful of times a run and then never again.
@@ -1032,6 +1138,21 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 		if (early)
 			frame_early++;
 
+		// WHICH PASS. Under model2_transparency a checkered polygon is held back and drawn blended after
+		// every opaque one, and the reason is the stream's order rather than anything about the polygon:
+		// Model 2 submits FRONT TO BACK, so right here, at the polygon's own place in the list, the
+		// geometry behind it does not exist in the colour attachment yet and there is nothing to blend it
+		// with. Blending in place would composite it against the 2D under-layer and then be overwritten by
+		// whatever it was meant to be seen through.
+		//
+		// Everything else about it is unchanged — same vertices, same parameter block, same draw-order
+		// depth key — because the key is what the second pass tests against, and it has to be the one the
+		// polygon always had. Only its INDICES are deferred, which is why the loop below still runs.
+		//
+		// Note this is never true on the accurate path, so the deferred vector stays empty, no PIPE_BLEND
+		// batch is ever appended, and this is exactly the pre-option code.
+		const bool defer = s_blend_frame && ((gp.flags & FLAG_CHECKER) != 0u);
+
 		// Extend the open batch, or open a new one. A batch is a run of consecutive polygons sharing both
 		// a viewport and a pipeline — one batch for the whole frame is the common case for the viewport,
 		// but the pipeline alternates with the polygon stream, so this is where the draw count comes from
@@ -1046,12 +1167,14 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 		const int32_t right  = scissoring ? p.clip[2] : std::numeric_limits<int32_t>::max();
 		const int32_t bottom = scissoring ? p.clip[3] : std::numeric_limits<int32_t>::max();
 
-		if (slot.batches.empty()
+		const uint8_t pipe = early ? PIPE_EARLY : PIPE_GENERAL;
+
+		if (!defer && (slot.batches.empty()
 				|| (slot.batches.back().left != left) || (slot.batches.back().top != top)
 				|| (slot.batches.back().right != right) || (slot.batches.back().bottom != bottom)
-				|| (slot.batches.back().early != early))
+				|| (slot.batches.back().pipe != pipe)))
 		{
-			slot.batches.push_back(draw_batch{ left, top, right, bottom, icount, 0, early });
+			slot.batches.push_back(draw_batch{ left, top, right, bottom, icount, 0, pipe });
 		}
 
 		frame_drawn++;
@@ -1098,6 +1221,13 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 			frame_worst = std::max(frame_worst, excess);
 		}
 
+		// Held back for the second pass; its fan is emitted below, after every other polygon's.
+		if (defer)
+		{
+			slot.deferred.push_back(deferred_poly{ base, nverts, left, top, right, bottom });
+			continue;
+		}
+
 		// A fan from vertex 0. Model 2 polygons are convex — the geometry engine clips them against
 		// four planes — so a fan is exactly what MAME's render_polygon<N,3> covers.
 		for (uint32_t i = 1; i + 1 < nverts; i++)
@@ -1109,6 +1239,38 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 
 		slot.batches.back().index_count = icount - slot.batches.back().first_index;
 	}
+
+	// THE BLENDED-TRANSPARENCY PASS, walked BACK TO FRONT — which is the reverse of the record, because
+	// the record is front to back. Two translucent surfaces over each other only composite correctly if
+	// the far one is laid down first, and this is the only place in the renderer where draw order decides
+	// a colour: everywhere else the depth key makes the picture order-independent, and it still does
+	// between these polygons and the opaque ones. It is only each other they have to be ordered against.
+	//
+	// The indices continue in the same buffer, so a polygon's fan is emitted exactly once whichever pass
+	// owns it and the capacity check above covers both. The batches are appended after every first-pass
+	// batch, and geom_draw walks them in order, which is the whole of what makes this a second pass.
+	for (std::size_t d = slot.deferred.size(); d-- != 0; )
+	{
+		deferred_poly const &dp = slot.deferred[d];
+
+		if (slot.batches.empty() || (slot.batches.back().pipe != PIPE_BLEND)
+				|| (slot.batches.back().left != dp.left) || (slot.batches.back().top != dp.top)
+				|| (slot.batches.back().right != dp.right) || (slot.batches.back().bottom != dp.bottom))
+		{
+			slot.batches.push_back(draw_batch{ dp.left, dp.top, dp.right, dp.bottom, icount, 0, PIPE_BLEND });
+		}
+
+		for (uint32_t i = 1; i + 1 < dp.nverts; i++)
+		{
+			indices[icount++] = dp.base;
+			indices[icount++] = dp.base + i;
+			indices[icount++] = dp.base + i + 1;
+		}
+
+		slot.batches.back().index_count = icount - slot.batches.back().first_index;
+	}
+
+	s_blend_polys += uint32_t(slot.deferred.size());
 
 	if (!s_reported_skips && ((skipped_textured != 0) || (skipped_translucent != 0) || (skipped_offscreen != 0)))
 	{
@@ -1201,7 +1363,8 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height,
 		unsigned draw_width, unsigned draw_height, unsigned stipple_div)
 {
-	if ((slot_index >= s_slot_count) || (s_pipelines[0] == VK_NULL_HANDLE) || (s_pipelines[1] == VK_NULL_HANDLE))
+	if ((slot_index >= s_slot_count) || (s_pipelines[PIPE_GENERAL] == VK_NULL_HANDLE)
+			|| (s_pipelines[PIPE_EARLY] == VK_NULL_HANDLE) || (s_pipelines[PIPE_BLEND] == VK_NULL_HANDLE))
 		return;
 
 	geom_slot &slot = s_slots[slot_index];
@@ -1218,6 +1381,11 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	// The fragment shader's half of the block. 1 for an ordinary frame, so the stipple's divide is a
 	// division by one and this is bit-exact the pre-supersampling behaviour.
 	push.stipple_div = stipple_div;
+
+	// The frame's own value, not the option's, and geom_upload latched it — see the note there. Under it
+	// the stipple discard is switched off and checkered polygons come out at alpha 0.5, which only the
+	// PIPE_BLEND batches ever draw.
+	push.blend = s_blend_frame ? 1u : 0u;
 
 	// Attachment pixels per m_destmap pixel, per axis. Floats, and two of them, because the
 	// internal-resolution option names absolute 4:3 sizes for a 1.2917 picture — see the header.
@@ -1276,7 +1444,7 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 		if ((x1 < x0) || (y1 < y0))
 			continue;
 
-		VkPipeline const want = s_pipelines[b.early ? 1 : 0];
+		VkPipeline const want = s_pipelines[(b.pipe < PIPE_COUNT) ? b.pipe : PIPE_GENERAL];
 		if (want != bound)
 		{
 			s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, want);
@@ -1310,6 +1478,14 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
 }
 
+void set_option_blend(unsigned mode)
+{
+	// Parked, not applied. geom_upload latches it at the top of the next frame, which is what keeps one
+	// frame's deferral decision and its push constant in agreement — and is also why this is safe to
+	// call from retro_run while a machine is running.
+	s_option_blend = (mode != 0);
+}
+
 void geom_end_run()
 {
 	// The run's maxima, which is what a survey reads. A game printing `scissor draws 1` never varies
@@ -1333,6 +1509,20 @@ void geom_end_run()
 					(unsigned long long)s_early_polys, (unsigned long long)s_drawn_polys,
 					100.0 * double(s_early_polys) / double(s_drawn_polys),
 					no_early_z() ? " — M2VK_NO_EARLY_Z is set, so the split is off" : "");
+		}
+
+		// The blended-transparency pass, reported only when it did something. Silence on the accurate
+		// path is deliberate: that path is what every harness run measures, and a line about a feature
+		// that is off is a line somebody has to learn to ignore.
+		if (s_blend_polys != 0)
+		{
+			vk_log(RETRO_LOG_INFO, "geometry: %llu of %llu drawn polygons were checkered and drawn blended in a deferred pass (%.1f %%)\n",
+					(unsigned long long)s_blend_polys, (unsigned long long)s_drawn_polys,
+					(s_drawn_polys != 0) ? (100.0 * double(s_blend_polys) / double(s_drawn_polys)) : 0.0);
+		}
+		else if (blend_stipple())
+		{
+			vk_log(RETRO_LOG_WARN, "geometry: blended transparency was on and NO polygon was checkered — the option reached no geometry\n");
 		}
 
 		// The three no-draw paths. `3D dropped` must be 0: anything else means a frame that had geometry
@@ -1361,9 +1551,11 @@ void geom_end_run()
 	s_windows_ascending_seen = false;
 	s_early_polys = 0;
 	s_drawn_polys = 0;
+	s_blend_polys = 0;
 	s_no_3d_known = false;
 	s_no_scissor_known = false;
 	s_no_early_z_known = false;
+	s_env_blend_known = false;
 }
 
 } // namespace m2vk

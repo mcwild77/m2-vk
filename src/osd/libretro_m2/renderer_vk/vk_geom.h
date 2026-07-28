@@ -22,9 +22,17 @@
         over most of the frame. Interpolated depth and the decal problem are P4, together, on
         purpose. vkCmdSetDepthBias is P4's tool and must not be reached for here.
 
-      * NOTHING BLENDS. Model 2's translucency is a cutout and `checker` is a stipple; both are
-        per-pixel discards and every surviving fragment is opaque. There is no sorted transparent
-        pass and there does not need to be one — the stream arrives already priority-ordered.
+      * NOTHING BLENDS, as the hardware drew it. Model 2's translucency is a cutout and `checker` is
+        a stipple; both are per-pixel discards and every surviving fragment is opaque. There is no
+        sorted transparent pass and there does not need to be one — the stream arrives already
+        priority-ordered. That is the accurate path and it is what the A/B harness measures.
+
+        set_option_blend() turns the `checker` screen door into a real 50 % blend, which is an
+        enhancement rather than an accuracy fix and is off by default. It cannot be done by simply
+        enabling blending on those polygons where they stand in the stream: the stream is FRONT TO
+        BACK, so at the moment a stippled polygon rasterises, the geometry behind it — the thing it
+        is supposed to be blended with — has not been drawn yet. So they are deferred to a second
+        pass, described at the deferred list in the .cpp.
 
       * THE RECORD IS TURNED INTO BUFFERS ON THE FRONTEND'S THREAD. The polygon stream arrives on
         the emulation thread and not one Vulkan call may be made there. So this file's upload runs
@@ -91,10 +99,11 @@ bool geom_upload(uint32_t slot, frame_record const &record);
 // caller has already set the viewport and scissor to the attachment's extent, which is what makes
 // gl_FragCoord equal the software renderer's x/scanline.
 //
-// It is one indexed draw per run of polygons sharing a clipped viewport AND a pipeline — the two
+// It is one indexed draw per run of polygons sharing a clipped viewport AND a pipeline — the first two
 // pipelines differ only in whether the fragment shader can discard, and a polygon that cannot takes the
-// EarlyFragmentTests variant. It SETS THE SCISSOR, then restores the full extent before returning,
-// because the caller draws the foreground tilemaps after it.
+// EarlyFragmentTests variant. The third is the blended-transparency pass and its batches are all at the
+// end, which is what makes it a second pass. It SETS THE SCISSOR, then restores the full extent before
+// returning, because the caller draws the foreground tilemaps after it.
 //
 // `width`/`height` are the VISIBLE extent — m_destmap's — and `draw_width`/`draw_height` the
 // attachment's. The vertex shader takes the visible half-extent at every resolution and must not be
@@ -112,6 +121,17 @@ bool geom_upload(uint32_t slot, frame_record const &record);
 // one-pixel dither is the point). See vk_present.cpp's call site.
 void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height,
 		unsigned draw_width, unsigned draw_height, unsigned stipple_div = 1);
+
+// The core option model2_transparency, resolved to 0 (the accurate screen door) or 1 (blended). Call
+// it whenever the option changes, including from a running machine — the value is read at the top of
+// geom_upload(), so it takes effect on the next frame. Both this and geom_upload() run on the
+// frontend's thread, which is what makes a plain global enough.
+//
+// M2VK_BLEND overrides it in the same direction every other switch overrides its option: the harness
+// sets the environment and must win over whatever a frontend's .opt file remembers, or an interactive
+// session silently rewrites a baseline. It takes a VALUE rather than a presence, so that a harness run
+// can pin the accurate path on as well as off.
+void set_option_blend(unsigned mode);
 
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.
 void geom_end_run();

@@ -41,12 +41,13 @@ layout(location = 2) in uint in_poly;
 // that the crop and the resolution are the renderer's business and not the shader's.
 //
 // The block is declared identically in poly.frag, because the range covers both stages — this shader
-// does not read `stipple_div` and must still declare it, or the two stages disagree about where
-// half_size ends and the fragment shader reads the wrong four bytes.
+// reads neither `stipple_div` nor `blend` and must still declare both, or the two stages disagree
+// about where half_size ends and the fragment shader reads the wrong four bytes.
 layout(push_constant) uniform push_block
 {
 	vec2 half_size;
 	uint stipple_div;
+	uint blend;
 } pc;
 
 layout(location = 0) noperspective out vec3 v_param;
