@@ -66,6 +66,7 @@
 #include "m2vk_sink.h"
 
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
@@ -166,11 +167,22 @@ enum : uint32_t
 // and the reason there is no atlas, no cache and no page decode anywhere in this renderer.
 constexpr uint32_t TEXRAM_TOTAL_WORDS = m2vk::TEXRAM_SHEET_WORDS * 2;
 
-// The vertex shader's push constant block: the visible picture's half-extent in pixels.
+// The polygon pass's push constant block, shared by both stages. The vertex shader takes the visible
+// picture's half-extent in pixels; the fragment shader takes the stipple divisor, and takes it for
+// exactly one reason — the `checker` screen door is the one thing in the shader that is measured in
+// pixels rather than in varyings, so it has to be told how many ATTACHMENT pixels a square spans.
+// Everything else there is already resolution-invariant because it works off the varyings.
+//
+// A push constant rather than a specialisation constant even though the divisor is fixed for the life
+// of a pipeline: the value is already in geom_draw()'s hand, and a spec constant would mean rebuilding
+// both pipelines to change it, which is the pipeline cache's problem rather than the caller's.
 struct gpu_push
 {
 	float half_width, half_height;
+	uint32_t stipple_div;
 };
+
+static_assert(sizeof(gpu_push) == 12, "poly.vert/poly.frag's push block is three words");
 
 
 //============================================================
@@ -532,7 +544,7 @@ bool build_descriptors(uint32_t slot_count)
 bool build_pipeline(VkRenderPass render_pass)
 {
 	VkPushConstantRange push{};
-	push.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	push.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	push.offset = 0;
 	push.size = sizeof(gpu_push);
 
@@ -1186,7 +1198,8 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	return icount != 0;
 }
 
-void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height, unsigned scale)
+void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height,
+		unsigned draw_width, unsigned draw_height, unsigned stipple_div)
 {
 	if ((slot_index >= s_slot_count) || (s_pipelines[0] == VK_NULL_HANDLE) || (s_pipelines[1] == VK_NULL_HANDLE))
 		return;
@@ -1202,9 +1215,14 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	push.half_width = float(width) * 0.5f;
 	push.half_height = float(height) * 0.5f;
 
-	// The attachment's, which is what the scissor is measured in.
-	const unsigned draw_width = width * scale;
-	const unsigned draw_height = height * scale;
+	// The fragment shader's half of the block. 1 for an ordinary frame, so the stipple's divide is a
+	// division by one and this is bit-exact the pre-supersampling behaviour.
+	push.stipple_div = stipple_div;
+
+	// Attachment pixels per m_destmap pixel, per axis. Floats, and two of them, because the
+	// internal-resolution option names absolute 4:3 sizes for a 1.2917 picture — see the header.
+	const float scale_x = float(draw_width) / float(width);
+	const float scale_y = float(draw_height) / float(height);
 
 	const VkDeviceSize offset = 0;
 
@@ -1212,7 +1230,8 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	// two buffers are not: both pipelines use the same layout, so binding them once outside covers both.
 	s_fns.cmd_bind_descriptor_sets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
 			0, 1, &slot.descriptor, 0, nullptr);
-	s_fns.cmd_push_constants(cmd, s_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
+	s_fns.cmd_push_constants(cmd, s_pipeline_layout,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
 	s_fns.cmd_bind_vertex_buffers(cmd, 0, 1, &slot.vertices.buffer, &offset);
 	s_fns.cmd_bind_index_buffer(cmd, slot.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
 
@@ -1220,11 +1239,17 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	// to the framebuffer here — MAME had already intersected it with the visible rectangle, so the clamp
 	// is belt and braces against an emulated viewport register rather than something the frame needs.
 	//
-	// The internal-resolution scale is exactly here, and nowhere else in this file: an m_destmap pixel
-	// spans `scale` attachment pixels, so an inclusive [left, right] becomes [left*scale, (right+1)*scale
-	// - 1] and the vertex shader's half-extent — the caller's width/height — has already been scaled. It
-	// is the whole of what M2VK_SS costs the polygon pass, which is P4 step 2's point: the depth key
-	// carries no screen-space term, so nothing else here can depend on the resolution.
+	// The internal-resolution scaling is exactly here, and nowhere else in this file: an m_destmap pixel
+	// spans scale_x by scale_y attachment pixels, so an inclusive [left, right] becomes
+	// [floor(left*sx), ceil((right+1)*sx) - 1]. That rounds OUTWARD on both edges, which can only ever
+	// keep a boundary pixel and never drop one — the safe direction, and safe here for a measured
+	// reason: P3 step 6 found this scissor exactly redundant with the geometry engine's own frustum
+	// clip in 23 of 25 games, the worst excess anywhere being one float ULP. Rounding inward would let
+	// a fractional scale shave a column off a polygon that MAME draws whole.
+	//
+	// The vertex shader's half-extent — the caller's width/height — is deliberately NOT scaled. It is
+	// the whole of what a resolution change costs the polygon pass, which is P4 step 2's point: the
+	// depth key carries no screen-space term, so nothing else here can depend on the resolution.
 	VkPipeline bound = VK_NULL_HANDLE;
 	VkRect2D   set_to{};
 	bool       scissor_set = false;
@@ -1234,11 +1259,18 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 		if (b.index_count == 0)
 			continue;
 
-		const int32_t s = int32_t(scale);
-		const int32_t x0 = (b.left < 0) ? 0 : (b.left * s);
-		const int32_t y0 = (b.top < 0) ? 0 : (b.top * s);
-		const int32_t right = ((b.right + 1) * s) - 1;
-		const int32_t bottom = ((b.bottom + 1) * s) - 1;
+		const int32_t x0 = (b.left < 0) ? 0 : int32_t(std::floor(float(b.left) * scale_x));
+		const int32_t y0 = (b.top < 0) ? 0 : int32_t(std::floor(float(b.top) * scale_y));
+
+		// b.right/b.bottom are INT32_MAX for an unscissored batch (M2VK_NO_SCISSOR, and the ordinary
+		// full-screen case), so the multiply is done in double and clamped rather than in float: the
+		// clamp below is what turns it back into the framebuffer extent, and it has to survive the trip.
+		const double right_f = (double(b.right) + 1.0) * double(scale_x);
+		const double bottom_f = (double(b.bottom) + 1.0) * double(scale_y);
+		const int32_t right = (right_f >= double(draw_width)) ? int32_t(draw_width) - 1
+				: int32_t(std::ceil(right_f)) - 1;
+		const int32_t bottom = (bottom_f >= double(draw_height)) ? int32_t(draw_height) - 1
+				: int32_t(std::ceil(bottom_f)) - 1;
 		const int32_t x1 = (right >= int32_t(draw_width)) ? int32_t(draw_width) - 1 : right;
 		const int32_t y1 = (bottom >= int32_t(draw_height)) ? int32_t(draw_height) - 1 : bottom;
 		if ((x1 < x0) || (y1 < y0))

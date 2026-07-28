@@ -106,9 +106,12 @@ void set_rasterize(bool on);
 //  the debug modes
 //============================================================
 //
-// Both are read once from the environment and both act on *both* renderers, which is the entire
-// point of them: a difference between the two paths is only attributable if the two paths were
+// All of them are read once, at sink_open(), and all of them act on *both* renderers, which is the
+// entire point of them: a difference between the two paths is only attributable if the two paths were
 // given the same polygons to draw.
+//
+// M2VK_FORCE_SOLID is also reachable as the core option model2_flat_shading, which is the only one of
+// these a player is offered — see set_option_force_solid() below for which way the two compose.
 //
 //   M2VK_FORCE_SOLID=1   clears the textured bit, so every polygon takes the untextured path and
 //                        translucency still means "draw nothing" (draw_scanline_solid<true>
@@ -134,6 +137,16 @@ void set_rasterize(bool on);
 inline bool force_solid() { return detail::g_force_solid != 0; }
 inline bool opaque_only() { return detail::g_opaque_only; }
 inline bool only_poly() { return detail::g_only_poly >= 0; }
+
+// The core option model2_flat_shading, resolved to the same 0/1/2 M2VK_FORCE_SOLID takes. Call it
+// before sink_open(); retro_load_game does, which is the only place either input is read.
+//
+// 🚨 M2VK_FORCE_SOLID WINS when it is set, and the direction is not arbitrary. The environment switch
+// is the harness's, and ab.sh's MODE= runs have to override whatever the frontend last remembered in
+// its .opt file — otherwise an interactive session that left flat shading on silently rewrites every
+// baseline in ab-baselines.md, with nothing in the run's output looking wrong. An explicit
+// M2VK_FORCE_SOLID=0 means off, and does so even when the option asks for flat shading.
+void set_option_force_solid(unsigned mode);
 
 // One machine's run. Called by the OSD from init() and osd_exit().
 void sink_open();

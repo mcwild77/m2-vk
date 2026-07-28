@@ -70,6 +70,22 @@ void present_abandon();
 // present_shutdown() deliberately preserves across a context loss.
 void present_end_run();
 
+// The core option model2_internal_res, resolved to a framebuffer size. Call it before the ring is
+// built; retro_load_game does, and context_reset — which is where the size is actually latched,
+// because it sizes every slot's attachments — does not fire until after that returns. 0x0 means
+// "the hardware's own", which is what an unparseable option value resolves to.
+//
+// 🚨 M2VK_RES=<w>x<h> WINS when it is set, for the reason set_option_force_solid() gives: the harness
+// sets the environment and must override whatever the frontend last remembered. M2VK_SS wins over
+// both — it is a different feature (draw big, resolve back to native) and the accuracy harness is
+// built on it, so a remembered resolution must not be able to disturb an ab.sh or res.sh run.
+void set_option_resolution(unsigned width, unsigned height);
+
+// The extent of the image the frontend was last handed, which is NOT MAME's picture size once the
+// resolution option is above native. False before the first successful present_frame(), when there is
+// nothing to report and the caller should say nothing to the frontend either.
+bool present_extent(unsigned &width, unsigned &height);
+
 } // namespace m2vk
 
 #endif // MAME_OSD_LIBRETRO_M2_RENDERER_VK_VK_PRESENT_H

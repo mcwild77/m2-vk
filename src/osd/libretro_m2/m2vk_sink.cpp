@@ -57,10 +57,30 @@ int32_t env_index(char const *name)
 	return int32_t(n);
 }
 
-void read_debug_filter()
+// model2_flat_shading's value, parked here by retro_load_game before the run opens. The environment
+// switch overrides it — see set_option_force_solid()'s comment in the header for why that direction
+// and not the other.
+uint8_t g_option_force_solid = 0;
+
+// The flat-shading mode, from whichever source wins. Written once at sink_open() and again whenever
+// the core option changes mid-run, which is why it is a function rather than two lines inside
+// read_debug_filter(): the two callers must resolve it the same way or a live change would mean
+// something different from a change at load.
+//
+// A negative from env_index() is "unset", which is the only case the option gets to answer. An
+// explicit M2VK_FORCE_SOLID=0 is a request for "off" and beats an option asking for flat shading,
+// which is what makes the switch a complete override rather than a one-way one.
+void apply_force_solid()
 {
 	const int32_t solid = env_index("M2VK_FORCE_SOLID");
-	detail::g_force_solid = (solid <= 0) ? 0 : uint8_t((solid == 1) ? 1 : 2);
+	detail::g_force_solid = (solid < 0)
+			? g_option_force_solid
+			: ((solid <= 0) ? 0 : uint8_t((solid == 1) ? 1 : 2));
+}
+
+void read_debug_filter()
+{
+	apply_force_solid();
 	detail::g_opaque_only = (std::getenv("M2VK_OPAQUE_ONLY") != nullptr);
 	detail::g_only_poly = env_index("M2VK_ONLY_POLY");
 	detail::g_only_frame = env_index("M2VK_ONLY_FRAME");
@@ -141,6 +161,20 @@ sink g_sink;
 
 
 void set_rasterize(bool on) { detail::g_rasterize = on; }
+
+// Clamped rather than trusted: the only caller resolves it from a fixed value list, but a mode past 2
+// would reach submit()'s `else if (g_force_solid != 0)` branch and behave as 2 by accident rather than
+// by decision.
+//
+// Applied immediately as well as stored, so that a mid-run change from the options menu takes effect
+// on the next frame rather than at the next content load. Safe from the frontend thread because
+// retro_run calls this at the same point it publishes input — with the emulation thread parked on the
+// baton — and g_force_solid is read on that thread in submit().
+void set_option_force_solid(unsigned mode)
+{
+	g_option_force_solid = (mode > 2) ? 2 : uint8_t(mode);
+	apply_force_solid();
+}
 
 void sink_open() { g_sink.open(); }
 void sink_close() { g_sink.close(); }

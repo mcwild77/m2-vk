@@ -96,13 +96,22 @@ bool geom_upload(uint32_t slot, frame_record const &record);
 // EarlyFragmentTests variant. It SETS THE SCISSOR, then restores the full extent before returning,
 // because the caller draws the foreground tilemaps after it.
 //
-// `width`/`height` are the VISIBLE extent — m_destmap's, whatever the attachment's is — and `scale`
-// how many attachment pixels one m_destmap pixel spans: 1 for the ordinary frame, n under M2VK_SS=n.
-// The vertex shader takes the visible half-extent at every scale and must not be given the scaled
-// one: it turns m_destmap pixels into NDC, and NDC is what is resolution-independent. So the scale is
-// applied here and only here, to the scissor rectangles, which are the one thing in this file
-// expressed in attachment pixels.
-void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height, unsigned scale = 1);
+// `width`/`height` are the VISIBLE extent — m_destmap's — and `draw_width`/`draw_height` the
+// attachment's. The vertex shader takes the visible half-extent at every resolution and must not be
+// given the attachment's: it turns m_destmap pixels into NDC, and NDC is what is
+// resolution-independent. So the ratio between the two is applied here and only here, to the scissor
+// rectangles, which are the one thing in this file expressed in attachment pixels.
+//
+// ⚠️ That ratio is a pair of floats and NOT one integer, which it was until the internal-resolution
+// option started naming absolute sizes: 640x480 for a 496x384 picture is 1.290x across and 1.250x
+// down. Nothing else in the polygon pass can tell.
+//
+// `stipple_div` is how many attachment pixels one square of the `checker` screen door spans. It is the
+// supersample factor when the frame is about to be resolved back down to the picture (or the door
+// averages away into a flat 50 %) and 1 when the frame is presented at the size it was drawn (where a
+// one-pixel dither is the point). See vk_present.cpp's call site.
+void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height,
+		unsigned draw_width, unsigned draw_height, unsigned stipple_div = 1);
 
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.
 void geom_end_run();

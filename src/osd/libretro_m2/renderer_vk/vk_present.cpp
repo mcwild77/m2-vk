@@ -84,6 +84,11 @@ constexpr uint32_t MAX_RING_SLOTS = 8;
 // of three costs 73 MB on top of everything else; this is a diagnostic and the bound says so.
 constexpr uint32_t MAX_SUPERSAMPLE = 8;
 
+// A backstop on the internal resolution for a device whose reported limits are implausible, and
+// nothing more — the real bound is maxImageDimension2D and maxFramebufferWidth/Height, asked of the
+// device in clamp_resolution(). 16384 is what RetroArch's MoltenVK reports here.
+constexpr uint32_t MAX_OUTPUT_DIMENSION = 16384;
+
 
 //============================================================
 //  state
@@ -172,23 +177,49 @@ const retro_hw_render_interface_vulkan *s_iface = nullptr;
 vk_funcs s_fns;
 VkDevice s_device = VK_NULL_HANDLE;
 
+// The PICTURE: MAME's visible area, and the units everything upstream of the render pass is in — the
+// 2D layer textures and their staging, the polygon stream's coordinates, the reticle's centre.
 unsigned s_width = 0;
 unsigned s_height = 0;
+
+// The OUTPUT: the extent of the image the frontend is handed, which is the internal-resolution option
+// and equals the picture only at native. The ring image, its depth attachment, the framebuffer, the
+// render pass and every viewport are in these units.
+//
+// Everything in between is the two scale factors, and they are NOT equal to each other: the option's
+// resolutions are 4:3 and the hardware's 496x384 is 1.2917, so a 640x480 frame is 1.290x in x and
+// 1.250x in y. Nothing in the polygon pass cares — poly.vert maps picture pixels to NDC and NDC fills
+// whatever viewport it is given — but geom_draw's scissor does, which is why they are floats.
+unsigned s_out_width = 0;
+unsigned s_out_height = 0;
+float    s_scale_x = 1.0f;
+float    s_scale_y = 1.0f;
+
 uint32_t s_mask = 0;
 
 //============================================================
 //  the supersample diagnostic
+//
+//  🚨 This is NOT the internal-resolution option, and conflating the two is the mistake this file
+//  spent a day being wrong about. They are two features that happen to share one render path:
+//
+//    M2VK_SS      draw big, then RESOLVE BACK to the picture. The frontend still receives 496x384.
+//                 An antialiasing setting, and the instrument P4 step 2's resolution-invariance
+//                 claim rests on — res.sh and res-baselines.md are built on the output staying
+//                 native, which is what lets ppmdiff.py compare a supersampled run against MAME's
+//                 rasteriser at all.
+//
+//    the option   draw at the chosen size and HAND THAT OVER. No resolve, no downsample.frag. The
+//                 picture the player sees really is 1440x1080.
+//
+//  Mutually exclusive, resolved in read_resolution(), and M2VK_SS wins — so no remembered option
+//  value can disturb a harness run.
 //============================================================
 
 // M2VK_SS=<n> draws the whole frame — both 2D layers and the polygon pass — into an attachment n
 // times the visible extent in each axis, then resolves it back down into the image the frontend is
 // handed. Everything downstream still sees 496x384, so ppmdiff.py and the whole A/B harness measure
 // it without knowing.
-//
-// It exists for P4 step 2. poly.vert's header claims the depth path is resolution-invariant — the
-// key is per polygon and carries no screen-space term — and that was an argument rather than a
-// measurement. This is how it gets measured, and P5's internal-res scaling is where the same
-// machinery becomes a feature rather than a diagnostic.
 //
 // M2VK_SS_POINT=1 takes the centre subpixel instead of the mean, which is only meaningful for an ODD
 // n (downsample.frag explains why) and is refused otherwise. It is the stronger test: at 3x point the
@@ -237,34 +268,193 @@ struct reticle_push
 // error.
 static_assert(sizeof(reticle_push) == 36, "reticle.frag's push block is 9 words");
 
-void read_supersample()
+// model2_internal_res's value, parked here by retro_load_game before the ring exists; 0x0 is "the
+// hardware's own". The environment switches override it — see set_option_resolution()'s comment in
+// vk_present.h for why.
+uint32_t s_option_width = 0;
+uint32_t s_option_height = 0;
+
+// What the device will actually accept as an attachment, asked of it once and cached. Zero means "not
+// asked yet", which is the state the very first rebuild test runs in — ensure_limits() closes that
+// window before the test is used, so the test and the build can never disagree about a clamp.
+uint32_t s_limit_width = 0;
+uint32_t s_limit_height = 0;
+
+// M2VK_SS parsed once: 0 means "absent, or present and unusable". The environment cannot change
+// under a running process, and the rebuild test runs once per presented frame, so these are parsed
+// once rather than 57 times a second.
+uint32_t s_env_ss = 0;
+bool s_env_ss_read = false;
+bool s_env_ss_bad = false;
+
+uint32_t env_supersample()
 {
-	s_ss = 1;
-	s_ss_point = false;
-
-	char const *const env = std::getenv("M2VK_SS");
-	if (env == nullptr)
-		return;
-
-	const unsigned long n = std::strtoul(env, nullptr, 10);
-	if ((n < 1) || (n > MAX_SUPERSAMPLE))
+	if (!s_env_ss_read)
 	{
-		vk_log(RETRO_LOG_ERROR, "M2VK_SS=%s is out of range (1..%u); rendering at 1x\n", env, unsigned(MAX_SUPERSAMPLE));
-		return;
+		s_env_ss_read = true;
+		if (char const *const env = std::getenv("M2VK_SS"))
+		{
+			const unsigned long n = std::strtoul(env, nullptr, 10);
+			if ((n < 1) || (n > MAX_SUPERSAMPLE))
+				s_env_ss_bad = true;
+			else
+				s_env_ss = uint32_t(n);
+		}
+	}
+	return s_env_ss;
+}
+
+// M2VK_RES=<w>x<h>, the internal resolution's overriding switch, parsed once for the same reason.
+// It exists because no entry in the option's list is an integer multiple of 496x384, and the
+// equivalence check against the M2VK_SS path needs one — see devnotes/p5-internal-resolution.md.
+uint32_t s_env_width = 0;
+uint32_t s_env_height = 0;
+bool s_env_res_read = false;
+bool s_env_res_bad = false;
+
+void env_resolution(uint32_t &width, uint32_t &height)
+{
+	if (!s_env_res_read)
+	{
+		s_env_res_read = true;
+		if (char const *const env = std::getenv("M2VK_RES"))
+		{
+			char *end = nullptr;
+			const unsigned long w = std::strtoul(env, &end, 10);
+			unsigned long h = 0;
+			if ((end != nullptr) && (*end == 'x'))
+				h = std::strtoul(end + 1, &end, 10);
+
+			if ((w == 0) || (h == 0) || (*end != '\0')
+					|| (w > MAX_OUTPUT_DIMENSION) || (h > MAX_OUTPUT_DIMENSION))
+			{
+				s_env_res_bad = true;
+			}
+			else
+			{
+				s_env_width = uint32_t(w);
+				s_env_height = uint32_t(h);
+			}
+		}
+	}
+	width = s_env_width;
+	height = s_env_height;
+}
+
+// The frame's shape, from whichever source wins — silent, and with no side effects, because the
+// ring-rebuild test calls it every frame to notice a core option changing mid-run. read_resolution()
+// below is the half that is allowed to log.
+//
+// The two features are decided here and nowhere else. M2VK_SS is a supersample-and-resolve, so it
+// pins the output at the picture; otherwise the output is the requested size, clamped to what the
+// device will take.
+struct wanted_frame
+{
+	uint32_t out_width;
+	uint32_t out_height;
+	uint32_t ss;
+};
+
+wanted_frame wanted_resolution(unsigned picture_width, unsigned picture_height)
+{
+	wanted_frame want{ uint32_t(picture_width), uint32_t(picture_height), 1 };
+
+	if (const uint32_t ss = env_supersample())
+	{
+		want.ss = ss;
+		return want;
 	}
 
-	s_ss = uint32_t(n);
+	uint32_t w = 0, h = 0;
+	env_resolution(w, h);
+	if ((w == 0) || (h == 0))
+	{
+		w = s_option_width;
+		h = s_option_height;
+	}
+	if ((w == 0) || (h == 0))
+		return want;
 
-	if (std::getenv("M2VK_SS_POINT") != nullptr)
+	// Clamped rather than refused: a player who has picked 2848x2136 on a device that tops out lower
+	// is better served by the largest frame it will draw than by silently falling back to native.
+	if ((s_limit_width != 0) && (w > s_limit_width))
+		w = s_limit_width;
+	if ((s_limit_height != 0) && (h > s_limit_height))
+		h = s_limit_height;
+
+	want.out_width = w;
+	want.out_height = h;
+	return want;
+}
+
+void read_resolution(unsigned picture_width, unsigned picture_height)
+{
+	// Resolved in wanted_resolution() so that the rebuild test and the build itself cannot disagree
+	// about it — if they ever did, the ring would be rebuilt on every frame for the life of the run.
+	const wanted_frame want = wanted_resolution(picture_width, picture_height);
+
+	s_ss = want.ss;
+	s_ss_point = false;
+	s_out_width = want.out_width;
+	s_out_height = want.out_height;
+
+	// The picture's pixels per output pixel, in each axis separately. Not one number: the option's
+	// resolutions are 4:3 and the hardware's picture is 1.2917.
+	s_scale_x = float(s_out_width) / float(picture_width);
+	s_scale_y = float(s_out_height) / float(picture_height);
+
+	if (s_env_ss_bad)
+	{
+		vk_log(RETRO_LOG_ERROR, "M2VK_SS is out of range (1..%u); using the core option's resolution\n",
+				unsigned(MAX_SUPERSAMPLE));
+	}
+	if (s_env_res_bad)
+		vk_log(RETRO_LOG_ERROR, "M2VK_RES is not a usable <width>x<height>; using the core option's resolution\n");
+
+	// The s_ss > 1 test is not decoration: there is no resolve pass at 1x, so a bare M2VK_SS_POINT
+	// would otherwise leave the flag set on a run that never reads it, and 1 is odd.
+	if ((s_ss > 1) && (std::getenv("M2VK_SS_POINT") != nullptr))
 	{
 		// Refused rather than quietly boxed: an even scale has no subpixel whose centre coincides with
 		// the 1x pixel's, so "point" would silently become "a half-pixel shift", which is exactly the
 		// kind of result that gets believed.
 		if ((s_ss % 2) == 0)
-			vk_log(RETRO_LOG_ERROR, "M2VK_SS_POINT needs an odd M2VK_SS (it is %u); resolving with the box filter\n", unsigned(s_ss));
+			vk_log(RETRO_LOG_ERROR, "M2VK_SS_POINT needs an odd scale (it is %u); resolving with the box filter\n", unsigned(s_ss));
 		else
 			s_ss_point = true;
 	}
+}
+
+// What this device will accept as a colour attachment, asked once per context and cached. Two limits
+// bound it and the smaller wins: an image cannot exceed maxImageDimension2D, and a framebuffer cannot
+// exceed maxFramebufferWidth/Height, which are allowed to differ.
+//
+// 🚨 It must be cached BEFORE the rebuild test first runs, not merely before the first build: the test
+// and the build both go through wanted_resolution(), so a clamp that appears between them would make
+// them disagree and the ring would be rebuilt on every frame for the rest of the run.
+void ensure_limits(const retro_hw_render_interface_vulkan &iface)
+{
+	if ((s_limit_width != 0) && (s_limit_height != 0))
+		return;
+
+	VkPhysicalDeviceProperties props{};
+	vk_funcs const fns = context_funcs();
+	if (fns.get_physical_device_properties == nullptr)
+		return;
+
+	fns.get_physical_device_properties(iface.gpu, &props);
+
+	uint32_t w = props.limits.maxImageDimension2D;
+	uint32_t h = w;
+	if (props.limits.maxFramebufferWidth < w)
+		w = props.limits.maxFramebufferWidth;
+	if (props.limits.maxFramebufferHeight < h)
+		h = props.limits.maxFramebufferHeight;
+
+	// A device reporting nothing usable would otherwise pin the internal resolution at zero and take
+	// the picture with it; the backstop keeps it at something that can at least be drawn.
+	s_limit_width = (w == 0) ? MAX_OUTPUT_DIMENSION : w;
+	s_limit_height = (h == 0) ? MAX_OUTPUT_DIMENSION : h;
 }
 
 // Frames presented since the content was loaded. This deliberately survives a context loss: a
@@ -910,6 +1100,10 @@ void forget_ring()
 	s_iface = nullptr;
 	s_width = 0;
 	s_height = 0;
+	s_out_width = 0;
+	s_out_height = 0;
+	s_scale_x = 1.0f;
+	s_scale_y = 1.0f;
 	s_mask = 0;
 }
 
@@ -1013,6 +1207,10 @@ void destroy_ring()
 	forget_ring();
 }
 
+// `width` and `height` are the PICTURE — MAME's visible area — and are what the 2D layer textures and
+// their staging are sized from. The ring image, its depth attachment and the framebuffer are sized
+// from s_out_width/s_out_height instead, which read_resolution() has already set. The two are equal at
+// native and under M2VK_SS; they differ exactly when the internal-resolution option is above native.
 bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queue_family)
 {
 	// TRANSFER_SRC and SAMPLED are what the interface demands of anything passed to set_image —
@@ -1025,7 +1223,7 @@ bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queu
 	image_info.flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 	image_info.imageType = VK_IMAGE_TYPE_2D;
 	image_info.format = RING_FORMAT;
-	image_info.extent = { width, height, 1 };
+	image_info.extent = { s_out_width, s_out_height, 1 };
 	image_info.mipLevels = 1;
 	image_info.arrayLayers = 1;
 	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1084,8 +1282,8 @@ bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queu
 	fb_info.renderPass = s_render_pass;
 	fb_info.attachmentCount = 2;
 	fb_info.pAttachments = attachments;
-	fb_info.width = width;
-	fb_info.height = height;
+	fb_info.width = s_out_width;
+	fb_info.height = s_out_height;
 	fb_info.layers = 1;
 	if (!check(s_fns.create_framebuffer(s_device, &fb_info, nullptr, &slot.framebuffer), "vkCreateFramebuffer"))
 		return false;
@@ -1164,8 +1362,12 @@ bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queu
 		// The texture MAME's layer lands in. Optimal tiling and a copy rather than a linear-tiled image
 		// sampled in place: MoltenVK's linear-tiling feature set is narrow, and this is the portable
 		// shape regardless.
+		// The PICTURE's extent, not the ring's: this is MAME's own 2D layer, uploaded at the size the
+		// emulator drew it and magnified by the NEAREST sampler at draw time. Inheriting image_info's
+		// extent here would make it an oversized texture holding a small picture in one corner.
 		VkImageCreateInfo tex_info = image_info;
 		tex_info.flags = 0;
+		tex_info.extent = { width, height, 1 };
 		tex_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 		if (!check(s_fns.create_image(s_device, &tex_info, nullptr, &l.texture), "vkCreateImage (texture)"))
 			return false;
@@ -1289,7 +1491,8 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 	s_mask = mask;
 
 	// Before anything is built: it decides the descriptor pool's size and each slot's attachments.
-	read_supersample();
+	ensure_limits(iface);
+	read_resolution(width, height);
 
 	// Asked of the device rather than assumed. D24_UNORM_S8_UINT does not exist on this GPU at all —
 	// its optimalTilingFeatures is literally zero — and a depth format that is merely *usually*
@@ -1331,8 +1534,19 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 	}
 
 	vk_log(RETRO_LOG_INFO, "ring of %u %ux%u B8G8R8A8_UNORM images, sync index mask 0x%x, queue family %u; %llu KiB of staging\n",
-			unsigned(count), width, height, unsigned(mask), iface.queue_index,
+			unsigned(count), s_out_width, s_out_height, unsigned(mask), iface.queue_index,
 			(unsigned long long)((VkDeviceSize(width) * VkDeviceSize(height) * 4 * count * m2vk::LAYER_COUNT) / 1024));
+
+	// The internal-resolution option, said out loud for the same reason the supersample line below is:
+	// the picture's own size is the only evidence it is in effect, and a log that does not name it
+	// leaves "did the option apply?" answerable only by measuring a PPM.
+	if ((s_out_width != width) || (s_out_height != height))
+	{
+		vk_log(RETRO_LOG_INFO,
+				"internal resolution: drawing and presenting at %ux%u for a %ux%u picture (%.3fx by %.3fx); %llu KiB of attachments\n",
+				s_out_width, s_out_height, width, height, double(s_scale_x), double(s_scale_y),
+				(unsigned long long)((VkDeviceSize(s_out_width) * VkDeviceSize(s_out_height) * 8 * count) / 1024));
+	}
 
 	// Said out loud, every ring build, because a supersampled run's output is the ordinary 496x384 and
 	// there is otherwise nothing in the log or the picture to say which resolution produced it.
@@ -1351,7 +1565,10 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 		s_dump_prefix = prefix;
 		char const *const at = std::getenv("M2VK_VK_DUMP_FRAME");
 		s_dump_frame = (at != nullptr) ? uint64_t(std::strtoull(at, nullptr, 10)) : 600;
-		if (!s_dump_done && !dump_build_buffer(width, height))
+		// The ring image's extent, not the picture's: -vk.ppm is a read-back of what the frontend was
+		// handed, so above native it is a bigger PPM than -src.ppm. They stopped being comparable with
+		// cmp at P3 step 3 anyway.
+		if (!s_dump_done && !dump_build_buffer(s_out_width, s_out_height))
 		{
 			dump_destroy();
 			s_dump_prefix.clear();
@@ -1412,10 +1629,17 @@ void draw_reticles(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 		if (!r.on)
 			continue;
 
+		// The centre in ATTACHMENT pixels, and one scalar for the cross's size. Two factors would be
+		// wrong here even though the frame has two: an internal resolution of 640x480 for a 496x384
+		// picture is 1.290x by 1.250x, and scaling the shape by both would leave the crosshair's arms
+		// visibly longer across than down. The aim is a position and takes both; the cross is a shape
+		// and takes one.
+		const float scale_y = float(draw_height) / float(s_height);
+
 		reticle_push push{};
-		push.cx = r.x * float(s_width);
-		push.cy = r.y * float(s_height);
-		push.scale = float(s_ss);
+		push.cx = r.x * float(draw_width);
+		push.cy = r.y * float(draw_height);
+		push.scale = scale_y;
 		push.half_thick = m2vk::RETICLE_SHAPE.half_thick;
 		push.gap = m2vk::RETICLE_SHAPE.gap;
 		push.arm = m2vk::RETICLE_SHAPE.arm;
@@ -1426,9 +1650,9 @@ void draw_reticles(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 		// The bounding box, in attachment pixels, clamped to the attachment. The shader would discard
 		// everything outside it anyway; the scissor is what stops the other 190000 fragments from being
 		// shaded to find that out.
-		const float half = m2vk::RETICLE_RADIUS * float(s_ss);
-		const float left = (push.cx * float(s_ss)) - half;
-		const float top = (push.cy * float(s_ss)) - half;
+		const float half = m2vk::RETICLE_RADIUS * scale_y;
+		const float left = push.cx - half;
+		const float top = push.cy - half;
 		const int32_t x0 = std::max(0, int32_t(left));
 		const int32_t y0 = std::max(0, int32_t(top));
 		const int32_t x1 = std::min(int32_t(draw_width), int32_t(left + (2.0f * half)) + 1);
@@ -1520,11 +1744,12 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	clear[1].depthStencil = { 0.0f, 0 };
 
 	// Under M2VK_SS the sandwich is drawn into the oversized attachment and resolved into the ring
-	// image by a second pass below; otherwise these are the ring image and its extent, which is the
-	// ordinary path and the one with nothing extra in it.
+	// image by a second pass below; otherwise these are the ring image and its extent — which at an
+	// internal resolution above native is already bigger than the picture, and is handed to the
+	// frontend exactly as drawn.
 	const bool ss = (s_ss > 1) && (slot.ss_framebuffer != VK_NULL_HANDLE) && (s_pipeline_resolve != VK_NULL_HANDLE);
-	const uint32_t draw_width = ss ? (s_width * s_ss) : s_width;
-	const uint32_t draw_height = ss ? (s_height * s_ss) : s_height;
+	const uint32_t draw_width = ss ? (s_width * s_ss) : s_out_width;
+	const uint32_t draw_height = ss ? (s_height * s_ss) : s_out_height;
 
 	VkRenderPassBeginInfo pass{};
 	pass.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1560,16 +1785,18 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 			0, 1, &slot.layers[m2vk::LAYER_UNDER].descriptor, 0, nullptr);
 	s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
 
-	// The 3D. It is handed the VISIBLE extent and the scale separately, not the attachment's: the
-	// polygon stream is in m_destmap pixels and the vertex shader turns those into NDC, so the scale
-	// belongs to the viewport and the scissor and to nothing else.
+	// The 3D. It is handed the VISIBLE extent and the attachment's separately: the polygon stream is in
+	// m_destmap pixels and the vertex shader turns those into NDC, so the scaling belongs to the
+	// viewport and the scissor and to nothing else.
 	//
-	// At 1x the viewport above is the visible extent and that is what makes the shader's
-	// gl_FragCoord.xy equal the software renderer's x and scanline. Under M2VK_SS it deliberately does
-	// not: gl_FragCoord is then a subpixel coordinate, which is exactly why the checker stipple is not
-	// resolution-invariant and is P5's problem rather than this file's.
+	// The last argument is the stipple divisor, and it is the one place the two features genuinely
+	// differ rather than sharing a path. Under M2VK_SS the frame is about to be averaged back down to
+	// the picture, so the checker has to stay one PICTURE pixel per square or the resolve turns the
+	// screen door into a flat 50 % — measured, and the reason P4 step 2 handed the stipple to P5. At a
+	// real internal resolution nothing is averaged, so the divisor is 1 and the checker is one OUTPUT
+	// pixel per square: a fine dither that reads as smooth translucency, which is what it is for.
 	if (draw_3d)
-		m2vk::geom_draw(index, slot.cmd, s_width, s_height, s_ss);
+		m2vk::geom_draw(index, slot.cmd, s_width, s_height, draw_width, draw_height, ss ? s_ss : 1);
 
 	if (draw_over)
 	{
@@ -1593,15 +1820,17 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	// attachment along with it are along for the ride.
 	if (ss)
 	{
+		// s_out_* rather than s_width/s_height, though under M2VK_SS they are equal by construction:
+		// the resolve's target is the ring image, and the ring image's extent has exactly one name.
 		pass.framebuffer = slot.framebuffer;
-		pass.renderArea.extent = { s_width, s_height };
+		pass.renderArea.extent = { s_out_width, s_out_height };
 		s_fns.cmd_begin_render_pass(slot.cmd, &pass, VK_SUBPASS_CONTENTS_INLINE);
 
-		viewport.width = float(s_width);
-		viewport.height = float(s_height);
+		viewport.width = float(s_out_width);
+		viewport.height = float(s_out_height);
 		s_fns.cmd_set_viewport(slot.cmd, 0, 1, &viewport);
 
-		scissor.extent = { s_width, s_height };
+		scissor.extent = { s_out_width, s_out_height };
 		s_fns.cmd_set_scissor(slot.cmd, 0, 1, &scissor);
 
 		resolve_push push{};
@@ -1630,7 +1859,7 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 
 		VkBufferImageCopy back{};
 		back.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-		back.imageExtent = { s_width, s_height, 1 };
+		back.imageExtent = { s_out_width, s_out_height, 1 };
 		s_fns.cmd_copy_image_to_buffer(slot.cmd, slot.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 				s_dump_buffer, 1, &back);
 
@@ -1699,12 +1928,26 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// swapchain length — and the spec's promise is that when it does, the device is idle.
 	const uint32_t mask = iface->get_sync_index_mask(iface->handle);
 
-	if ((s_slot_count == 0) || (iface != s_iface) || (width != s_width) || (height != s_height) || (mask != s_mask))
+	// The resolution is the one rebuild trigger the frontend does not cause: model2_internal_res can
+	// change in the options menu while content is running, and every slot's attachments are sized from
+	// it. Treated exactly like a mask change — destroy_ring() already brackets a vkDeviceWaitIdle with
+	// the frontend's queue lock, which is what makes a rebuild safe at an arbitrary frame.
+	//
+	// ensure_limits() before the test, not merely before the build: both go through
+	// wanted_resolution(), so a clamp appearing between them would make them disagree for ever and the
+	// ring would be rebuilt on every frame of the run.
+	ensure_limits(*iface);
+	const wanted_frame want = wanted_resolution(width, height);
+
+	if ((s_slot_count == 0) || (iface != s_iface) || (width != s_width) || (height != s_height)
+			|| (mask != s_mask) || (want.ss != s_ss)
+			|| (want.out_width != s_out_width) || (want.out_height != s_out_height))
 	{
 		if (s_slot_count != 0)
 		{
-			vk_log(RETRO_LOG_INFO, "rebuilding the ring: %ux%u mask 0x%x -> %ux%u mask 0x%x\n",
-					s_width, s_height, unsigned(s_mask), width, height, unsigned(mask));
+			vk_log(RETRO_LOG_INFO, "rebuilding the ring: %ux%u mask 0x%x %ux -> %ux%u mask 0x%x %ux\n",
+					s_out_width, s_out_height, unsigned(s_mask), unsigned(s_ss),
+					want.out_width, want.out_height, unsigned(mask), unsigned(want.ss));
 		}
 		if (!build_ring(*iface, width, height, mask))
 			return false;
@@ -1794,10 +2037,10 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	if (s_context_frames == 0)
 	{
 		if (s_frames == 0)
-			vk_log(RETRO_LOG_INFO, "first frame presented: %ux%u through slot %u\n", width, height, unsigned(index));
+			vk_log(RETRO_LOG_INFO, "first frame presented: %ux%u through slot %u\n", s_out_width, s_out_height, unsigned(index));
 		else
 			vk_log(RETRO_LOG_INFO, "picture resumed at frame %llu: %ux%u through slot %u\n",
-					(unsigned long long)s_frames, width, height, unsigned(index));
+					(unsigned long long)s_frames, s_out_width, s_out_height, unsigned(index));
 	}
 
 	// The read-back is in the command buffer just submitted, so the copy has to have retired before
@@ -1809,7 +2052,7 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 		if (copied == VK_SUCCESS)
 		{
 			write_ppm(s_dump_prefix + "-src.ppm", pixels, width, height);
-			write_ppm(s_dump_prefix + "-vk.ppm", s_dump_mapped, width, height);
+			write_ppm(s_dump_prefix + "-vk.ppm", s_dump_mapped, s_out_width, s_out_height);
 		}
 		else
 		{
@@ -1859,6 +2102,37 @@ void present_end_run()
 	// well, or the first frame of a second game would look like a duplicate and go unreported.
 	s_geom_last_serial = 0;
 	s_geom_last_tables = 0;
+}
+
+void set_option_resolution(unsigned width, unsigned height)
+{
+	// 0x0 is the caller saying "the hardware's own", which is also where an unparseable option value
+	// lands; anything else absurd is refused to the same place rather than clamped, because a caller
+	// asking for 40000 has misunderstood something and quietly giving it 16384 hides that. The device's
+	// real limits are applied later, in wanted_resolution(), where they are known.
+	if ((width != 0) || (height != 0))
+	{
+		if ((width == 0) || (height == 0) || (width > MAX_OUTPUT_DIMENSION) || (height > MAX_OUTPUT_DIMENSION))
+		{
+			vk_log(RETRO_LOG_ERROR, "internal resolution %ux%u is not usable; drawing at the hardware's own\n",
+					width, height);
+			width = 0;
+			height = 0;
+		}
+	}
+
+	s_option_width = width;
+	s_option_height = height;
+}
+
+bool present_extent(unsigned &width, unsigned &height)
+{
+	if ((s_out_width == 0) || (s_out_height == 0))
+		return false;
+
+	width = s_out_width;
+	height = s_out_height;
+	return true;
 }
 
 } // namespace m2vk

@@ -14,9 +14,13 @@
 // produces is the software and Vulkan paths disagreeing about a shape that is on screen the whole
 // time, which is the cheapest kind to notice and the reason the duplication is tolerable.
 //
-// gl_FragCoord is in ATTACHMENT pixels, which under M2VK_SS is scale times the picture. Dividing by
-// the scale puts the whole test back into picture pixels, so one set of geometry constants serves
-// every internal resolution and the reticle grows with the picture instead of shrinking into it.
+// gl_FragCoord is in ATTACHMENT pixels, and so is the centre — the renderer scales the aim on the way
+// in. Only the DIFFERENCE is divided by the scale, which is what makes one set of geometry constants
+// serve every internal resolution and the reticle grow with the picture instead of shrinking into it.
+//
+// ⚠️ The centre is scaled per axis and the shape is not, and that asymmetry is deliberate: the option's
+// resolutions are 4:3 while the hardware's picture is 1.2917, so scaling the cross by both factors
+// would leave its arms visibly longer across than down. The aim is a position; the cross is a shape.
 //
 // No blending: the cross replaces what is under it and everything else discards, which is exactly
 // what the software path's blit does. A translucent reticle would look better and would have to be
@@ -28,8 +32,8 @@ layout(location = 0) out vec4 out_colour;
 
 layout(push_constant) uniform Push
 {
-	vec2  centre;       // in picture pixels
-	float scale;        // M2VK_SS
+	vec2  centre;       // in attachment pixels
+	float scale;        // attachment pixels per picture pixel, vertically
 	float half_thick;
 	float gap;
 	float arm;
@@ -54,7 +58,7 @@ vec3 unpack(uint rgb)
 
 void main()
 {
-	vec2 d = abs((gl_FragCoord.xy / pc.scale) - pc.centre);
+	vec2 d = abs(gl_FragCoord.xy - pc.centre) / pc.scale;
 
 	if (covers(d, 0.0))
 		out_colour = vec4(unpack(pc.colour), 1.0);

@@ -4,6 +4,7 @@
 #include "retro_options.h"
 
 #include <cstring>
+#include <exception>
 #include <vector>
 
 
@@ -60,6 +61,50 @@ const retro_core_option_v2_definition DEFINITIONS[] = {
 			{ nullptr, nullptr }
 		},
 		m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE]
+	},
+	{
+		m2opt::KEY_INTERNAL_RES,
+		"Internal Resolution",
+		nullptr,
+		"The framebuffer the game is drawn into. The hardware's own is 496x384; anything above it "
+		"draws the same scene with more pixels, so polygon edges stop stair-stepping. Textures do not "
+		"get sharper — the mip level comes from the game, not from the resolution. Costs memory and "
+		"fill rate with the pixel count, so 2848x2136 is 32 times the work of native. Vulkan only; "
+		"the software renderer always draws at 496x384. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			// The value IS the size, parsed by get_internal_size(). Every entry above native is 4:3;
+			// native is 1.2917, and the aspect the frontend is told never changes — these are sample
+			// grids for one picture, not different shapes of picture.
+			{ "496x384",   "496x384 (Native)" },
+			{ "640x480",   "640x480" },
+			{ "1024x768",  "1024x768" },
+			{ "1280x960",  "1280x960" },
+			{ "1440x1080", "1440x1080" },
+			{ "1600x1200", "1600x1200" },
+			{ "1920x1440", "1920x1440" },
+			{ "2560x1920", "2560x1920" },
+			{ "2848x2136", "2848x2136" },
+			{ nullptr, nullptr }
+		},
+		"496x384"
+	},
+	{
+		m2opt::KEY_FLAT_SHADING,
+		"Flat Shading",
+		nullptr,
+		"Draws every polygon in its base colour with no texture, which is roughly what the geometry "
+		"looked like on the workstations these games were modelled on. Acts on both renderers, so the "
+		"software and Vulkan pictures stay comparable. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "off",  "Off" },
+			{ "flat", "Untextured" },
+			{ nullptr, nullptr }
+		},
+		"off"
 	},
 	{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, { { nullptr, nullptr } }, nullptr }
 };
@@ -190,6 +235,50 @@ unsigned m2opt::get_diagnostic(retro_environment_t environ_cb)
 			return i;
 	}
 	return DIAG_NONE;
+}
+
+void m2opt::get_internal_size(retro_environment_t environ_cb, unsigned &width, unsigned &height)
+{
+	width = 0;
+	height = 0;
+
+	// "<w>x<h>", and nothing else accepted — not a bare number, not a trailing suffix. The renderer
+	// reads 0 as "native", so a frontend holding "2x" from the option set this replaced, or a value it
+	// invented, lands on the hardware's own resolution rather than on a guess.
+	const std::string value = get(environ_cb, KEY_INTERNAL_RES);
+	const std::size_t split = value.find('x');
+	if ((split == std::string::npos) || (split == 0) || (split + 1 >= value.size()))
+		return;
+
+	unsigned long w = 0, h = 0;
+	try
+	{
+		std::size_t used = 0;
+		w = std::stoul(value.substr(0, split), &used);
+		if (used != split)
+			return;
+		h = std::stoul(value.substr(split + 1), &used);
+		if (used != (value.size() - split - 1))
+			return;
+	}
+	catch (std::exception const &)
+	{
+		return;
+	}
+
+	// The renderer clamps against the device's own limits; this only rejects the absurd, so that a
+	// typo in a hand-written .opt file cannot ask for a 4 GB attachment before anything sane has run.
+	if ((w == 0) || (h == 0) || (w > 16384) || (h > 16384))
+		return;
+
+	width = unsigned(w);
+	height = unsigned(h);
+}
+
+unsigned m2opt::get_flat_shading(retro_environment_t environ_cb)
+{
+	// 2, not 1: mode 1 leaves translucent polygons undrawn. See the header.
+	return (get(environ_cb, KEY_FLAT_SHADING) == "flat") ? 2 : 0;
 }
 
 bool m2opt::updated(retro_environment_t environ_cb)

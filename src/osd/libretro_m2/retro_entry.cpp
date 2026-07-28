@@ -46,6 +46,7 @@
 #include "corestr.h"
 
 #include <cstdlib>
+#include <cstdio>
 #include <cstring>
 #include <iterator>
 #include <memory>
@@ -347,24 +348,117 @@ RETRO_API void retro_get_system_info(struct retro_system_info *info)
 	info->block_extract = true;
 }
 
+// The geometry as the frontend was last told it. base is MAME's own picture and never moves; max is a
+// high-water mark that only ever grows, because shrinking it would invalidate a frontend allocation
+// that a frame still in flight may be using.
+//
+// This is Flycast's arrangement (shell/libretro/libretro.cpp, setGameGeometry/retro_resize_renderer)
+// and it is copied deliberately: SET_GEOMETRY for a size inside the max, which is free, and
+// SET_SYSTEM_AV_INFO only when the max has to grow, which costs a video-driver reinit.
+namespace {
+
+unsigned s_fb_width = 0;
+unsigned s_fb_height = 0;
+unsigned s_max_width = 0;
+unsigned s_max_height = 0;
+
+void picture_size(unsigned &width, unsigned &height)
+{
+	int w = 496, h = 384;
+	if (s_osd)
+		s_osd->framebuffer(w, h);
+	if ((w <= 0) || (h <= 0))
+	{
+		w = 496;
+		h = 384;
+	}
+	width = unsigned(w);
+	height = unsigned(h);
+}
+
+void fill_geometry(struct retro_game_geometry &geometry)
+{
+	unsigned width = 0, height = 0;
+	picture_size(width, height);
+
+	// base is the PICTURE, whatever the internal resolution is — it is what a frontend sizes its
+	// window from at startup, and opening 2848 pixels wide because a menu setting says so is Flycast's
+	// "avoid gigantic window size at startup" problem exactly. The frame's real size travels with each
+	// video_refresh instead.
+	geometry.base_width = width;
+	geometry.base_height = height;
+
+	if (s_max_width < width)
+		s_max_width = width;
+	if (s_max_height < height)
+		s_max_height = height;
+	geometry.max_width = s_max_width;
+	geometry.max_height = s_max_height;
+
+	// Unchanged by the internal resolution, and that is the whole reason a 4:3 internal resolution is
+	// allowed to serve a 1.2917 picture: this says what SHAPE to draw the image, so a bigger buffer is
+	// a denser sample grid rather than a wider picture.
+	geometry.aspect_ratio = float(s_osd ? s_osd->aspect_ratio() : (4.0 / 3.0));
+}
+
+// Tell the frontend the frame has changed size, by whichever of the two calls fits. Called from
+// retro_run() with the extent the renderer actually presented, and only when it has moved.
+void announce_geometry(unsigned width, unsigned height)
+{
+	if ((width == s_fb_width) && (height == s_fb_height))
+		return;
+
+	s_fb_width = width;
+	s_fb_height = height;
+
+	// The max has to cover the frame before the frame is announced, or the frontend is entitled to
+	// refuse it. Growing it is the expensive branch: SET_SYSTEM_AV_INFO may reinitialise the video
+	// driver, which for us means a context_destroy/context_reset pair and a ring rebuild — survivable,
+	// exercised, and still worth avoiding on every step of a resolution slider.
+	const bool grow = (width > s_max_width) || (height > s_max_height);
+	if (grow)
+	{
+		if (s_max_width < width)
+			s_max_width = width;
+		if (s_max_height < height)
+			s_max_height = height;
+
+		struct retro_system_av_info av;
+		std::memset(&av, 0, sizeof(av));
+		fill_geometry(av.geometry);
+		av.timing.fps = s_osd ? s_osd->refresh_rate() : 60.0;
+		av.timing.sample_rate = double(s_osd && s_osd->audio_rate() ? s_osd->audio_rate() : 48000);
+		s_environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av);
+	}
+	else
+	{
+		struct retro_game_geometry geometry;
+		std::memset(&geometry, 0, sizeof(geometry));
+		fill_geometry(geometry);
+		s_environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
+	}
+
+	s_log_cb(RETRO_LOG_INFO, "[model2] presenting %ux%u (max %ux%u) via %s\n",
+			width, height, s_max_width, s_max_height,
+			grow ? "SET_SYSTEM_AV_INFO" : "SET_GEOMETRY");
+}
+
+} // anonymous namespace
+
 RETRO_API void retro_get_system_av_info(struct retro_system_av_info *info)
 {
 	std::memset(info, 0, sizeof(*info));
 
-	int width = 496, height = 384;
-	if (s_osd)
-		s_osd->framebuffer(width, height);
-	if (width <= 0 || height <= 0)
-	{
-		width = 496;
-		height = 384;
-	}
+	// Seeded from the resolution the option asks for, so that a frontend which read the option before
+	// content loaded does not need a SET_SYSTEM_AV_INFO on the very first frame to be told about it.
+	unsigned res_width = 0, res_height = 0;
+	m2opt::get_internal_size(s_environ_cb, res_width, res_height);
+	if (s_max_width < res_width)
+		s_max_width = res_width;
+	if (s_max_height < res_height)
+		s_max_height = res_height;
 
-	info->geometry.base_width = width;
-	info->geometry.base_height = height;
-	info->geometry.max_width = width;
-	info->geometry.max_height = height;
-	info->geometry.aspect_ratio = float(s_osd ? s_osd->aspect_ratio() : (4.0 / 3.0));
+	fill_geometry(info->geometry);
 
 	info->timing.fps = s_osd ? s_osd->refresh_rate() : 60.0;
 	info->timing.sample_rate = double(s_osd && s_osd->audio_rate() ? s_osd->audio_rate() : 48000);
@@ -439,10 +533,40 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// the combo does nothing is the shape of bug that costs an afternoon.
 	const std::string renderer = m2opt::get(s_environ_cb, m2opt::KEY_RENDERER);
 	const unsigned diagnostic = m2opt::get_diagnostic(s_environ_cb);
+	unsigned res_width = 0, res_height = 0;
+	m2opt::get_internal_size(s_environ_cb, res_width, res_height);
+	const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
 
-	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s\n",
+	// The resolution is logged as "native" rather than as the 0x0 the parser produces for a value it
+	// did not recognise: "model2_internal_res=0x0" reads as a bug in the option, when what it means is
+	// that the frontend's value was one we do not declare and the hardware's own resolution is what
+	// the run will use.
+	char res_text[32];
+	if ((res_width == 0) || (res_height == 0))
+		std::snprintf(res_text, sizeof(res_text), "native");
+	else
+		std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
+
+	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s\n",
 			m2opt::KEY_RENDERER, renderer.c_str(),
-			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic]);
+			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic],
+			m2opt::KEY_INTERNAL_RES, res_text,
+			m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off");
+
+	// 🚨 The corresponding M2VK_* switch overrides each of the two options below, and the harness
+	// depends on that: ab.sh's MODE= and res.sh's scale arrive in the environment, and a .opt file left
+	// in a non-default state by an interactive session must not be able to rewrite a baseline. Which
+	// means the line above can disagree with what the run actually does — and "read [model2] options:
+	// before believing a result" is the standing rule the whole harness rests on, so the disagreement
+	// has to announce itself.
+	//
+	// Presence, not value: M2VK_SS=99 is refused back to 1x by its reader, and a line saying the switch
+	// was set is still the right thing to have printed.
+	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID" })
+	{
+		if (std::getenv(sw) != nullptr)
+			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
+	}
 
 	// Hardware render is declared here, before the machine starts, and only when the option asked
 	// for it: with renderer=software the core must not declare it at all, so that the P1
@@ -457,6 +581,20 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		if (!s_hw_render)
 			s_log_cb(RETRO_LOG_WARN, "[model2] this frontend has no Vulkan context to offer; using the software renderer\n");
 	}
+
+	// Parked now and read later — the internal resolution at context_reset, which sizes every ring
+	// slot's attachments, and the flat-shading mode at sink_open(). Neither has a reader yet at this
+	// point in the load, which is why they are setters rather than arguments to something.
+	//
+	// ⚠️ These sit BELOW declare_hw_render deliberately: it is what installs the renderer's log
+	// callback (vk_context.cpp calls set_log() as its first act), and vk_log() is a silent no-op until
+	// then. Called any earlier, set_option_resolution's out-of-range complaint would be swallowed —
+	// which is the one thing it exists to do.
+	//
+	// The env override lives at each reader rather than here, because the standalone OSD=sdl3 build has
+	// no core options at all and must keep the switches working.
+	m2vk::set_option_resolution(res_width, res_height);
+	m2vk::set_option_force_solid(flat_shading);
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
 	// composites them itself (m2vk_frame.h). On the software path the two hooks in screen_update()
@@ -609,6 +747,13 @@ RETRO_API void retro_unload_game(void)
 	// until the frontend next moved the pointer.
 	m2vk::reticle_end_run();
 
+	// What was announced, not the high-water mark: the next content load gets a fresh
+	// retro_get_system_av_info and must announce its first frame's size rather than assume the last
+	// game's still holds. s_max_* deliberately survives — it only ever grows, and a frontend allocation
+	// sized by it may outlive the unload.
+	s_fb_width = 0;
+	s_fb_height = 0;
+
 	s_osd.reset();
 	s_options.reset();
 }
@@ -629,11 +774,45 @@ RETRO_API void retro_run(void)
 	if (!s_running)
 		return;
 
-	// Neither option can be applied to a machine that is already running, so acknowledge the change
-	// rather than half-honouring it. The frontend clears the flag as this reads it, so it is one
-	// line per change, not one per frame.
+	// Two of the four options apply live; two cannot. The frontend clears the flag as this reads it,
+	// so this runs once per change rather than once per frame.
+	//
+	// 🚨 "Applied when content is loaded" is the wrong answer for anything a player is meant to *play*
+	// with — they change it in the menu, nothing happens, and the reasonable conclusion is that the
+	// option is broken. model2_internal_res and model2_flat_shading are both reachable from a running
+	// machine, so they are applied here:
+	//
+	//   flat shading    — g_force_solid is a plain global that submit() reads per polygon, and this is
+	//                     the same point at which input is published, i.e. with the emulation thread
+	//                     parked on the baton. Takes effect on the next frame.
+	//   internal res    — parked in the renderer; present_frame() compares it against the ring it
+	//                     built and rebuilds when they differ, exactly as it does for a sync-mask
+	//                     change. Takes effect on the next presented frame.
+	//
+	// model2_renderer and model2_diagnostic_input genuinely cannot: one decides whether hardware
+	// render was declared at all, before the machine started, and the other is baked into the input
+	// assignments when the devices were configured. Those two still want a reload, and say so.
 	if (m2opt::updated(s_environ_cb))
-		s_log_cb(RETRO_LOG_INFO, "[model2] core options changed; they take effect the next time content is loaded\n");
+	{
+		unsigned res_width = 0, res_height = 0;
+		m2opt::get_internal_size(s_environ_cb, res_width, res_height);
+		const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
+
+		m2vk::set_option_resolution(res_width, res_height);
+		m2vk::set_option_force_solid(flat_shading);
+
+		char res_text[32];
+		if ((res_width == 0) || (res_height == 0))
+			std::snprintf(res_text, sizeof(res_text), "native");
+		else
+			std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
+
+		s_log_cb(RETRO_LOG_INFO,
+				"[model2] core options changed: %s=%s %s=%s applied now; %s and %s need a reload\n",
+				m2opt::KEY_INTERNAL_RES, res_text,
+				m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
+				m2opt::KEY_RENDERER, m2opt::KEY_DIAGNOSTIC_INPUT);
+	}
 
 	if (s_input_poll_cb != nullptr)
 		s_input_poll_cb();
@@ -673,17 +852,36 @@ RETRO_API void retro_run(void)
 		//
 		// The renderer is handed the same buffer the software path passes to video_cb, and uploads it
 		// as a texture. Until P3 that is the whole of the difference between the two paths.
-		if (have_picture && m2vk::present_frame(pixels, unsigned(width), unsigned(height)))
-			s_video_cb(RETRO_HW_FRAME_BUFFER_VALID, unsigned(width), unsigned(height), 0);
+		//
+		// 🚨 The size passed on is the RENDERER's, not MAME's: with the internal resolution above native
+		// the image the frontend was just given is bigger than the picture, and handing over the
+		// picture's numbers here would have the frontend read a corner of it. present_extent() is the
+		// only authority on that — it is the extent the ring was actually built at, clamps included.
+		unsigned out_width = 0, out_height = 0;
+		if (have_picture && m2vk::present_frame(pixels, unsigned(width), unsigned(height))
+				&& m2vk::present_extent(out_width, out_height))
+		{
+			announce_geometry(out_width, out_height);
+			s_video_cb(RETRO_HW_FRAME_BUFFER_VALID, out_width, out_height, 0);
+		}
 		else
+		{
 			s_video_cb(nullptr, 0, 0, 0); // frame duped
+		}
 	}
 	else
 	{
+		// Always the picture's own size: MAME's rasteriser draws at one resolution and the internal
+		// resolution option says so.
 		if (have_picture)
+		{
+			announce_geometry(unsigned(width), unsigned(height));
 			s_video_cb(pixels, unsigned(width), unsigned(height), size_t(width) * sizeof(uint32_t));
+		}
 		else
+		{
 			s_video_cb(nullptr, 0, 0, 0); // frame duped
+		}
 	}
 
 	int samples = 0;

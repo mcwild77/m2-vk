@@ -66,9 +66,10 @@
 //     before it writes a pixel. It is dropped at upload rather than discarded here, so this shader
 //     never sees one. A translucent *textured* one does reach here, and its cutout is a discard.
 //   * The checker flag is a 50% screen door, not a blend: MAME steps x by two and starts at the first
-//     x where (x ^ scanline) & 1 is 1. gl_FragCoord.xy is the same x and scanline, so the test is
-//     literal. This is why the vertex shader maps to the visible extent rather than to a 512-wide
-//     target.
+//     x where (x ^ scanline) & 1 is 1. gl_FragCoord.xy divided by pc.stipple_div is the same x and
+//     scanline whenever the divisor is the picture's, so the test is literal. This is why the vertex
+//     shader maps to the visible extent rather than to a 512-wide target — and why the divisor is a
+//     per-frame decision rather than the resolution, which is the comment at the discard.
 //
 // Nothing blends anywhere in this renderer. Model 2's translucency is a cutout and checker is a
 // stipple; both are per-pixel discards and every surviving fragment is opaque.
@@ -91,6 +92,15 @@ layout(early_fragment_tests) in;
 
 layout(location = 0) noperspective in vec3 v_param;
 layout(location = 1) flat in uint v_poly;
+
+// Declared identically in poly.vert, because the push constant range covers both stages. This shader
+// reads only `stipple_div` and the vertex shader reads only `half_size`; both must declare both, or
+// the offsets disagree.
+layout(push_constant) uniform push_block
+{
+	vec2 half_size;
+	uint stipple_div;
+} pc;
 
 layout(location = 0) out vec4 out_colour;
 
@@ -375,7 +385,25 @@ void main()
 #ifndef EARLY_Z
 	if ((p.flags & FLAG_CHECKER) != 0u)
 	{
-		ivec2 c = ivec2(gl_FragCoord.xy);
+		// One square of the screen door spans pc.stipple_div attachment pixels, and the renderer sets
+		// that per FRAME rather than deriving it from the resolution, because the two things it can
+		// mean are genuinely different pictures:
+		//
+		//   M2VK_SS=n   -> n. The frame is about to be averaged back down to the picture, so the door
+		//                  has to be one PICTURE pixel per square: every one of a picture pixel's n*n
+		//                  subpixels then lands on the same parity, and the resolve reproduces the
+		//                  half-covered pixel the software rasteriser draws. Without it an even scale
+		//                  box-resolves a fine checkerboard into a uniform 50% BLEND — P4 step 2
+		//                  measured one vcop2 quad drawing 78968 px at 1x and 157945 at 2x, the whole
+		//                  hull, with 0.000% of the overlap the same colour. That is a shading change
+		//                  dressed up as a resolution option.
+		//
+		//   internal    -> 1. Nothing is averaged; the frame is presented exactly as drawn. One square
+		//   resolution     per OUTPUT pixel is the finest dither the picture can carry, and reads as
+		//                  smooth translucency instead of a magnified screen door.
+		//
+		// The integer divide is exact and by 1 at native, so this is bit-exact the original there.
+		ivec2 c = ivec2(gl_FragCoord.xy) / int(pc.stipple_div);
 		if (((c.x ^ c.y) & 1) == 0)
 			discard;
 	}

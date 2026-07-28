@@ -36,11 +36,17 @@ layout(location = 0) in vec3 in_pos;
 layout(location = 1) in vec3 in_param;
 layout(location = 2) in uint in_poly;
 
-// The visible picture's half-extent in pixels. A push constant rather than a constant so that the
-// crop and, later, the internal-res scale are the renderer's business and not the shader's.
+// The visible picture's half-extent in pixels — the PICTURE's, never the attachment's, which is what
+// makes this shader indifferent to the internal resolution. A push constant rather than a constant so
+// that the crop and the resolution are the renderer's business and not the shader's.
+//
+// The block is declared identically in poly.frag, because the range covers both stages — this shader
+// does not read `stipple_div` and must still declare it, or the two stages disagree about where
+// half_size ends and the fragment shader reads the wrong four bytes.
 layout(push_constant) uniform push_block
 {
 	vec2 half_size;
+	uint stipple_div;
 } pc;
 
 layout(location = 0) noperspective out vec3 v_param;
