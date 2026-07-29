@@ -258,6 +258,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_reticle.h",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_reticle.cpp",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_savestate.h",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_savestate.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/module_stubs.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.h",
 		MAME_DIR .. "src/osd/libretro_m2/renderer_vk/vk_funcs.cpp",

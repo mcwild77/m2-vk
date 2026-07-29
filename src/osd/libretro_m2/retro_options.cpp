@@ -107,6 +107,24 @@ const retro_core_option_v2_definition DEFINITIONS[] = {
 		"off"
 	},
 	{
+		m2opt::KEY_FLAT_LUMA,
+		"No Lighting",
+		nullptr,
+		"Draws every surface at full brightness, so you get the texture and the polygon's own colour "
+		"with nothing shaded onto them. Model 2 lights each face by how it is angled to the light, "
+		"which is what makes cars darken as they turn and rooms fall into shadow; switching it off "
+		"gives a flat, evenly lit picture that shows the artwork as it was drawn. Acts on both "
+		"renderers, so the software and Vulkan pictures stay comparable. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "off", "Off" },
+			{ "on",  "On" },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
 		m2opt::KEY_TRANSPARENCY,
 		"Transparency",
 		nullptr,
@@ -297,6 +315,11 @@ unsigned m2opt::get_flat_shading(retro_environment_t environ_cb)
 {
 	// 2, not 1: mode 1 leaves translucent polygons undrawn. See the header.
 	return (get(environ_cb, KEY_FLAT_SHADING) == "flat") ? 2 : 0;
+}
+
+bool m2opt::get_flat_luma(retro_environment_t environ_cb)
+{
+	return get(environ_cb, KEY_FLAT_LUMA) == "on";
 }
 
 unsigned m2opt::get_transparency(retro_environment_t environ_cb)

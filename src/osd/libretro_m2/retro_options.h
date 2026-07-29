@@ -8,11 +8,12 @@
     core, MAME's own options are not exposed, and anything a frontend already does better (video
     scaling, audio latency, input remapping) is left to the frontend.
 
-    Every option is read in retro_load_game(). Three of the five are then re-read by retro_run() when
+    Every option is read in retro_load_game(). Four of the six are then re-read by retro_run() when
     the frontend raises GET_VARIABLE_UPDATE, and apply on the next frame:
 
       model2_internal_res    the renderer compares it against the ring it built and rebuilds
       model2_flat_shading    a global the polygon seam reads, so the next frame simply sees it
+      model2_flat_luma       the same, resolved per polygon as it crosses the seam
       model2_transparency    a global the polygon pass latches at the top of each upload
 
     The other two cannot be live and retro_run() says so rather than half-applying them:
@@ -66,6 +67,16 @@ inline constexpr char const *KEY_INTERNAL_RES = "model2_internal_res";
 // most interesting thing this renderer can be asked to do that the arcade hardware could not; it acts
 // on BOTH renderers, which is the standing rule for anything that removes a feature.
 inline constexpr char const *KEY_FLAT_SHADING = "model2_flat_shading";
+
+// Force every polygon's luma to full scale, which is what "no lighting" means at this seam. Model 2's
+// lighting is real — a per-face diffuse and ambient term — but MAME's copro emulation has already
+// collapsed it to one 8-bit number per polygon before anything reaches us, so there is no lighting
+// stage here to switch off and flattening that number is the whole of it. Hence the key: it is named
+// for what it does, per user-options.md §5, while the option a player reads is called No Lighting.
+//
+// Acts on BOTH renderers, like model2_flat_shading and unlike the two Vulkan-only options, because it
+// removes a feature — see m2vk::FLAT_LUMA for what the flattened value leaves behind.
+inline constexpr char const *KEY_FLAT_LUMA = "model2_flat_luma";
 
 // How the `checker` polygon flag is drawn. Model 2 has no alpha blender: a translucent surface is a
 // 50 % screen door, one pixel on and one off, and that is what the hardware and MAME both produce.
@@ -128,6 +139,11 @@ void get_internal_size(retro_environment_t environ_cb, unsigned &width, unsigned
 // the picture, so it stays a harness switch (M2VK_FORCE_SOLID=1) rather than something a player can
 // pick by accident.
 unsigned get_flat_shading(retro_environment_t environ_cb);
+
+// KEY_FLAT_LUMA resolved to the bool m2vk::set_option_flat_luma() takes. Tested against "on" rather
+// than against the default, which is get_transparency()'s rule and for the same reason: a value we do
+// not declare resolves to the accurate picture rather than to a guess.
+bool get_flat_luma(retro_environment_t environ_cb);
 
 // KEY_TRANSPARENCY resolved to the 0/1 m2vk::set_option_blend() takes. Anything unrecognised is the
 // accurate screen door, which is the same rule get_diagnostic() follows: a value we do not declare

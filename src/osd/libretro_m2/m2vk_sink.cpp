@@ -29,6 +29,7 @@ bool g_active = false;
 bool g_rasterize = true;
 
 uint8_t  g_force_solid = 0;
+bool     g_flat_luma = false;
 bool     g_opaque_only = false;
 int32_t  g_only_poly = -1;
 int32_t  g_only_frame = -1;
@@ -78,9 +79,21 @@ void apply_force_solid()
 			: ((solid <= 0) ? 0 : uint8_t((solid == 1) ? 1 : 2));
 }
 
+// model2_flat_luma's value, parked by retro_load_game exactly as g_option_force_solid is, and
+// resolved against the switch by the same rule — the switch wins in both directions, so an explicit
+// M2VK_FLAT_LUMA=0 pins the lighting on against an option asking for it off.
+bool g_option_flat_luma = false;
+
+void apply_flat_luma()
+{
+	const int32_t flat = env_index("M2VK_FLAT_LUMA");
+	detail::g_flat_luma = (flat < 0) ? g_option_flat_luma : (flat > 0);
+}
+
 void read_debug_filter()
 {
 	apply_force_solid();
+	apply_flat_luma();
 	detail::g_opaque_only = (std::getenv("M2VK_OPAQUE_ONLY") != nullptr);
 	detail::g_only_poly = env_index("M2VK_ONLY_POLY");
 	detail::g_only_frame = env_index("M2VK_ONLY_FRAME");
@@ -174,6 +187,16 @@ void set_option_force_solid(unsigned mode)
 {
 	g_option_force_solid = (mode > 2) ? 2 : uint8_t(mode);
 	apply_force_solid();
+}
+
+// Stored and applied immediately, for the reason above and with the same thread-safety argument:
+// g_flat_luma is a plain global that submit() reads per polygon on the emulation thread, and the one
+// caller writes it from retro_run with that thread parked on the baton. Takes effect on the next
+// frame — there is nothing to rebuild, because the luma is resolved per polygon as it crosses.
+void set_option_flat_luma(bool on)
+{
+	g_option_flat_luma = on;
+	apply_flat_luma();
 }
 
 void sink_open() { g_sink.open(); }

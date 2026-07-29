@@ -182,6 +182,28 @@ void model2_state::machine_start()
 	save_item(NAME(m_geo_write_start_address));
 	save_item(NAME(m_geo_read_start_address));
 
+#ifdef M2VK
+	// Peripheral latches upstream leaves unregistered. Each is a one-byte hold that survives across
+	// frames, so a savestate without them restores a machine whose I/O board disagrees with its CPU.
+	// Found by devnotes/state.sh, which loads a state taken from one machine history into another and
+	// compares the futures: daytona failed on the gearbox and drive-board pair, vcop2 on the lightgun
+	// mux, while vf2 -- which has none of these peripherals -- passed without them. See
+	// devnotes/savestates.md §1.5.
+	save_item(NAME(m_cmd_data));
+	save_item(NAME(m_driveio_comm_data));
+	save_item(NAME(m_gearsel));
+	save_item(NAME(m_lightgun_mux));
+	save_item(NAME(m_prot_a));
+
+	// The reload value behind the four hardware timers. m_timervals and m_timerrun are registered
+	// upstream and this is not, which is the worst of the three to miss: timers_r recomputes
+	// m_timervals as m_timerorig - elapsed on EVERY read (see timers_r above), so a machine that
+	// loads a state keeps its own reload values and hands the game a wrong countdown from the first
+	// poll onwards. That is why vcop2 failed at every save point tried rather than at a particular
+	// one.
+	save_item(NAME(m_timerorig));
+#endif
+
 	m_irq_delay_timer = timer_alloc(FUNC(model2_state::irq_mask_delayed_update), this);
 	m_irq_delay_timer->adjust(attotime::never);
 }
@@ -207,6 +229,21 @@ void model2_tgp_state::machine_start()
 							[this]() { m_copro_tgp->set_input_line(INPUT_LINE_HALT, CLEAR_LINE); },
 							[    ]() { },
 							[    ]() { });
+
+#ifdef M2VK
+	// The TGP's bank register and the three table base addresses it resolves through. Written by the
+	// copro's own code rather than fixed at init, so they belong in a savestate. See
+	// devnotes/savestates.md §1.5.
+	save_item(NAME(m_copro_tgp_bank_reg));
+	save_item(NAME(m_copro_sincos_base));
+	save_item(NAME(m_copro_inv_base));
+	save_item(NAME(m_copro_isqrt_base));
+	// The fourth base, missed when the other three went in. It is not only a table pointer:
+	// copro_atan_base_w drives the TGP's gpio0 line from a comparison of slots 0 and 1
+	// (model2.cpp copro_atan_base_w), so a stale copy feeds the copro a wrong input bit as well as a
+	// wrong lookup.
+	save_item(NAME(m_copro_atan_base));
+#endif
 }
 
 void model2o_maxx_state::machine_start()

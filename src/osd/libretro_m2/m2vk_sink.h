@@ -70,6 +70,7 @@ extern bool g_rasterize;
 // force_solid() and only_poly() below for what they are for; they live here rather than behind
 // accessors because submit() reads them for every polygon on both renderers' paths.
 extern uint8_t  g_force_solid;      // 0 off, 1 clear the textured bit, 2 force renderer 0
+extern bool     g_flat_luma;        // every polygon's luma forced to full scale, i.e. lighting off
 extern bool     g_opaque_only;      // every translucent polygon rewritten to the class neither draws
 extern int32_t  g_only_poly;        // -1 draws every polygon, otherwise only this one
 extern int32_t  g_only_frame;       // -1 means every frame; only meaningful with g_only_poly
@@ -119,6 +120,14 @@ void set_rasterize(bool on);
 //   M2VK_FORCE_SOLID=2   forces renderer 0, so every polygon draws opaque. Nothing is skipped, so
 //                        the coverage comparison sees the whole stream — which is what it is for.
 //
+// M2VK_FLAT_LUMA is likewise reachable as the core option model2_flat_luma, and composes with the
+// above rather than competing with it: force_solid decides whether the texel is consulted, this
+// decides what the polygon's own lighting does to whatever came back.
+//
+//   M2VK_FLAT_LUMA=1     forces every polygon's luma to FLAT_LUMA, so the copro's per-face diffuse
+//                        term stops reaching either renderer's colour chain. See FLAT_LUMA below for
+//                        what that leaves and why it is the whole of "lighting off" at this seam.
+//
 //   M2VK_OPAQUE_ONLY=1   rewrites every translucent polygon to renderer class 1, which is the one
 //                        class NEITHER renderer draws — draw_scanline_solid<true> returns before it
 //                        writes a pixel and vk_geom drops it at upload. So it removes exactly the
@@ -135,8 +144,36 @@ void set_rasterize(bool on);
 //
 // None of them costs anything when unset: three predicates on an already-hot path.
 inline bool force_solid() { return detail::g_force_solid != 0; }
+inline bool flat_luma() { return detail::g_flat_luma; }
 inline bool opaque_only() { return detail::g_opaque_only; }
 inline bool only_poly() { return detail::g_only_poly >= 0; }
+
+// What a polygon's luma is replaced with when the lighting is switched off, and it is full scale
+// rather than a taste decision. Model 2's lighting is not a stage this renderer can skip: the copro
+// computes clamp(|dot(normal, light)| * diffuse + ambient, 0, 255) per face (model2_v.cpp:1113-1119)
+// and pushes the result as the polygon's 8-bit luma, so by the time anything reaches the seam the
+// light is already a single number per polygon. Flattening that number is the whole of it, which is
+// why the option is named for the number and not for a lighting stage — see user-options.md §5.
+//
+// 0xff is what makes it "the texture and the tint" rather than "the texture at some brightness":
+//
+//   untextured — luma >> 2 is 0x3f, the top entry of the colorxlat ramp the polygon's palcolor
+//                selects, so the polygon comes out its own colour at full strength.
+//   textured   — lumaram[lumabase + (t >> 1)] * luma / 256 loses its second factor, leaving the
+//                texture's own luma translation, which is exactly the texel and nothing else.
+//
+// The one wrinkle is that this is a multiply by 255/256 and not by 1: an 8-bit field cannot express
+// unity, so a texel translating to the very top of the ramp lands one step low. It costs at most one
+// of 64 ramp entries and only at the extreme, which is a great deal less than the alternative of
+// special-casing the multiply in two rasterisers to make one value mean something the field cannot.
+inline constexpr uint8_t FLAT_LUMA = 0xff;
+
+// The core option model2_flat_luma. Same composition rule as set_option_force_solid() above and for
+// the same reason: 🚨 M2VK_FLAT_LUMA WINS when it is set, so that a harness run can pin lighting ON
+// as well as off and a .opt file an interactive session left in a non-default state cannot rewrite a
+// baseline. Takes a value rather than a presence for exactly that reason — M2VK_FLAT_LUMA=0 is a
+// request for "lighting on" and beats an option asking for it off.
+void set_option_flat_luma(bool on);
 
 // The core option model2_flat_shading, resolved to the same 0/1/2 M2VK_FORCE_SOLID takes. Call it
 // before sink_open(); retro_load_game does, which is the only place either input is read.
@@ -171,8 +208,14 @@ void frame_end();
 // back. That is deliberate and it is what keeps the upstream diff at 26 lines: M2VK_FORCE_SOLID has
 // to rewrite the class for both renderers or it proves nothing, and the seam already had this value
 // in its hands. In every other case the value comes back unchanged.
+//
+// `extra` is taken by non-const reference for the same reason, and it is why flattening the luma
+// needs no upstream line at all: the software rasteriser reads the polygon's luma from *there*
+// (model2rd.ipp's object.luma) while the record copies it from the polygon, so writing both here is
+// the only place one assignment reaches both renderers. The seam hands us a mutable extra already —
+// model2_3d_render fills it in immediately above the call.
 template <typename Polygon, typename Extra, typename Rect>
-inline uint8_t submit(Polygon const &src, Extra const &extra, uint8_t renderer, Rect const &vp)
+inline uint8_t submit(Polygon const &src, Extra &extra, uint8_t renderer, Rect const &vp)
 {
 	// Counted for every polygon the seam sees, whether or not anything is watching, so that
 	// M2VK_ONLY_POLY names the same polygon under renderer=software as under renderer=vulkan.
@@ -191,6 +234,13 @@ inline uint8_t submit(Polygon const &src, Extra const &extra, uint8_t renderer, 
 	// Class 1 is the one neither renderer draws, so this subtracts the same set from both.
 	if (detail::g_opaque_only && ((renderer & 1) != 0))
 		renderer = 1;
+
+	// Above the active() test with the rest of them, and written through `extra` rather than read out
+	// of it below, because the software rasteriser has to obey this when nothing is recording at all —
+	// that is what "acts on both renderers" means and it is the difference between an option and a
+	// picture only one path draws. The record's copy is p.luma, further down.
+	const uint8_t luma = detail::g_flat_luma ? FLAT_LUMA : uint8_t(src.luma);
+	extra.luma = luma;
 
 	if (!active() || detail::g_poly_dropped)
 		return renderer;
@@ -214,7 +264,7 @@ inline uint8_t submit(Polygon const &src, Extra const &extra, uint8_t renderer, 
 	p.window = src.window;
 	for (int i = 0; i < 4; i++)
 		p.texheader[i] = src.texheader[i];
-	p.luma = src.luma;
+	p.luma = luma;      // the flattened value when the lighting is off; src.luma otherwise
 	p.texlod = src.texlod;
 	for (int i = 0; i < 4; i++)
 		p.viewport[i] = src.viewport[i];

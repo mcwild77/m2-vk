@@ -298,6 +298,21 @@ void model2_state::raster_init(memory_region *texture_rom)
 	save_item(NAME(m_raster->center_sel));
 	save_item(NAME(m_raster->texture_ram));
 	save_item(NAME(m_raster->log_ram));
+
+#ifdef M2VK
+	// The window index the display-list walk left behind. render_frame_start() resets it at every
+	// vblank, so it is only live for the length of one frame -- but it is live at the point a
+	// libretro savestate is taken, which is not a point MAME's own save code has to survive.
+	//
+	// ⚠️ poly_list and poly_sorted_list are still deliberately absent (poly_list's registration is
+	// commented out just above). They are several megabytes and the second is an array of raw
+	// POINTERS, and they do not need saving HERE: geo_parse() rebuilds both from m_bufferram at every
+	// vblank (model2_v.cpp render_frame_start), and the libretro save point sits after the frame's
+	// polygons were consumed and before the next vblank builds them. That is a guarantee this core
+	// can make and MAME cannot, because MAME serialises at arbitrary scheduler points.
+	// devnotes/savestates.md §1.6, measured by devnotes/state.sh.
+	save_item(NAME(m_raster->cur_window));
+#endif
 }
 
 /*******************************************
@@ -1014,6 +1029,25 @@ void model2_state::geo_init(memory_region *polygon_rom)
 	save_item(NAME(m_geo->coef_table));
 	save_item(NAME(m_geo->polygon_ram0));
 	save_item(NAME(m_geo->polygon_ram1));
+
+#ifdef M2VK
+	// Geometry-engine state upstream leaves unregistered: the projection focus, the light vector, and
+	// the 32 texture parameter slots. All three are set by display-list commands and persist until the
+	// next one changes them, so they outlive the frame that wrote them. devnotes/savestates.md §1.5.
+	//
+	// focus and light are poly_vertex (poly.h vertex_t) -- two scalars plus a std::array, which
+	// save_item handles a member at a time but not whole.
+	save_item(NAME(m_geo->focus.x));
+	save_item(NAME(m_geo->focus.y));
+	save_item(NAME(m_geo->focus.p));
+	save_item(NAME(m_geo->light.x));
+	save_item(NAME(m_geo->light.y));
+	save_item(NAME(m_geo->light.p));
+	save_pointer(STRUCT_MEMBER(m_geo->texture_parameters, diffuse), std::size(m_geo->texture_parameters));
+	save_pointer(STRUCT_MEMBER(m_geo->texture_parameters, ambient), std::size(m_geo->texture_parameters));
+	save_pointer(STRUCT_MEMBER(m_geo->texture_parameters, specular_control), std::size(m_geo->texture_parameters));
+	save_pointer(STRUCT_MEMBER(m_geo->texture_parameters, specular_scale), std::size(m_geo->texture_parameters));
+#endif
 }
 
 /*******************************************
@@ -2422,6 +2456,28 @@ void model2_state::video_start()
 	save_pointer(NAME(m_colorxlat), 0xc000/2);
 	save_pointer(NAME(m_lumaram), 0x8000);
 	save_pointer(NAME(m_gamma_table), 256);
+
+#ifdef M2VK
+	// 🚨 The framebuffer VRAM banks -- 512 KB each of ordinary machine memory, mapped read/write to
+	// the i960 at fbvram_bankA_r/w, and unregistered upstream. Not a render target: the CPU reads
+	// back what it wrote. This is the largest single omission the savestate audit found and it is not
+	// specific to the render-test-mode games that also display it.
+	save_pointer(NAME(m_fbvramA), 0x80000/2);
+	save_pointer(NAME(m_fbvramB), 0x80000/2);
+
+	// The CRTC offsets, written by the video registers rather than fixed at init, and the palette
+	// cache flag -- which is derived rather than machine state, but restoring it false while the
+	// restored m_palram disagrees with the pen table leaves the palette one frame stale.
+	//
+	// ⚠️ model2_renderer keeps its own COPY of the two offsets (set_xoffset, called from the register
+	// handler) and that copy is private, so it is not restored here. Harmless and bounded rather than
+	// overlooked: it is re-pushed whenever the game writes the register, and any two boots of the same
+	// set write the same value, so a loaded state cannot disagree with the machine it is loaded into.
+	// devnotes/savestates.md §1.5.
+	save_item(NAME(m_crtc_xoffset));
+	save_item(NAME(m_crtc_yoffset));
+	save_item(NAME(m_palette_dirty));
+#endif
 }
 
 u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)

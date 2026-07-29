@@ -601,6 +601,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	unsigned res_width = 0, res_height = 0;
 	m2opt::get_internal_size(s_environ_cb, res_width, res_height);
 	const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
+	const bool flat_luma = m2opt::get_flat_luma(s_environ_cb);
 	const unsigned transparency = m2opt::get_transparency(s_environ_cb);
 
 	// The resolution is logged as "native" rather than as the 0x0 the parser produces for a value it
@@ -613,11 +614,12 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	else
 		std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
-	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s\n",
+	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s\n",
 			m2opt::KEY_RENDERER, renderer.c_str(),
 			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic],
 			m2opt::KEY_INTERNAL_RES, res_text,
 			m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
+			m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
 			m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple");
 
 	// 🚨 The corresponding M2VK_* switch overrides each of the two options below, and the harness
@@ -629,7 +631,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	//
 	// Presence, not value: M2VK_SS=99 is refused back to 1x by its reader, and a line saying the switch
 	// was set is still the right thing to have printed.
-	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_BLEND" })
+	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_FLAT_LUMA", "M2VK_BLEND" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -662,6 +664,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// no core options at all and must keep the switches working.
 	m2vk::set_option_resolution(res_width, res_height);
 	m2vk::set_option_force_solid(flat_shading);
+	m2vk::set_option_flat_luma(flat_luma);
 	m2vk::set_option_blend(transparency);
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
@@ -785,7 +788,46 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		return false;
 	}
 
-	s_log_cb(RETRO_LOG_INFO, "[model2] started '%s'\n", system.c_str());
+	// 🚨 The savestate size must be answerable before this returns, because the frontend asks
+	// straight afterwards and a frontend that is told 0 disables savestates for the session. It is
+	// not automatic: MAME closes the save registry in allow_registration(false) (machine.cpp:306),
+	// which is AFTER start_all_devices(), while update() — and therefore the baton — is reached
+	// twice before that point. Measured on vf2: the registry passes through 15 and 26 entries before
+	// settling at 4294. So spin frames until the registry is final rather than assuming a picture
+	// implies it.
+	for (int i = 0; (i < MAX_STARTUP_FRAMES) && (s_osd->state_size() == 0); i++)
+	{
+		s_osd->release_frame();
+		if (!s_osd->wait_for_frame())
+			break;
+	}
+
+	const size_t state_bytes = s_osd->state_size();
+	if (state_bytes == 0)
+	{
+		s_log_cb(RETRO_LOG_WARN, "[model2] the save registry never closed; savestates are unavailable this session\n");
+	}
+	else
+	{
+		// libretro.h:2702 says retro_init or retro_load_game, not both; this is the one that knows.
+		//
+		// PLATFORM_DEPENDENT only, and the three we deliberately do NOT declare are the interesting
+		// part:
+		//   ENDIAN_DEPENDENT   — MAME records the writer's endianness in the state header and flips
+		//                        every entry on read when it disagrees (save.cpp:472, flip_data),
+		//                        so a cross-endian load is genuinely supported. Declaring it would
+		//                        be a lie that costs netplay.
+		//   MUST_INITIALIZE    — would be true if the size were not ready when this returns. It is:
+		//                        the loop above spins until the save registry closes.
+		//   INCOMPLETE         — means "do not rely on this for netplay or rerecording". Not
+		//                        claimed, because devnotes/state.sh measures the opposite: a state
+		//                        taken from one machine history and loaded into another reproduces
+		//                        the first history's future byte-exactly.
+		uint64_t quirks = RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
+		s_environ_cb(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &quirks);
+	}
+
+	s_log_cb(RETRO_LOG_INFO, "[model2] started '%s'; savestate %zu bytes\n", system.c_str(), state_bytes);
 	return true;
 }
 
@@ -843,7 +885,7 @@ RETRO_API void retro_run(void)
 	if (!s_running)
 		return;
 
-	// Three of the five options apply live; two cannot. The frontend clears the flag as this reads it,
+	// Four of the six options apply live; two cannot. The frontend clears the flag as this reads it,
 	// so this runs once per change rather than once per frame.
 	//
 	// 🚨 "Applied when content is loaded" is the wrong answer for anything a player is meant to *play*
@@ -854,6 +896,8 @@ RETRO_API void retro_run(void)
 	//   flat shading    — g_force_solid is a plain global that submit() reads per polygon, and this is
 	//                     the same point at which input is published, i.e. with the emulation thread
 	//                     parked on the baton. Takes effect on the next frame.
+	//   no lighting     — g_flat_luma, the same global in the same place, resolved per polygon as it
+	//                     crosses. Takes effect on the next frame.
 	//   internal res    — parked in the renderer; present_frame() compares it against the ring it
 	//                     built and rebuilds when they differ, exactly as it does for a sync-mask
 	//                     change. Takes effect on the next presented frame.
@@ -870,10 +914,12 @@ RETRO_API void retro_run(void)
 		unsigned res_width = 0, res_height = 0;
 		m2opt::get_internal_size(s_environ_cb, res_width, res_height);
 		const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
+		const bool flat_luma = m2opt::get_flat_luma(s_environ_cb);
 		const unsigned transparency = m2opt::get_transparency(s_environ_cb);
 
 		m2vk::set_option_resolution(res_width, res_height);
 		m2vk::set_option_force_solid(flat_shading);
+		m2vk::set_option_flat_luma(flat_luma);
 		m2vk::set_option_blend(transparency);
 
 		char res_text[32];
@@ -883,9 +929,10 @@ RETRO_API void retro_run(void)
 			std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
 		s_log_cb(RETRO_LOG_INFO,
-				"[model2] core options changed: %s=%s %s=%s %s=%s applied now; %s and %s need a reload\n",
+				"[model2] core options changed: %s=%s %s=%s %s=%s %s=%s applied now; %s and %s need a reload\n",
 				m2opt::KEY_INTERNAL_RES, res_text,
 				m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
+				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
 				m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple",
 				m2opt::KEY_RENDERER, m2opt::KEY_DIAGNOSTIC_INPUT);
 	}
@@ -968,17 +1015,51 @@ RETRO_API void retro_run(void)
 
 
 //============================================================
-//  libretro: savestates — deferred past P1
+//  libretro: savestates
 //
-//  No Model 2 set in src/mame/sega/model2.cpp carries MACHINE_SUPPORTS_SAVE, so MAME does not
-//  claim its state registration is complete for this driver. Rather than ship a savestate that
-//  silently corrupts, the A/B harness keys fixtures on frame number, which P0 measured to be
-//  bit-repeatable. See devnotes/p1-libretro-core.md.
+//  P1 deferred these and the reason is worth reading before touching them
+//  (devnotes/p1-libretro-core.md): no Model 2 set carries MACHINE_SUPPORTS_SAVE. That is still true,
+//  and it turned out not to gate what it was thought to gate — the flag drives a UI warning, the
+//  -autosave load and a fatalerror on devices that register nothing, while save_manager::do_write and
+//  do_read have no supported() check at all. devnotes/savestates.md is the audit that replaced the
+//  inference, and m2vk_savestate.h carries the three properties this rests on.
+//
+//  🚨 All three run on the FRONTEND thread with the emulation thread parked on the baton in
+//  osd->update(). That is what makes them safe, and it is also what makes the state small: the
+//  several-megabyte raster->poly_list, and poly_sorted_list's array of raw pointers, are rebuilt from
+//  m_bufferram at every vblank and are therefore not live at this one point in the frame.
 //============================================================
 
-RETRO_API size_t retro_serialize_size(void) { return 0; }
-RETRO_API bool retro_serialize(void *data, size_t size) { return false; }
-RETRO_API bool retro_unserialize(const void *data, size_t size) { return false; }
+RETRO_API size_t retro_serialize_size(void)
+{
+	if (!s_running || !s_osd)
+		return 0;
+	return s_osd->state_size();
+}
+
+RETRO_API bool retro_serialize(void *data, size_t size)
+{
+	if (!s_running || !s_osd)
+		return false;
+	return s_osd->state_save(data, size);
+}
+
+RETRO_API bool retro_unserialize(const void *data, size_t size)
+{
+	if (!s_running || !s_osd)
+		return false;
+	if (!s_osd->state_load(data, size))
+		return false;
+
+	// 🚨 MAME's state is not the whole core's state. The frame record still holds the polygon list
+	// from before the load, and the renderer redraws the last list whenever a frame carries no new
+	// geometry — which is exactly what P3 step 8 fixed for the empty-display-list case, and a load
+	// lands in the same shape. Without this the first post-load frame can composite the OLD scene
+	// under the new one. geometry_none() marks the record valid with poly_count = 0 and bumps the
+	// serial: "a new frame that is empty", not "no news".
+	m2vk::geometry_none();
+	return true;
+}
 
 
 //============================================================

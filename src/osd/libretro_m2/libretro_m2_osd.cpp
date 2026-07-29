@@ -13,8 +13,10 @@
 #include "render.h"
 #include "screen.h"
 
-// after emu.h, which it reads MAME's ioport types out of and which only a .cpp may include
+// after emu.h, which they read MAME's ioport / running_machine types out of and which only a .cpp
+// may include
 #include "m2vk_gunlog.h"
+#include "m2vk_savestate.h"
 
 #include "modules/monitor/monitor_module.h"
 #include "modules/output/output_module.h"
@@ -169,6 +171,9 @@ void libretro_m2_osd_interface::osd_exit()
 	// last point at which the run's polygon stream is complete
 	m2vk::sink_close();
 
+	// the cached savestate size belongs to the machine going away
+	m2vk::state_close();
+
 	// the gun read-out holds ioport pointers into the machine being torn down
 	m2vk::gun_log_close();
 
@@ -251,6 +256,10 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// writing anything, so a run without it is unchanged.
 	m2vk::gun_log_frame(machine());
 
+	// M2VK_SAVE_LOG's one-shot report. Here rather than in init() because the save registry is still
+	// being filled while devices start, and osd->init() runs inside that window.
+	m2vk::state_log(machine());
+
 	if (!skip_redraw)
 		capture_frame();
 
@@ -271,6 +280,30 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// the next frame's audio accumulates from empty
 	m_audio.clear();
 }
+
+//============================================================
+//  savestates — forwarded, with the one guard that matters
+//============================================================
+
+// m_started is set at the end of init() and the machine is torn down through osd_exit(), so this
+// pair brackets every point at which machine() is valid. A frontend is entitled to call
+// retro_serialize_size() early — RetroArch does, right after retro_load_game — and answering 0 is
+// how a core says "not yet".
+size_t libretro_m2_osd_interface::state_size()
+{
+	return machine_started() ? m2vk::state_size(machine()) : 0;
+}
+
+bool libretro_m2_osd_interface::state_save(void *data, size_t size)
+{
+	return machine_started() && m2vk::state_save(machine(), data, size);
+}
+
+bool libretro_m2_osd_interface::state_load(void const *data, size_t size)
+{
+	return machine_started() && m2vk::state_load(machine(), data, size);
+}
+
 
 void libretro_m2_osd_interface::capture_frame()
 {

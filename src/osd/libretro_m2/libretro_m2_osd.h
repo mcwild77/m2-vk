@@ -126,6 +126,15 @@ public:
 	bool machine_started() const { return m_started.load(std::memory_order_acquire); }
 	uint32_t audio_rate() const { return m_audio_rate; }
 
+	// Savestates, forwarded to m2vk_savestate.cpp. 🚨 All three are called from the FRONTEND thread
+	// with the emulation thread parked in update(), which is the only point at which touching MAME's
+	// state from this side is safe — the same rule the input snapshot and the reticle publish obey.
+	// Calling them anywhere else races the emulation thread. They return 0/false rather than
+	// asserting when the machine has not started or has exited.
+	size_t state_size();
+	bool state_save(void *data, size_t size);
+	bool state_load(void const *data, size_t size);
+
 	// The model2_diagnostic_input core option, as an m2opt::diagnostic_input. Set from
 	// retro_load_game() before the emulation thread starts; read once, when the input devices are
 	// configured at machine start.
