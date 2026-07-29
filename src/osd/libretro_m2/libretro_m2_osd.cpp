@@ -251,6 +251,38 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	if (!m_exiting && m_reset_requested.exchange(false, std::memory_order_acq_rel))
 		machine().schedule_soft_reset();
 
+	// 🚨 An update() reached before the machine is RUNNING must NOT cost the frontend a frame, and
+	// this is not tidiness — it is the fix for the run-to-run nondeterminism that made five fixtures
+	// "bistable".
+	//
+	// MAME pumps video_manager::frame_update() while it is still loading ROMs:
+	// romload.cpp:649 calls set_startup_text(..., force=false), which (ui.cpp:916) forwards to
+	// frame_update() whenever more than a TENTH OF A WALL-CLOCK SECOND has passed since the last
+	// one. So the number of those pumps is floor(rom_load_seconds * 10) — a host-speed measurement,
+	// not an emulated quantity. Each one used to park on the baton, i.e. cost retro_run() a whole
+	// frame, so the frontend was handed 5 OR 6 duplicate startup frames depending on how the disk
+	// felt, and every host frame for the rest of the session then mapped to a DIFFERENT emulated
+	// frame. Measured on vcop2: `frame - update_count` settles at -6 or -7, deterministic within a
+	// run and a coin flip between runs.
+	//
+	// That is what every frame-indexed comparison in devnotes/ was silently assuming could not
+	// happen, and it is why two runs of one command could produce two stable digests: not frame
+	// parity in draw_framebuffer (which only exists in render test mode and cannot explain waverunr)
+	// but a ±1 shift in which emulated frame each host frame lands on.
+	//
+	// Returning early is safe with retro_load_game()'s startup loops: they drive the machine by
+	// release_frame()/wait_for_frame(), and an early release is discarded because the parking branch
+	// below clears m_go itself, under the lock, before it waits. So the first frame the frontend
+	// ever sees is the first RUNNING one — which is also after save_manager::allow_registration(false),
+	// so the save registry is already closed when retro_load_game asks for the state size.
+	//
+	// ⚠️ It cannot stall retro_run() on a reset either: soft_reset() (machine.cpp:967-979) sets RESET
+	// and RUNNING inside one call and pumps no video between them, so no update() is ever reached at
+	// that phase. EXIT is above RUNNING, so the shutdown path — which must not park, see m_exiting
+	// above — is unaffected by this test.
+	if (machine().phase() < machine_phase::RUNNING)
+		return;
+
 	// The lightgun read-out (M2VK_GUN_LOG), taken here so that it reports the state the frame being
 	// handed over was drawn from. Off unless the variable is set, and it reads ports rather than
 	// writing anything, so a run without it is unchanged.
