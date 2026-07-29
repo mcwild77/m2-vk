@@ -25,6 +25,9 @@ class scsp_device : public device_t,
 public:
 	static constexpr feature_type imperfect_features() { return feature::SOUND; } // DSP / EG incorrections, etc
 
+	// Public only so that ALLOW_SAVE_TYPE below can name it; device_start() saves EG.state.
+	enum SCSP_STATE { SCSP_ATTACK, SCSP_DECAY1, SCSP_DECAY2, SCSP_RELEASE };
+
 	scsp_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock = 22'579'200);
 
 	auto irq_cb() { return m_irq_cb.bind(); }
@@ -51,8 +54,6 @@ protected:
 	virtual void sound_stream_update(sound_stream &stream) override;
 
 private:
-	enum SCSP_STATE { SCSP_ATTACK, SCSP_DECAY1, SCSP_DECAY2, SCSP_RELEASE };
-
 	struct SCSP_EG_t
 	{
 		int volume; //
@@ -192,6 +193,8 @@ private:
 	s32 ALFO_Step(SCSP_LFO_t *LFO);
 	void LFO_ComputeStep(SCSP_LFO_t *LFO, u32 LFOF, u32 LFOWS, u32 LFOS, int ALFO);
 };
+
+ALLOW_SAVE_TYPE(scsp_device::SCSP_STATE);
 
 DECLARE_DEVICE_TYPE(SCSP, scsp_device)
 
