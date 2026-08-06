@@ -12,10 +12,16 @@
 #include "osdcore.h"
 #include "osdlib.h"
 
+// SDL is needed here for the clipboard and for nothing else, so an OSD that has no clipboard also
+// has no reason to require the headers.  SDLMAME_ANDROID already stubs the two clipboard functions
+// out below; OSD_LIBRETRO_M2 joins it, which is what lets a libretro core with no SDL anywhere in
+// its link line use this file on a POSIX target.  Every other OSD sees the include exactly as before.
+#if !defined(SDLMAME_ANDROID) && !defined(OSD_LIBRETRO_M2)
 #ifdef SDLMAME_SDL3
 #include <SDL3/SDL.h>
 #else
 #include <SDL2/SDL.h>
+#endif
 #endif
 
 #include <csignal>
@@ -139,7 +145,7 @@ std::pair<std::error_condition, unsigned> osd_get_cache_line_size() noexcept
 }
 
 
-#ifdef SDLMAME_ANDROID
+#if defined(SDLMAME_ANDROID) || defined(OSD_LIBRETRO_M2)
 std::string osd_get_clipboard_text() noexcept
 {
 	return std::string();

@@ -24,6 +24,12 @@ end
 	uuid (os.uuid(_target .. "_" .. _subtarget))
 	kind "ConsoleApp"
 
+	-- Skipped for the libretro core for the same reason as the android branch further down: this
+	-- describes the SDL android-project app -- libmain.so, EGL, GLES, SDL2 -- and the core is a
+	-- plain dlopen()ed shared object with none of those.  links{} accumulate and genie has no way
+	-- to take one back, so the block has to be avoided rather than overridden.  The -shared and
+	-- -soname it also carries are reissued in scripts/src/osd/libretro_m2.lua.
+	if _OPTIONS["osd"]~="libretro_m2" then
 	configuration { "android*" }
 		targetprefix "lib"
 		targetname "main"
@@ -38,6 +44,7 @@ end
 			"GLESv2",
 			"SDL2",
 		}
+	end
 
 	configuration {  }
 
@@ -88,7 +95,12 @@ end
 
 	configuration { }
 
-	if _OPTIONS["targetos"]=="android" then
+	-- The android branch below builds the SDL android-project app: it pulls in android_main.cpp,
+	-- targets android-project/app/src/main/libs, and copies libSDL2.so next to the result.  A
+	-- libretro core is none of those things -- it is a plain shared object the frontend dlopen()s,
+	-- and it has no SDL to copy -- so it takes the ordinary branch instead.  See
+	-- devnotes/build-android.sh, which is what drives this build.
+	if _OPTIONS["targetos"]=="android" and _OPTIONS["osd"]~="libretro_m2" then
 		files {
 			MAME_DIR .. "src/osd/sdl/android_main.cpp",
 		}

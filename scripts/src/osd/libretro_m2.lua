@@ -153,6 +153,33 @@ function maintargetosdoptions(_target, _subtarget)
 	configuration { "linux-* or freebsd" }
 		targetextension ".so"
 
+	-- RetroArch on Android looks for cores named <name>_libretro_android.so and strips the
+	-- _android suffix again when it matches the core against its .info file, so the suffix is
+	-- part of the ABI with the frontend rather than decoration.  targetprefix is restated
+	-- because scripts/toolchain.lua's own android block may have had a say.
+	configuration { "android-*" }
+		targetextension ".so"
+		targetprefix ""
+		targetname "model2_libretro_android"
+		-- Reissued here because mainProject()'s own android block, which is where a genie build
+		-- normally gets these, is skipped for this OSD -- it also links SDL2 and GLES.  The soname
+		-- matters: Android's loader dedupes by soname, and mainProject()'s is the generic
+		-- "libmain.so", which is a collision waiting to happen inside a frontend's process.
+		linkoptions {
+			"-shared",
+			"-Wl,-soname,model2_libretro_android.so",
+			-- The NDK's clang links libc++_shared.so by default, which would make the core
+			-- undlopenable in any frontend whose APK does not happen to ship that library --
+			-- a runtime failure on the phone, discovered late, with nothing in the build to
+			-- suggest it.  Static libc++ makes the core self-contained; --exclude-libs then
+			-- keeps every symbol that came out of a static archive out of the dynamic symbol
+			-- table, so the core's private libc++ cannot bind against the frontend's.  The
+			-- retro_* entry points are unaffected: retro_entry.cpp is a direct object in this
+			-- link, not a member of an archive.
+			"-static-libstdc++",
+			"-Wl,--exclude-libs,ALL",
+		}
+
 	configuration { "mingw* or vs*" }
 		targetextension ".dll"
 
@@ -170,7 +197,10 @@ function maintargetosdoptions(_target, _subtarget)
 		VULKAN_INCLUDEDIR,
 	}
 
-	if _OPTIONS["targetos"]~="windows" and _OPTIONS["targetos"]~="macosx" and _OPTIONS["targetos"]~="asmjs" then
+	-- Android is excluded deliberately: bionic has no libpthread to link (it lives in libc), so
+	-- -lpthread is a hard link error there, and scripts/toolchain.lua's android block already
+	-- supplies c/dl/m/android/log.
+	if _OPTIONS["targetos"]~="windows" and _OPTIONS["targetos"]~="macosx" and _OPTIONS["targetos"]~="asmjs" and _OPTIONS["targetos"]~="android" then
 		links {
 			"m",
 			"pthread",

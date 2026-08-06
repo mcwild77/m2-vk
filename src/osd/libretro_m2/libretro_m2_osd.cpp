@@ -16,6 +16,7 @@
 // after emu.h, which they read MAME's ioport / running_machine types out of and which only a .cpp
 // may include
 #include "m2vk_gunlog.h"
+#include "m2vk_inputdump.h"
 #include "m2vk_savestate.h"
 
 #include "modules/monitor/monitor_module.h"
@@ -287,6 +288,12 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// handed over was drawn from. Off unless the variable is set, and it reads ports rather than
 	// writing anything, so a run without it is unchanged.
 	m2vk::gun_log_frame(machine());
+
+	// The layout editor's data source (M2VK_INPUT_DUMP), one-shot. Here rather than in input_init() for
+	// the same reason the read-out above resolves here: osd().init() runs before
+	// ioport_manager::initialize(), so a dump taken there reports no fields at all on a set that has
+	// twenty. See m2vk_inputdump.h.
+	m2vk::input_dump_frame(machine());
 
 	// M2VK_SAVE_LOG's one-shot report. Here rather than in init() because the save registry is still
 	// being filled while devices start, and osd->init() runs inside that window.

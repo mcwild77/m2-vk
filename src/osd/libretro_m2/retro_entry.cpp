@@ -42,6 +42,7 @@
 
 #include "emu.h"
 #include "emuopts.h"
+#include "drivenum.h"
 #include "main.h"
 
 #include "corestr.h"
@@ -207,66 +208,6 @@ std::string frontend_directory(unsigned query)
 
 
 //============================================================
-//  input descriptors
-//============================================================
-
-// What the frontend shows in its remapping UI. Deliberately generic: the actual meaning of each
-// button is whatever MAME's per-game input ports make of IPT_BUTTONn, and this core spans
-// fighters, driving games, lightguns and twin sticks. The two axes are named for the driving
-// games, which are the sets where a wrong guess is most obvious.
-//
-// One set of labels for both pad layouts, and they describe Classic. Descriptors are sent once when
-// content is loaded and a layout is a per-port choice the player can change at any moment, so the
-// alternative is not "labels that follow the layout" but "two arrays, one of them stale". The two
-// that Modern moves are the shoulder pair.
-//
-// R3 is listed and L3 is not, for the same reason: R3 is daytona's fourth view button under every
-// option value, and what L3 does depends on model2_diagnostic_input — a label that is wrong in the
-// default configuration is worse than no label.
-const struct retro_input_descriptor INPUT_DESCRIPTORS[] = {
-#define M2_PORT_DESCRIPTORS(port) \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "Left" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,     "Up" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,   "Down" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT,  "Right" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,      "Button 1" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,      "Button 2" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,      "Button 3" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,      "Button 4" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,      "Button 5" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,      "Button 6" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,     "Brake / Button 7" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,     "Accelerator / Button 8" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Coin" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "Start" }, \
-	{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,     "View / Button 9" }, \
-	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Steering / Stick X" }, \
-	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Stick Y" }, \
-	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Stick X" }, \
-	{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Stick Y" },
-// The gun controls, on the two ports that can have a gun — see MAX_GUNS. The pad descriptors above
-// still apply to a gun port: a port set to RETRO_DEVICE_LIGHTGUN keeps its RetroPad buttons here
-// (libretro_m2_input.cpp gates the stick and nothing else), which is what keeps coin, start and the
-// service switches reachable on a gun cabinet.
-#define M2_GUN_DESCRIPTORS(port) \
-	{ port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_TRIGGER, "Trigger" }, \
-	{ port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_A,   "Button 2" }, \
-	{ port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_B,   "Button 3" },
-
-	M2_PORT_DESCRIPTORS(0)
-	M2_GUN_DESCRIPTORS(0)
-	M2_PORT_DESCRIPTORS(1)
-	M2_GUN_DESCRIPTORS(1)
-	// Ports 2 and 3 exist for airwlkrs, the one four-player cabinet — see MAX_PADS. Every other set
-	// leaves them bound to input types it does not declare, which costs nothing.
-	M2_PORT_DESCRIPTORS(2)
-	M2_PORT_DESCRIPTORS(3)
-#undef M2_GUN_DESCRIPTORS
-#undef M2_PORT_DESCRIPTORS
-	{ 0, 0, 0, 0, nullptr } };
-
-
-//============================================================
 //  controller types
 //============================================================
 
@@ -274,16 +215,22 @@ const struct retro_input_descriptor INPUT_DESCRIPTORS[] = {
 // port is the same hardware and whether a gun means anything is a property of the loaded set rather
 // than of the port — a gun on vf2 simply binds to types vf2 does not declare.
 //
-// The two pad entries are FBNeo's Classic and Modern layouts and differ only in where MAME buttons
-// 5 and 6 sit; buttons 1-4, the d-pad, the sticks, coin and start are identical. Classic is plain
-// RETRO_DEVICE_JOYPAD rather than a subclass of its own, so it is what a frontend that knows
-// nothing about this list ends up with. 6-Panel is deliberately not offered: it exists for
-// six-button fighters, and the whole platform's button histogram is 37/30/27/11/4/3/1/1 for
-// IPT_BUTTON1..8 — vf2 is a three-button game. devnotes/lightgun.md §2.5.1.
+// 🛑 THERE IS ONE PAD ENTRY AND THERE USED TO BE THREE. "RetroPad (Classic)", "RetroPad (Modern)" and
+// "RetroPad (Cabinet)" are all gone, and so is the second retro_controller_info array that existed only
+// to offer Cabinet to the sets that had a row. The reasoning is in libretro_m2_input.h; the part that
+// belongs here is what it bought:
+//
+//   * the list is not per-game any more, so SET_CONTROLLER_INFO no longer needs the loaded set's name
+//     to decide what to send;
+//   * "RetroPad" means "this cabinet's controls", on every set, with no menu step;
+//   * and a player who wants something else uses the frontend's own remap UI, which is now worth
+//     using — the descriptors name what each control actually does on the loaded game.
+//
+// ⚠️ A config remembering a retired subclass id still plays: the pad treats any unrecognised device
+// value as "use this machine's row". Nothing has to be migrated.
 const struct retro_controller_description PORT_DEVICES[] = {
-	{ "RetroPad (Classic)", RETRO_DEVICE_JOYPAD },
-	{ "RetroPad (Modern)",  RETRO_DEVICE_M2_PAD_MODERN },
-	{ "Light Gun",          RETRO_DEVICE_LIGHTGUN } };
+	{ "RetroPad",  RETRO_DEVICE_JOYPAD },
+	{ "Light Gun", RETRO_DEVICE_LIGHTGUN } };
 
 const struct retro_controller_info CONTROLLER_INFO[] = {
 	{ PORT_DEVICES, unsigned(std::size(PORT_DEVICES)) },
@@ -583,11 +530,20 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		return false;
 	}
 
-	s_environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, const_cast<struct retro_input_descriptor *>(INPUT_DESCRIPTORS));
-	s_environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, const_cast<struct retro_controller_info *>(CONTROLLER_INFO));
-
 	const std::string path(game->path);
 	const std::string system = system_name_from_path(path);
+
+	// What a port may be set to. No longer per-game — there is one pad type and it is whatever this
+	// cabinet's controls are — so this is sent unconditionally and needs nothing about the set.
+	s_environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, const_cast<struct retro_controller_info *>(CONTROLLER_INFO));
+
+	// The set's parent, for the layout lookup below: one row covers a set and all of its clones.
+	//
+	// driver_list::find() is a name-only lookup in the subtarget's own compiled-in driver table, so a
+	// content file whose basename is not a Model 2 set simply yields no parent and no row; the machine
+	// will fail to start a few lines further down for the same reason.
+	int const driver = driver_list::find(system.c_str());
+	char const *const parent = (driver >= 0) ? driver_list::driver(driver).parent : nullptr;
 
 	// Options are read once, here. Both of them are settled before the machine starts — the
 	// renderer picks a draw path, the diagnostic combo is baked into the input devices' default
@@ -621,6 +577,25 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
 			m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
 			m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple");
+
+	// The frontend's remap labels, per game, from the same layout row the pad reads. This is what makes
+	// the Controls menu say "GEAR 1" and "VR1 (Red)" instead of "Button 2" and "Button 6", and it is the
+	// user-facing half of the per-game layout work: a default nobody has to change, and a remap screen
+	// worth opening if they want to anyway.
+	//
+	// 🚨 It sits BELOW the options read rather than beside SET_CONTROLLER_INFO above, and the ordering is
+	// load-bearing: L3 is IPT_SERVICE1 only while model2_diagnostic_input names a combo, and is an inert
+	// IPT_UI_MENU otherwise, so its label cannot be decided before `diagnostic` has been read. Sent from
+	// where the descriptors used to be sent, it would have labelled a dead control on every default run.
+	s_environ_cb(
+			RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS,
+			const_cast<struct retro_input_descriptor *>(
+					libretro_m2_input::descriptors(system.c_str(), parent, diagnostic != m2opt::DIAG_NONE)));
+
+	if (libretro_m2_input::has_layout(system.c_str(), parent))
+		s_log_cb(RETRO_LOG_INFO, "[model2] '%s' has its own control layout; it is what a RetroPad plays as\n", system.c_str());
+	else
+		s_log_cb(RETRO_LOG_INFO, "[model2] '%s' has no layout row; using the generic one\n", system.c_str());
 
 	// 🚨 The corresponding M2VK_* switch overrides each of the two options below, and the harness
 	// depends on that: ab.sh's MODE= and res.sh's scale arrive in the environment, and a .opt file left

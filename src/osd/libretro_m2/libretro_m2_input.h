@@ -48,12 +48,25 @@
 // argument, so libretro_m2_osd_interface has to be complete here, not merely declared.
 
 
-// The second pad layout, as a libretro device subclass.  Plain RETRO_DEVICE_JOYPAD is the first
-// one, which is deliberate: a frontend that has never heard of the subclass — or that resets a port
-// — lands on Classic, the default, rather than on something it had to be told about.  Everything
-// that is neither this nor RETRO_DEVICE_LIGHTGUN is treated as Classic, so an unrecognised device
-// type can never leave a port with no working buttons.  See devnotes/lightgun.md §2.5.1.
-#define RETRO_DEVICE_M2_PAD_MODERN RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
+// 🛑 THERE ARE NO PAD DEVICE SUBCLASSES ANY MORE, and their absence is the feature.
+//
+// RETRO_DEVICE_M2_PAD_MODERN and RETRO_DEVICE_M2_PAD_CLASSIC used to live here — FBNeo's two generic
+// layouts — and a third entry, "RetroPad (Cabinet)", carried the per-game row.  All three are gone.
+// The reasoning, so it is not rebuilt:
+//
+//   * A layout a player has to go and select is not a default, and a *cabinet* layout is the only
+//     correct default there is.  Every set now resolves to its own row (devnotes/input_layouts.json)
+//     on plain RETRO_DEVICE_JOYPAD, so loading a game and playing it produces the arcade mapping and
+//     the Controls menu is for changing it, not for finding it.
+//   * With rows in place the two generic layouts have nothing left to do.  vf2's row is B/A/Y =
+//     Punch/Kick/Guard, which is what Classic already was; the driving rows put button 5 where the
+//     cabinet had it, which is what Modern was reaching for.  They were choices between a wrong
+//     answer and another wrong answer.
+//   * A device type also made the device LIST per-game — two retro_controller_info arrays and a
+//     has_cabinet_layout() call to pick between them — so removing it removes that too.
+//
+// ⚠️ A frontend config remembering one of the retired subclass ids must still play.  update() treats
+// every unrecognised device value as "use this machine's row", which is what guarantees it.
 
 
 // What the two device kinds have in common: a port, and a per-frame update that is handed the
@@ -98,9 +111,15 @@ public:
 		AXIS_COUNT
 	};
 
-	// How many MAME buttons the face and shoulder controls produce.  The trigger pair adds
-	// IPT_BUTTON7/8 from a threshold on an axis and is not part of this.
-	static inline constexpr unsigned NUMBERED_BUTTONS = 6;
+	// How many MAME buttons the layout table can fill.  Nine, because daytona has exactly nine and
+	// is the set the layouts exist for.
+	//
+	// ⚠ It was six until 2026-07-29, with buttons 7 and 8 welded to the trigger thresholds in
+	// configure() and button 9 welded to R3 in FIXED_BUTTONS.  That weld is precisely why daytona's
+	// pedals and its VR2/VR3 could not be separated — no layout could move a button that was not a
+	// layout entry.  Widening this is the whole of that fix: a trigger threshold is now just another
+	// *source* a layout row may name, alongside the RetroPad ids.  devnotes/per-game-input.md §3.1.
+	static inline constexpr unsigned NUMBERED_BUTTONS = 9;
 
 	// Button state slots.  The first NUMBERED_BUTTONS of them are MAME button *numbers*, not
 	// RetroPad ids, and that indirection is the whole of the pad-layout mechanism: configure()
@@ -116,6 +135,9 @@ public:
 		BUTTON_4,
 		BUTTON_5,
 		BUTTON_6,
+		BUTTON_7,
+		BUTTON_8,
+		BUTTON_9,
 		BUTTON_SELECT,
 		BUTTON_START,
 		BUTTON_UP,
@@ -129,16 +151,32 @@ public:
 
 	// diagnostic is an m2opt::diagnostic_input; it is an unsigned here so that this header keeps out
 	// of the core-options one, which the emulation side has no other reason to see.
-	libretro_m2_pad_device(std::string &&name, std::string &&id, input_module &module, unsigned port, unsigned diagnostic);
+	//
+	// layout is the loaded set's row of NUMBERED_BUTTONS sources, resolved once in input_init() and
+	// shared by every pad: the row is a property of the machine, not of a port.  It is NEVER null —
+	// a set with no row of its own gets the generic one — which is what lets update() drop the
+	// null test it used to carry for the cabinet case.
+	libretro_m2_pad_device(
+			std::string &&name,
+			std::string &&id,
+			input_module &module,
+			unsigned port,
+			unsigned diagnostic,
+			unsigned const *layout);
 
 	virtual void reset() override;
 	virtual void configure(osd::input_device &device) override;
 	virtual void update(retro_input_state_t state_cb, unsigned device) override;
 
 private:
+	// One layout entry, resolved to a button state. Reads m_axes for the trigger-threshold sources,
+	// so it is only correct once update() has filled them for the frame.
+	int32_t read_source(retro_input_state_t state_cb, unsigned source) const;
+
 	void update_diagnostic(retro_input_state_t state_cb, unsigned const *layout);
 
-	unsigned  m_diagnostic;
+	unsigned         m_diagnostic;
+	unsigned const  *m_layout;      // never null; see the constructor
 	int32_t   m_axes[AXIS_COUNT];
 	int32_t   m_buttons[BUTTON_COUNT];
 
@@ -204,6 +242,30 @@ public:
 	// watches for. An m2opt::diagnostic_input, as unsigned — see the pad's constructor.
 	explicit libretro_m2_input(unsigned diagnostic);
 	virtual ~libretro_m2_input();
+
+	// The frontend's remap labels for the named set — a null-terminated retro_input_descriptor array,
+	// owned by the input module and valid until the next call.  Built from the same layout row the pad
+	// reads, so what the Controls menu says a control does and what it actually does are one fact.
+	//
+	// 🚨 That single-source property is the point of routing this through here rather than keeping a
+	// table in retro_entry.cpp.  There WAS such a table, and it disagreed with the layout for months:
+	// it called L "Button 5" and R "Button 6" while the layout had them the other way round, so
+	// daytona's remap screen named GEAR 4 and VR1 (Red) reversed (devnotes/input-map.md §5.1).  A
+	// derived array cannot drift from what it is derived from.
+	//
+	// Static, and answering from the set NAME rather than from a machine, because the caller is
+	// retro_load_game(): descriptors go out before there is a running_machine to ask.  Name is matched
+	// first and then parent, so one row covers a set and all its clones; either may be null.
+	//
+	// service_coin says whether model2_diagnostic_input is set to anything, because that is what
+	// decides whether L3 is IPT_SERVICE1 or an inert IPT_UI_MENU.  A label on a control that does
+	// nothing is worse than no label, so the string is suppressed rather than shown conditionally true.
+	static struct retro_input_descriptor const *descriptors(
+			char const *name, char const *parent, bool service_coin);
+
+	// Whether the named set has a row of its own, for the log line only. Nothing branches on it: a set
+	// without one gets the generic row, which is what every set played as before there were rows.
+	static bool has_layout(char const *name, char const *parent);
 
 	virtual void input_init(running_machine &machine) override;
 
