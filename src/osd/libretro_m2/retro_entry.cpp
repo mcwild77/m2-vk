@@ -346,7 +346,11 @@ RETRO_API unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 RETRO_API void retro_get_system_info(struct retro_system_info *info)
 {
 	std::memset(info, 0, sizeof(*info));
-	info->library_name = "Model 2";
+	// The core's name, not the system's — RetroArch shows it as "Core name" and builds the per-core
+	// config directory from it (config/m2-vk/m2-vk.opt). Deliberately carries no MAME wordmark; see
+	// devnotes/legalstuff.md. Renaming this orphans a player's existing options file, so it is not a
+	// string to adjust casually.
+	info->library_name = "m2-vk";
 	info->library_version = emulator_info::get_bare_build_version();
 	info->valid_extensions = "zip|7z";
 	info->need_fullpath = true;

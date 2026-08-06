@@ -80,11 +80,20 @@ bool reticle_any()
 	return false;
 }
 
+// ⚠️ OFF BY DEFAULT since 2026-08-07, and the code below is kept rather than deleted because the
+// reason it is off is a frontend behaviour, not a fault in it. Playing on a touchscreen, RetroArch
+// reports a lightgun position only while a finger is down and holds the last one after release, so
+// the cross parks wherever the last shot landed and sits there — and on vcop/vcop2, which draw their
+// own yellow reticle, it was a second crosshair on top of a working one anyway.
+//
+// M2VK_RETICLE=1 brings it back for a session. M2VK_NO_RETICLE=1 still means off, so every harness
+// script that sets it is unaffected.
 bool reticle_enabled()
 {
 	if (!s_enabled_known)
 	{
-		s_enabled = (std::getenv("M2VK_NO_RETICLE") == nullptr);
+		s_enabled = (std::getenv("M2VK_RETICLE") != nullptr)
+				&& (std::getenv("M2VK_NO_RETICLE") == nullptr);
 		s_enabled_known = true;
 	}
 	return s_enabled;
