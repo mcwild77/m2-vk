@@ -11,24 +11,7 @@ namespace m2vk {
 namespace {
 
 steerbar_state s_bar;
-
-bool s_option = false;      // model2_steering_display
-bool s_switch_known = false;
-bool s_switch_set = false;  // M2VK_STEERBAR was named...
-bool s_switch_on = false;   // ...and said so
-
-void read_switch()
-{
-	if (s_switch_known)
-		return;
-	s_switch_known = true;
-
-	char const *const v = std::getenv("M2VK_STEERBAR");
-	s_switch_set = (v != nullptr);
-	// Same parse as every other valued switch here: present and non-"0" is on. A bare M2VK_STEERBAR=
-	// is off, which is what a shell that always exports the variable produces.
-	s_switch_on = s_switch_set && (v[0] != '\0') && (std::strcmp(v, "0") != 0);
-}
+bool s_option = false;
 
 } // anonymous namespace
 
@@ -36,9 +19,6 @@ void read_switch()
 void steerbar_publish(bool on, float value, float raw)
 {
 	s_bar.on = on;
-
-	// Kept only while live, so a machine that stops steering — or a run that switches the option off
-	// mid-lap — leaves no stale deflection for a later frame to draw.
 	if (on)
 	{
 		s_bar.value = value;
@@ -63,14 +43,13 @@ void set_option_steerbar(bool on)
 
 bool steerbar_on()
 {
-	read_switch();
-	return s_switch_set ? s_switch_on : s_option;
+	// Switch beats option in both directions. Bare M2VK_STEERBAR= or =0 is off.
+	char const *const v = std::getenv("M2VK_STEERBAR");
+	if (v != nullptr)
+		return (v[0] != '\0') && (std::strcmp(v, "0") != 0);
+	return s_option;
 }
 
-
-//============================================================
-//  the software path's blitter
-//============================================================
 
 void steerbar_blit(uint32_t *pixels, int width, int height)
 {
@@ -81,8 +60,6 @@ void steerbar_blit(uint32_t *pixels, int width, int height)
 	if (!b.on || !steerbar_on())
 		return;
 
-	// The bar's rectangle in picture pixels. Everything is derived from the two fractions, so the
-	// shader's arithmetic below is the same and there is no second layout.
 	const float bw = STEERBAR.width * float(width);
 	const float bh = STEERBAR.height * float(height);
 	const float x0 = (float(width) - bw) * 0.5f;
@@ -104,9 +81,7 @@ void steerbar_blit(uint32_t *pixels, int width, int height)
 
 	for (int y = py0; y < py1; y++)
 	{
-		// Each pixel's own centre, for the reason the reticle's blit measures from +0.5: the bar's
-		// edges are positions on the picture rather than pixel indices, and measuring from the corner
-		// makes a two-pixel border come out three.
+		// Pixel centre (+0.5) so a two-pixel border does not come out three.
 		const float v = ((float(y) + 0.5f) - y0) / bh;
 		uint32_t *const row = pixels + (size_t(y) * size_t(width));
 		for (int x = px0; x < px1; x++)

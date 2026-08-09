@@ -661,18 +661,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	m2vk::set_option_flat_luma(flat_luma);
 	m2vk::set_option_blend(transparency);
 
-	// The steering shape, parked the same way and read by the pad as it shapes the left stick. It is
-	// set here rather than at input_init() because the options belong to the libretro thread and this
-	// is the only place it has them; input_init() then recomposes them against the M2VK_STEER_*
-	// switches, which override each of the three one for one. devnotes/steering-curve.md §3.5.
-	//
-	// ⚠️ Which games this reaches is not decided here and cannot be: the machine has not started, and
-	// the detector that asks it whether it declares an IPT_PADDLE runs on the first RUNNING frame.
+	// input_init() recomposes these against the M2VK_STEER_* switches once the machine exists.
 	m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
-
-	// The read-out bar, which is not part of the shape and is parked separately for that reason: it
-	// changes no input, and the emulation thread reads it to decide whether to sample the paddle port
-	// at all (m2vk_steerbar.h).
 	m2vk::set_option_steerbar(steer_display);
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
@@ -914,13 +904,8 @@ RETRO_API void retro_run(void)
 	//                     that one frame's deferral decision and its push constant agree. Takes effect
 	//                     on the next uploaded frame. Nothing to rebuild: all three pipelines were
 	//                     created at context_reset.
-	//   steering        — three numbers in m2vk::steer(), read by the pad a few lines below this as it
-	//                     shapes the axis. Takes effect on the next frame, which for this option is the
-	//                     whole point: a steering feel is judged by nudging it between laps, and one
-	//                     that needs a content reload to try is unusable.
-	//   steering display — a bool in m2vk_steerbar.cpp, read by the emulation thread on the next frame
-	//                     it publishes and by both blitters on the one after. Takes effect on the next
-	//                     frame; it has to, since it is the instrument for setting the three above.
+	//   steering        — parked in m2vk::steer(), read by the pad below. Takes effect next frame.
+	//   steering display — bool in m2vk_steerbar.cpp, read by the emulation thread next frame.
 	//
 	// model2_renderer and model2_diagnostic_input genuinely cannot: one decides whether hardware
 	// render was declared at all, before the machine started, and the other is baked into the input
@@ -942,9 +927,8 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_flat_luma(flat_luma);
 		m2vk::set_option_blend(transparency);
 
-		// Recomposed against the switches rather than assigned, so that a live change means exactly
-		// what the same change at load would — a run pinned by M2VK_STEER_GAMMA stays pinned when the
-		// player touches an unrelated option, which is the failure this would otherwise have.
+		// Recomposes against the switches, so a run pinned by M2VK_STEER_GAMMA stays pinned when the
+		// player touches an unrelated option.
 		m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
 		m2vk::set_option_steerbar(steer_display);
 

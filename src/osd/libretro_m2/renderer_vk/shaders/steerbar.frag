@@ -1,26 +1,8 @@
 #version 450
 
-// Model 2 libretro core — the steering read-out bar, drawn over the finished picture.
-//
-// The same fullscreen triangle as every other 2D draw here, scissored down to the bar's rectangle by
-// the caller so the fragments shaded are the ~4000 in that box rather than the whole picture. It
-// samples nothing: the bar is generated from the numbers in the push block, which are
-// m2vk::STEERBAR and m2vk::STEERBAR_COLOUR and are the only copy of them.
-//
-// ⚠️ part_at() below is m2vk::steerbar_part_at() in src/osd/libretro_m2/m2vk_steerbar.h, written a
-// second time because GLSL cannot include it. The CONSTANTS are shared — they arrive in the push
-// block — but the expression is duplicated, so a change to one has to be made to the other. The
-// failure that produces is the two renderers disagreeing about something on screen the whole time,
-// which is the cheapest kind to notice.
-//
-// gl_FragCoord is in ATTACHMENT pixels and so is the rectangle: unlike the reticle, whose shape takes
-// one scale factor so its arms stay square, this is a screen-space panel and is simply stretched to
-// whatever the attachment is. It is defined as a fraction of the picture, so stretching with the
-// picture is correct.
-//
-// No blending, for the reticle's reason: the software path blits into MAME's finished frame and this
-// one writes into the composite, so an alpha blend would be against different pixels on the two paths
-// and they would stop producing the same output.
+// Steering read-out bar. Fullscreen triangle, scissored to the bar's box.
+// ⚠️ part_at() below duplicates m2vk::steerbar_part_at() in m2vk_steerbar.h — change both.
+// Opaque, not blended, so the two paths produce the same pixels.
 
 layout(location = 0) in vec2 v_uv;
 layout(location = 0) out vec4 out_colour;

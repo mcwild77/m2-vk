@@ -376,19 +376,9 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 	shape_and_publish_steer();
 }
 
-// The steering chain and its sample. m2vk::steer_shape() is the whole of devnotes/steering-curve.md
-// §3.4 — deadzone, curve, range, and the pre-compensation that makes MAME's own deadzone/saturation
-// the identity for this axis — and it returns its argument unchanged unless the machine declares an
-// IPT_PADDLE field and a shape has been named. So on every set that does not steer, and on every run
-// with no M2VK_STEER_* switch set, this function is exactly what it was at step 1: two writes of one
-// value, and a read-out that prints them equal.
-//
-// SHAPING IS PER PORT; only the read-out is port 0's. The published sample is a single line about
-// the steering wheel and the wheel is player 1's, but every pad's own axis is shaped, which is what
-// the two-seat cabinets need.
-//
-// ⚠️ X only, never Y. desert's brake is IPT_AD_STICK_Y on the same stick (model2.cpp:1812), so a
-// curve on Y would bend a pedal. devnotes/steering-curve.md §3.1.
+// Shape the left stick X and publish port 0's sample to the read-out. Shaping is per port (both
+// seats of a two-seat cabinet get it); the read-out is player 1's. X only — desert's brake is
+// IPT_AD_STICK_Y on the same stick, a curve on Y would bend a pedal.
 void libretro_m2_pad_device::shape_and_publish_steer()
 {
 	const int32_t raw    = m_axes[AXIS_LEFT_X];
@@ -884,23 +874,12 @@ void libretro_m2_input::input_init(running_machine &machine)
 	// still empty at this point and the dump comes out with no fields at all. It is taken from
 	// libretro_m2_osd_interface::update() instead, behind safe_to_read(). See m2vk_inputdump.h.
 
-	// MAME's own analog shaping, captured while the machine's options are in hand. Everything this
-	// module emits on an absolute axis goes through input_device_joystick::adjust_absolute_value
-	// (inputdev.cpp:475), which applies these two and which this OSD overrides for nothing — so the
-	// middle 70 % of stick travel is the whole of a wheel's lock to lock. Step 2 of
-	// devnotes/steering-curve.md inverts exactly this transform for the steering axis and no other,
-	// which is why the numbers are read rather than assumed: a user who has overridden either one
-	// still gets a correct inversion.
-	//
-	// ⚠️ The steering DETECTOR is deliberately not here. The port list is still empty at this point;
-	// see m2vk_steer.h.
+	// Capture MAME's joystick_deadzone/saturation while the options are in hand — the pre-comp
+	// inverts them for the steering axis alone. Read rather than hard-coded so a user override is
+	// still inverted correctly. Detector runs later, from update(), because the port list is empty
+	// here (m2vk_steer.h).
 	m2vk::steer().deadzone   = machine.options().joystick_deadzone();
 	m2vk::steer().saturation = machine.options().joystick_saturation();
-
-	// The M2VK_STEER_* switches — read here rather than at the detector's one-shot so that they are in
-	// place well before the first frontend sample, and so that a machine with no paddle still parses
-	// them and can report them. Each one overrides the core option that supplies the same number, which
-	// retro_load_game() has already parked; this recomposes the two.
 	m2vk::steer_config();
 
 	// Resolved once, here, and shared by every pad: the row belongs to the machine and a port has no say

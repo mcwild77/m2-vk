@@ -180,8 +180,7 @@ void libretro_m2_osd_interface::osd_exit()
 	// the gun read-out holds ioport pointers into the machine being torn down
 	m2vk::gun_log_close();
 
-	// same for the steering detector's located paddle fields, and it drops the detected flag with
-	// them: a second load must decide for itself whether that machine steers
+	// same for the steering detector's paddle fields — a second load re-decides
 	m2vk::steer_close();
 
 	if (m_input)
@@ -295,11 +294,8 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// writing anything, so a run without it is unchanged.
 	m2vk::gun_log_frame(machine());
 
-	// The steering detector, and M2VK_STEER_LOG's read-out with it. Here for the same reason the
-	// lightgun read-out is: osd().init() runs before ioport_manager::initialize(), so this is the
-	// first point at which the machine can be asked whether it has an IPT_PADDLE field. The detector
-	// runs whether or not the read-out was asked for — steer().active is what the shaping gates on,
-	// and the pad calls m2vk::steer_shape() every frame from publish_steer(). devnotes/steering-curve.md.
+	// Steering detector + M2VK_STEER_LOG read-out. Here rather than in input_init() because the port
+	// list is empty there — same trap as the gun read-out above.
 	m2vk::steer_frame(machine());
 
 	// The layout editor's data source (M2VK_INPUT_DUMP), one-shot. Here rather than in input_init() for
@@ -409,9 +405,7 @@ void libretro_m2_osd_interface::capture_frame()
 	if (!m2vk::capturing())
 	{
 		m2vk::reticle_blit(m_fb.data(), w, h);
-
-		// The steering read-out, on the same terms and after the reticle so that the two agree with the
-		// Vulkan path's draw order — the bar is over the cross there, so it is over it here.
+		// Steering bar over the reticle, matching the Vulkan draw order.
 		m2vk::steerbar_blit(m_fb.data(), w, h);
 	}
 }
