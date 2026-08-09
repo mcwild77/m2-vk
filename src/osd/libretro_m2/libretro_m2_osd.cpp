@@ -6,6 +6,7 @@
 #include "libretro_m2_input.h"
 #include "m2vk_frame.h"
 #include "m2vk_reticle.h"
+#include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 
 #include "emu.h"
@@ -18,6 +19,7 @@
 #include "m2vk_gunlog.h"
 #include "m2vk_inputdump.h"
 #include "m2vk_savestate.h"
+#include "m2vk_steer.h"
 
 #include "modules/monitor/monitor_module.h"
 #include "modules/output/output_module.h"
@@ -178,6 +180,10 @@ void libretro_m2_osd_interface::osd_exit()
 	// the gun read-out holds ioport pointers into the machine being torn down
 	m2vk::gun_log_close();
 
+	// same for the steering detector's located paddle fields, and it drops the detected flag with
+	// them: a second load must decide for itself whether that machine steers
+	m2vk::steer_close();
+
 	if (m_input)
 	{
 		m_input->exit();
@@ -289,6 +295,13 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// writing anything, so a run without it is unchanged.
 	m2vk::gun_log_frame(machine());
 
+	// The steering detector, and M2VK_STEER_LOG's read-out with it. Here for the same reason the
+	// lightgun read-out is: osd().init() runs before ioport_manager::initialize(), so this is the
+	// first point at which the machine can be asked whether it has an IPT_PADDLE field. The detector
+	// runs whether or not the read-out was asked for — steer().active is what the shaping gates on,
+	// and the pad calls m2vk::steer_shape() every frame from publish_steer(). devnotes/steering-curve.md.
+	m2vk::steer_frame(machine());
+
 	// The layout editor's data source (M2VK_INPUT_DUMP), one-shot. Here rather than in input_init() for
 	// the same reason the read-out above resolves here: osd().init() runs before
 	// ioport_manager::initialize(), so a dump taken there reports no fields at all on a set that has
@@ -394,7 +407,13 @@ void libretro_m2_osd_interface::capture_frame()
 	// here as well would put one into MAME's frame, where the hardware renderer's 3D would then be
 	// composited over the top of it.
 	if (!m2vk::capturing())
+	{
 		m2vk::reticle_blit(m_fb.data(), w, h);
+
+		// The steering read-out, on the same terms and after the reticle so that the two agree with the
+		// Vulkan path's draw order — the bar is over the cross there, so it is over it here.
+		m2vk::steerbar_blit(m_fb.data(), w, h);
+	}
 }
 
 

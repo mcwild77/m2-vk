@@ -175,6 +175,12 @@ private:
 
 	void update_diagnostic(retro_input_state_t state_cb, unsigned const *layout);
 
+	// Runs the steering chain on the primary stick X and publishes port 0's before-and-after into
+	// m2vk::steer() for the read-out. Not const: the shaped value is written back into m_axes, which
+	// is the whole of how devnotes/steering-curve.md reaches MAME. A no-op unless the machine steers
+	// and a shape has been named — see m2vk_steer.h.
+	void shape_and_publish_steer();
+
 	unsigned         m_diagnostic;
 	unsigned const  *m_layout;      // never null; see the constructor
 	int32_t   m_axes[AXIS_COUNT];

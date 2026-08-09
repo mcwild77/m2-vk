@@ -13,6 +13,7 @@
 
 char const *const SETS_airwlkrs[] = { "airwlkrs", nullptr };
 char const *const SETS_daytona[] = { "daytona", nullptr };
+char const *const SETS_desert[] = { "desert", nullptr };
 char const *const SETS_doa[] = { "doa", nullptr };
 char const *const SETS_dynamcop[] = { "dynamcop", nullptr };
 char const *const SETS_gunblade[] = { "gunblade", nullptr };
@@ -161,6 +162,49 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// tank cabinet: wheel, one pedal, six buttons. The buttons keep the generic row's order, so nothing a player
+	// has learned moves and only the wording arrives. Two controls the generic row cannot describe: BRAKE is an
+	// IPT_AD_STICK_Y, i.e. the left stick's Y axis and not a trigger, and there is no IPT_PEDAL2 at all, so L2
+	// does nothing and is left unlabelled.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"desert",
+		SETS_desert,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Machine Gun */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Cannon */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Shift */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 VR1 (Blue) */
+			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON5 VR2 (Green) */
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON6 VR3 (Red) */
+			SOURCE_NONE,  /* BUTTON7 Button 7 — the machine declares no IPT_BUTTON7 — leaving it on the L2 threshold, as the generic row does, binds a button that does not exist */
+			SOURCE_NONE,  /* BUTTON8 Button 8 — no IPT_BUTTON8 either; the accelerator on R2 is IPT_PEDAL and is bound outside the layout */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Machine Gun",
+			/*  1 Y        BUTTON3 */ "Shift",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Cannon",
+			/*  9 X        BUTTON4 */ "VR1 (Blue)",
+			/* 10 L        BUTTON6 */ "VR3 (Red)",
+			/* 11 R        BUTTON5 */ "VR2 (Green)",
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ "Accelerator",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Steering",
+			/* 17 LSTICK_Y         */ "Brake",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// three buttons: Hold / Punch / Kick
 	// verified: NOT YET MEASURED IN GAME
 	{
@@ -288,8 +332,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
-			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 View 1 (Zoom In) */
-			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 View 2 (Zoom Out) */
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON3 View 1 (Zoom In) */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON4 View 2 (Zoom Out) */
 			SOURCE_NONE,  /* BUTTON5 Button 5 */
 			SOURCE_NONE,  /* BUTTON6 Button 6 */
 			SOURCE_NONE,  /* BUTTON7 Button 7 */
@@ -297,16 +341,16 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			SOURCE_NONE,  /* BUTTON9 Button 9 */
 		},
 		{
-			/*  0 B                */ nullptr,
-			/*  1 Y        BUTTON3 */ "View 1 (Zoom In)",
+			/*  0 B        BUTTON3 */ "View 1 (Zoom In)",
+			/*  1 Y                */ nullptr,
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
 			/*  4 UP               */ nullptr,
 			/*  5 DOWN             */ nullptr,
 			/*  6 LEFT             */ nullptr,
 			/*  7 RIGHT            */ nullptr,
-			/*  8 A                */ nullptr,
-			/*  9 X        BUTTON4 */ "View 2 (Zoom Out)",
+			/*  8 A        BUTTON4 */ "View 2 (Zoom Out)",
+			/*  9 X                */ nullptr,
 			/* 10 L        BUTTON2 */ "Shift Down",
 			/* 11 R        BUTTON1 */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
@@ -954,4 +998,4 @@ constexpr game_layout GAME_LAYOUTS[] = {
 	}
 };
 
-static_assert(std::size(GAME_LAYOUTS) == 22, "regenerate input_layouts.ipp");
+static_assert(std::size(GAME_LAYOUTS) == 23, "regenerate input_layouts.ipp");

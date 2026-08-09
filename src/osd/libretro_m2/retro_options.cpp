@@ -142,6 +142,98 @@ const retro_core_option_v2_definition DEFINITIONS[] = {
 		},
 		"stipple"
 	},
+	{
+		m2opt::KEY_STEERING_RESPONSE,
+		"Steering Response",
+		nullptr,
+		"How stick movement maps to the wheel on the driving games. A real cabinet's wheel is most of "
+		"a turn lock to lock and a thumbstick is about a centimetre, so mapping the two straight onto "
+		"each other makes the car dart at the slightest touch — that is what Linear does, and it is "
+		"what this core did before. The other settings keep full lock at full deflection but make the "
+		"movement around centre finer, which is what lets you hold a line. Stronger is finer. Only "
+		"affects games with a wheel; the fighting and gun games are untouched. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			// One entry per m2opt::steering_response, in that order — get_steering_response() returns
+			// the position in this list and STEERING_RESPONSE_GAMMA is indexed by it, so a reordering
+			// here silently reassigns every curve.
+			{ m2opt::STEERING_RESPONSE_VALUES[m2opt::STEER_LINEAR],      nullptr },
+			{ m2opt::STEERING_RESPONSE_VALUES[m2opt::STEER_SLIGHT],      nullptr },
+			{ m2opt::STEERING_RESPONSE_VALUES[m2opt::STEER_MEDIUM],      nullptr },
+			{ m2opt::STEERING_RESPONSE_VALUES[m2opt::STEER_STRONG],      nullptr },
+			{ m2opt::STEERING_RESPONSE_VALUES[m2opt::STEER_VERY_STRONG], nullptr },
+			{ nullptr, nullptr }
+		},
+		// Slight (gamma 1.30), decided by the hand-check on 2026-08-08 and NOT by the survey: Medium was
+		// the proposed default and it was played back as twitchy and "barely better than Linear", which
+		// is the failure mode a *too strong* curve has — the fine centre is bought with a coarse outer
+		// travel, so the correction that leaves the centre lands nowhere near where the thumb aimed.
+		// steering-handcheck.md Test 2/3. ⚠️ detail::g_opt_gamma in m2vk_steer.h must agree with this
+		// and nothing checks that it does.
+		m2opt::STEERING_RESPONSE_VALUES[m2opt::STEER_SLIGHT]
+	},
+	{
+		m2opt::KEY_STEERING_DEADZONE,
+		"Steering Deadzone",
+		nullptr,
+		"How far the stick must move before the wheel does. Raise it if the car wanders on a straight "
+		"with your thumb off the stick; a worn stick needs more than a new one. The travel it costs is "
+		"given back to the rest of the sweep rather than thrown away, so a larger deadzone does not "
+		"cost you lock. Only affects games with a wheel. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			// The value IS the percentage, parsed by get_steering_deadzone().
+			{ "0%",  "0% (off)" },
+			{ "2%",  "2%" },
+			{ "5%",  "5%" },
+			{ "8%",  "8%" },
+			{ "10%", "10%" },
+			{ "15%", "15%" },
+			{ "20%", "20%" },
+			{ nullptr, nullptr }
+		},
+		"5%"
+	},
+	{
+		m2opt::KEY_STEERING_RANGE,
+		"Steering Range",
+		nullptr,
+		"How much of the wheel full stick deflection reaches. At 100% the stick's edge is full lock. "
+		"Lowering it trades top-end lock for finer control everywhere, which suits the tracks that "
+		"never ask for a hairpin — but if you cannot get round one, it is set too low. Only affects "
+		"games with a wheel. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "100%", "100% (full lock)" },
+			{ "90%",  "90%" },
+			{ "80%",  "80%" },
+			{ "70%",  "70%" },
+			{ "60%",  "60%" },
+			{ nullptr, nullptr }
+		},
+		"100%"
+	},
+	{
+		m2opt::KEY_STEERING_DISPLAY,
+		"Steering Display",
+		nullptr,
+		"Draws a bar across the top of the screen showing how much steering the game is actually "
+		"receiving: red is the wheel you are not using, green is the wheel you are. A white notch "
+		"shows where the stick itself is, so the gap between the notch and the end of the green is "
+		"what the three settings above are doing. Only appears on games with a wheel. Meant for "
+		"setting the steering up rather than for playing with it on. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "off", "Off" },
+			{ "on",  "On" },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
 	{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, { { nullptr, nullptr } }, nullptr }
 };
 
@@ -183,8 +275,12 @@ bool declare_v1(retro_environment_t environ_cb)
 }
 
 // The pre-options form: one string per option, "description; first|second", where the first value
-// listed is the default. Our defaults are the first value in every option above, which this relies
-// on — if that ever stops being true this has to reorder rather than copy.
+// listed is the default.
+//
+// ⚠️ It therefore REORDERS rather than copies — the default is emitted first and then skipped in the
+// loop. That used to be a no-op because every option's default was also its first value; it stopped
+// being one with model2_steering_deadzone, whose values run 0% to 20% in the order a player wants to
+// scroll them and whose default is 5%. Do not "simplify" this into a straight copy.
 bool declare_variables(retro_environment_t environ_cb)
 {
 	static std::vector<std::string> text;
@@ -212,6 +308,36 @@ bool declare_variables(retro_environment_t environ_cb)
 		}
 	}
 	return environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, vars.data());
+}
+
+
+// "<n>%" as a fraction, or the fallback if it is anything else. A bare number is accepted with the
+// same meaning, so a hand-written .opt file saying 12 and one saying 12% agree; nothing else is.
+float percent_option(retro_environment_t environ_cb, char const *key, float fallback)
+{
+	const std::string value = m2opt::get(environ_cb, key);
+	if (value.empty())
+		return fallback;
+
+	unsigned long n = 0;
+	std::size_t used = 0;
+	try
+	{
+		n = std::stoul(value, &used);
+	}
+	catch (std::exception const &)
+	{
+		return fallback;
+	}
+
+	// Exactly the digits, then an optional '%' and nothing after it. std::stoul on its own would take
+	// a leading '+', leading whitespace and a 0x prefix, and would read "50 per cent" as 50.
+	if ((used != value.size()) && ((used + 1 != value.size()) || (value[used] != '%')))
+		return fallback;
+	if (n > 100)
+		return fallback;
+
+	return float(n) / 100.0f;
 }
 
 
@@ -322,11 +448,41 @@ bool m2opt::get_flat_luma(retro_environment_t environ_cb)
 	return get(environ_cb, KEY_FLAT_LUMA) == "on";
 }
 
+bool m2opt::get_steering_display(retro_environment_t environ_cb)
+{
+	return get(environ_cb, KEY_STEERING_DISPLAY) == "on";
+}
+
 unsigned m2opt::get_transparency(retro_environment_t environ_cb)
 {
 	// Tested against the enhancement rather than against the default, so that anything unrecognised —
 	// a frontend's invention, a hand-written .opt file — lands on the accurate screen door.
 	return (get(environ_cb, KEY_TRANSPARENCY) == "blended") ? 1 : 0;
+}
+
+unsigned m2opt::get_steering_response(retro_environment_t environ_cb)
+{
+	const std::string value = get(environ_cb, KEY_STEERING_RESPONSE);
+	for (unsigned i = 0; i < STEER_RESPONSE_COUNT; i++)
+	{
+		if (value == STEERING_RESPONSE_VALUES[i])
+			return i;
+	}
+
+	// Not Linear. Unlike the other fallbacks here there is no "does nothing" answer that is obviously
+	// safer — Linear is a steering feel like any other, and the one this option exists to move away
+	// from — so an unrecognised value lands on what the menu would have shown.
+	return STEER_SLIGHT;
+}
+
+float m2opt::get_steering_deadzone(retro_environment_t environ_cb)
+{
+	return percent_option(environ_cb, KEY_STEERING_DEADZONE, 0.05f);
+}
+
+float m2opt::get_steering_range(retro_environment_t environ_cb)
+{
+	return percent_option(environ_cb, KEY_STEERING_RANGE, 1.0f);
 }
 
 bool m2opt::updated(retro_environment_t environ_cb)

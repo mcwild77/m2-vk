@@ -41,6 +41,7 @@
 
 #include "m2vk_frame.h"
 #include "m2vk_reticle.h"
+#include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 
 #include "renderer_vk/shaders/downsample_frag_spv.h"
@@ -48,6 +49,7 @@
 #include "renderer_vk/shaders/overlay_frag_spv.h"
 #include "renderer_vk/shaders/passthrough_frag_spv.h"
 #include "renderer_vk/shaders/reticle_frag_spv.h"
+#include "renderer_vk/shaders/steerbar_frag_spv.h"
 
 #include <algorithm>
 #include <array>
@@ -170,6 +172,7 @@ VkPipeline            s_pipeline = VK_NULL_HANDLE;        // opaque: the under l
 VkPipeline            s_pipeline_over = VK_NULL_HANDLE;   // discards pixel 0: the over layer
 VkPipeline            s_pipeline_resolve = VK_NULL_HANDLE; // M2VK_SS only: the supersample resolve
 VkPipeline            s_pipeline_reticle = VK_NULL_HANDLE; // the lightgun crosshair, over everything
+VkPipeline            s_pipeline_steerbar = VK_NULL_HANDLE; // the steering read-out, over that
 
 // Captured when the ring is built, so that teardown does not depend on the context's state having
 // survived — and so that the funcs table is one pointer chase away in the per-frame path.
@@ -267,6 +270,41 @@ struct reticle_push
 // disagreement here reads as a reticle drawn at the wrong place or the wrong size rather than as an
 // error.
 static_assert(sizeof(reticle_push) == 36, "reticle.frag's push block is 9 words");
+
+
+//============================================================
+//  the steering read-out bar
+//============================================================
+
+// steerbar.frag's push block. Same arrangement as the reticle's: the geometry is copied out of
+// m2vk::STEERBAR and the colours out of m2vk::STEERBAR_COLOUR at fill time, so the software blitter
+// and this share one definition of both and the shader carries no constants of its own.
+//
+// The rectangle is in ATTACHMENT pixels rather than picture pixels, which is the one place this
+// differs from the reticle and is deliberate: the bar is a screen-space panel defined as a fraction
+// of the picture, so it should stretch with the attachment on both axes, while the cross is a shape
+// and must not.
+struct steerbar_push
+{
+	float    ox, oy;
+	float    sx, sy;
+	float    value;
+	float    raw;
+	float    border_u;
+	float    border_v;
+	float    tick_half;
+	float    centre_half;
+	uint32_t c_border;
+	uint32_t c_empty;
+	uint32_t c_fill;
+	uint32_t c_centre;
+	uint32_t c_tick;
+};
+
+// Two vec2s at offsets 0 and 8, then eleven scalars — std430 puts nothing between them, so the struct
+// is the block verbatim. Same reasoning as the reticle's assert: the two are edited in different
+// files and a disagreement reads as a bar drawn in the wrong place rather than as an error.
+static_assert(sizeof(steerbar_push) == 60, "steerbar.frag's push block is 15 words");
 
 // model2_internal_res's value, parked here by retro_load_game before the ring exists; 0x0 is "the
 // hardware's own". The environment switches override it — see set_option_resolution()'s comment in
@@ -854,15 +892,15 @@ bool build_descriptors(uint32_t slot_count)
 
 bool build_pipeline()
 {
-	// The push constant belongs to the resolve and the reticle — the two layer pipelines declare no
-	// push block and never write one — but a pipeline layout is shared by all of them, and a range no
+	// The push constant belongs to the resolve, the reticle and the steering bar — the two layer
+	// pipelines declare no push block and never write one — but a pipeline layout is shared by all of them, and a range no
 	// shader reads costs nothing. One range covering the larger of the two blocks rather than a second
 	// layout: the ordinary pipelines then stay identical whether either extra is in play, which is
 	// what makes "M2VK_SS unset changes nothing" and "no gun changes nothing" cheap to believe.
 	VkPushConstantRange push{};
 	push.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	push.offset = 0;
-	push.size = uint32_t(std::max(sizeof(resolve_push), sizeof(reticle_push)));
+	push.size = uint32_t(std::max({ sizeof(resolve_push), sizeof(reticle_push), sizeof(steerbar_push) }));
 
 	VkPipelineLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -880,6 +918,7 @@ bool build_pipeline()
 	VkShaderModule frag_over = VK_NULL_HANDLE;
 	VkShaderModule frag_resolve = VK_NULL_HANDLE;
 	VkShaderModule frag_reticle = VK_NULL_HANDLE;
+	VkShaderModule frag_steerbar = VK_NULL_HANDLE;
 	auto const make_module = [](uint32_t const *code, size_t bytes, VkShaderModule &out)
 	{
 		VkShaderModuleCreateInfo info{};
@@ -893,7 +932,8 @@ bool build_pipeline()
 			&& make_module(PASSTHROUGH_FRAG_SPV, sizeof(PASSTHROUGH_FRAG_SPV), frag)
 			&& make_module(OVERLAY_FRAG_SPV, sizeof(OVERLAY_FRAG_SPV), frag_over)
 			&& ((s_ss == 1) || make_module(DOWNSAMPLE_FRAG_SPV, sizeof(DOWNSAMPLE_FRAG_SPV), frag_resolve))
-			&& make_module(RETICLE_FRAG_SPV, sizeof(RETICLE_FRAG_SPV), frag_reticle);
+			&& make_module(RETICLE_FRAG_SPV, sizeof(RETICLE_FRAG_SPV), frag_reticle)
+			&& make_module(STEERBAR_FRAG_SPV, sizeof(STEERBAR_FRAG_SPV), frag_steerbar);
 
 	if (ok)
 	{
@@ -1018,7 +1058,20 @@ bool build_pipeline()
 			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_reticle),
 					"vkCreateGraphicsPipelines (reticle)");
 		}
+
+		// And the steering bar, on the same terms and for the same reason — built unconditionally, so
+		// that switching model2_steering_display on mid-lap is a per-frame predicate and never a shader
+		// compile. It is one more fragment shader over the same fullscreen triangle.
+		if (ok)
+		{
+			stages[1].module = frag_steerbar;
+			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_steerbar),
+					"vkCreateGraphicsPipelines (steerbar)");
+		}
 	}
+
+	if (frag_steerbar != VK_NULL_HANDLE)
+		s_fns.destroy_shader_module(s_device, frag_steerbar, nullptr);
 
 	if (frag_reticle != VK_NULL_HANDLE)
 		s_fns.destroy_shader_module(s_device, frag_reticle, nullptr);
@@ -1041,6 +1094,8 @@ bool build_pipeline()
 
 void destroy_shared()
 {
+	if (s_pipeline_steerbar != VK_NULL_HANDLE)
+		s_fns.destroy_pipeline(s_device, s_pipeline_steerbar, nullptr);
 	if (s_pipeline_reticle != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline_reticle, nullptr);
 	if (s_pipeline_resolve != VK_NULL_HANDLE)
@@ -1061,6 +1116,7 @@ void destroy_shared()
 	if (s_render_pass != VK_NULL_HANDLE)
 		s_fns.destroy_render_pass(s_device, s_render_pass, nullptr);
 
+	s_pipeline_steerbar = VK_NULL_HANDLE;
 	s_pipeline_reticle = VK_NULL_HANDLE;
 	s_pipeline_resolve = VK_NULL_HANDLE;
 	s_pipeline_over = VK_NULL_HANDLE;
@@ -1087,6 +1143,7 @@ void forget_ring()
 	s_dump_mapped = nullptr;
 	s_dump_buffer = VK_NULL_HANDLE;
 	s_dump_memory = VK_NULL_HANDLE;
+	s_pipeline_steerbar = VK_NULL_HANDLE;
 	s_pipeline_reticle = VK_NULL_HANDLE;
 	s_pipeline_resolve = VK_NULL_HANDLE;
 	s_pipeline_over = VK_NULL_HANDLE;
@@ -1689,6 +1746,73 @@ void draw_reticles(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 	}
 }
 
+// The steering read-out bar, over the reticle and everything else — it is an instrument laid on top
+// of the picture, not part of it. One scissored fullscreen triangle, and nothing is drawn and no
+// state is touched unless model2_steering_display asked for it on a machine that steers, which is
+// what keeps every accuracy fixture unmoved (m2vk_steerbar.h).
+//
+// `fallback_set` is bound for the reason draw_reticles binds it: the pipeline layout declares a
+// combined image sampler this shader does not read, and the polygon pass ahead of it leaves set 0
+// bound with a different layout.
+void draw_steerbar(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height, VkDescriptorSet fallback_set)
+{
+	if (s_pipeline_steerbar == VK_NULL_HANDLE)
+		return;
+
+	m2vk::steerbar_state const &b = m2vk::steerbar_get();
+	if (!b.on || !m2vk::steerbar_on())
+		return;
+
+	// The rectangle in attachment pixels. Both fractions are of the attachment rather than of the
+	// picture scaled up, which is the same thing and avoids a second rounding — and it is why this
+	// needs no scale factor where the reticle needs one.
+	steerbar_push push{};
+	push.sx = m2vk::STEERBAR.width * float(draw_width);
+	push.sy = m2vk::STEERBAR.height * float(draw_height);
+	push.ox = (float(draw_width) - push.sx) * 0.5f;
+	push.oy = m2vk::STEERBAR.top * float(draw_height);
+	push.value = b.value;
+	push.raw = b.raw;
+	push.border_u = m2vk::STEERBAR.border_u;
+	push.border_v = m2vk::STEERBAR.border_v;
+	push.tick_half = m2vk::STEERBAR.tick_half;
+	push.centre_half = m2vk::STEERBAR.centre_half;
+	push.c_border = m2vk::STEERBAR_COLOUR[m2vk::STEERBAR_BORDER];
+	push.c_empty = m2vk::STEERBAR_COLOUR[m2vk::STEERBAR_EMPTY];
+	push.c_fill = m2vk::STEERBAR_COLOUR[m2vk::STEERBAR_FILL];
+	push.c_centre = m2vk::STEERBAR_COLOUR[m2vk::STEERBAR_CENTRE];
+	push.c_tick = m2vk::STEERBAR_COLOUR[m2vk::STEERBAR_TICK];
+
+	// The scissor is the bar's own box, clamped. The shader discards outside it anyway; this is what
+	// stops the other 180000 fragments being shaded to find that out.
+	const int32_t x0 = std::max(0, int32_t(push.ox));
+	const int32_t y0 = std::max(0, int32_t(push.oy));
+	const int32_t x1 = std::min(int32_t(draw_width), int32_t(push.ox + push.sx) + 1);
+	const int32_t y1 = std::min(int32_t(draw_height), int32_t(push.oy + push.sy) + 1);
+	if ((x1 <= x0) || (y1 <= y0))
+		return;
+
+	s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_steerbar);
+	s_fns.cmd_bind_descriptor_sets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
+			0, 1, &fallback_set, 0, nullptr);
+
+	VkRect2D box{};
+	box.offset = { x0, y0 };
+	box.extent = { uint32_t(x1 - x0), uint32_t(y1 - y0) };
+	s_fns.cmd_set_scissor(cmd, 0, 1, &box);
+
+	s_fns.cmd_push_constants(cmd, s_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
+	s_fns.cmd_draw(cmd, 3, 1, 0, 0);
+
+	// Put the scissor back, for draw_reticles's reason: nothing is drawn after this today, and leaving
+	// dynamic state narrowed for whoever adds a draw is the trap vk_geom.cpp's per-polygon scissor has
+	// to avoid.
+	VkRect2D full{};
+	full.offset = { 0, 0 };
+	full.extent = { draw_width, draw_height };
+	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
+}
+
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
 // passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0. `draw_3d` says
 // whether the polygon pass has anything to put between the two.
@@ -1810,6 +1934,11 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	// resolve, so that at n>1 it is drawn at n times the size and comes back down antialiased along
 	// with everything else.
 	draw_reticles(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
+
+	// And the steering bar over that, inside the supersampled pass for the same reason: at n>1 it is
+	// drawn n times the size and comes back down antialiased with everything else, rather than being
+	// stamped on afterwards at a different sharpness from the picture under it.
+	draw_steerbar(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
 
 	s_fns.cmd_end_render_pass(slot.cmd);
 

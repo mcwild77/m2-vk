@@ -8,13 +8,16 @@
     core, MAME's own options are not exposed, and anything a frontend already does better (video
     scaling, audio latency, input remapping) is left to the frontend.
 
-    Every option is read in retro_load_game(). Four of the six are then re-read by retro_run() when
-    the frontend raises GET_VARIABLE_UPDATE, and apply on the next frame:
+    Every option is read in retro_load_game(). All but two are then re-read by retro_run() when the
+    frontend raises GET_VARIABLE_UPDATE, and apply on the next frame:
 
-      model2_internal_res    the renderer compares it against the ring it built and rebuilds
-      model2_flat_shading    a global the polygon seam reads, so the next frame simply sees it
-      model2_flat_luma       the same, resolved per polygon as it crosses the seam
-      model2_transparency    a global the polygon pass latches at the top of each upload
+      model2_internal_res       the renderer compares it against the ring it built and rebuilds
+      model2_flat_shading       a global the polygon seam reads, so the next frame simply sees it
+      model2_flat_luma          the same, resolved per polygon as it crosses the seam
+      model2_transparency       a global the polygon pass latches at the top of each upload
+      model2_steering_deadzone  parked in m2vk::steer(), which the pad reads as it shapes the axis
+      model2_steering_response  the same
+      model2_steering_range     the same
 
     The other two cannot be live and retro_run() says so rather than half-applying them:
     model2_renderer decides whether hardware render was declared at all, which happens before the
@@ -87,6 +90,31 @@ inline constexpr char const *KEY_FLAT_LUMA = "model2_flat_luma";
 // both-renderers rule, and an A/B or resolution-invariance run must leave it alone.
 inline constexpr char const *KEY_TRANSPARENCY = "model2_transparency";
 
+// The three steering options, devnotes/steering-curve.md §3.5. They shape the left stick's X axis on
+// the 30 GAME entries that declare an IPT_PADDLE, and on nothing else — the machine is asked rather
+// than a table consulted, so there is nothing to author and nothing to keep in sync.
+//
+// 🚨 They are named for what a player experiences and never for the maths: the Response values are
+// words, and the gammas behind them are an implementation detail that must not appear in a value
+// string. Same rule that makes model2_internal_res list sizes rather than multipliers.
+//
+// ⚠️ Unlike every rendering option here, the default is NOT the untouched path — a 270° wheel mapped
+// linearly onto 13 mm of thumb travel is not accuracy, it is the defect. See m2vk_steer.h.
+inline constexpr char const *KEY_STEERING_DEADZONE = "model2_steering_deadzone";
+inline constexpr char const *KEY_STEERING_RESPONSE = "model2_steering_response";
+inline constexpr char const *KEY_STEERING_RANGE    = "model2_steering_range";
+
+// The steering read-out bar across the top of the picture, m2vk_steerbar.h. Not a steering FEEL
+// setting like the three above — it changes no input at all — but it is named with them because it is
+// the instrument for setting them, and a player looking for one will look next to the other.
+//
+// Acts on BOTH renderers, like the reticle and unlike the two Vulkan-only options: it is drawn twice,
+// once by a shader and once by a CPU blit, so that renderer=software stays a usable reference while
+// it is on. ⚠️ Off by default and that is load-bearing rather than a taste — a bar across the top of
+// the picture is pixels neither renderer's 3D path produced, so a fixture run with it on would
+// difference against a background that does not have it.
+inline constexpr char const *KEY_STEERING_DISPLAY = "model2_steering_display";
+
 // The values of that option. Declaration order, and the numbering is what the input module keys its
 // combo table on — so the two lists cannot drift apart, because there is only one list.
 enum diagnostic_input : unsigned
@@ -120,6 +148,31 @@ inline constexpr char const *DIAGNOSTIC_VALUES[DIAG_COUNT] = {
 	"Select + L + R",
 	"Hold Select + L + R" };
 
+// The values of KEY_STEERING_RESPONSE, in declaration order, and the gamma each one names. Kept
+// together for the reason DIAGNOSTIC_VALUES is: the words and the numbers behind them are one list, so
+// there is no second table to drift. The gammas are 1.0 / 1.3 / 1.7 / 2.2 / 3.0 — a curve of
+// |v|^gamma, so above 1 the travel near centre is fine and the travel near lock is coarse, and full
+// lock stays reachable at every setting.
+enum steering_response : unsigned
+{
+	STEER_LINEAR = 0,
+	STEER_SLIGHT,
+	STEER_MEDIUM,
+	STEER_STRONG,
+	STEER_VERY_STRONG,
+	STEER_RESPONSE_COUNT
+};
+
+inline constexpr char const *STEERING_RESPONSE_VALUES[STEER_RESPONSE_COUNT] = {
+	"Linear",
+	"Slight",
+	"Medium",
+	"Strong",
+	"Very Strong" };
+
+inline constexpr float STEERING_RESPONSE_GAMMA[STEER_RESPONSE_COUNT] = {
+	1.0f, 1.3f, 1.7f, 2.2f, 3.0f };
+
 // Publish the option set to the frontend. Must be called from retro_set_environment(), which is
 // where a frontend expects to find out about options — it is called before retro_init().
 void declare(retro_environment_t environ_cb);
@@ -145,10 +198,27 @@ unsigned get_flat_shading(retro_environment_t environ_cb);
 // not declare resolves to the accurate picture rather than to a guess.
 bool get_flat_luma(retro_environment_t environ_cb);
 
+// KEY_STEERING_DISPLAY resolved to the bool m2vk::set_option_steerbar() takes. "on" rather than not
+// "off", for get_flat_luma's reason: an unreadable option must land on the quiet answer.
+bool get_steering_display(retro_environment_t environ_cb);
+
 // KEY_TRANSPARENCY resolved to the 0/1 m2vk::set_option_blend() takes. Anything unrecognised is the
 // accurate screen door, which is the same rule get_diagnostic() follows: a value we do not declare
 // resolves to the default rather than to a guess.
 unsigned get_transparency(retro_environment_t environ_cb);
+
+// KEY_STEERING_RESPONSE resolved to its position in STEERING_RESPONSE_VALUES, i.e. an index into
+// STEERING_RESPONSE_GAMMA. A value the frontend invented resolves to the declared default rather than
+// to Linear: this option has no "off" that is safer than the others, so the right fallback is the one
+// the menu would have shown.
+unsigned get_steering_response(retro_environment_t environ_cb);
+
+// KEY_STEERING_DEADZONE and KEY_STEERING_RANGE as fractions of stick travel. The value strings are
+// percentages and that IS the parse, exactly as get_internal_size() parses "<w>x<h>" — so a hand
+// written .opt file naming a percentage the menu does not list still works. Anything unparseable is
+// the declared default.
+float get_steering_deadzone(retro_environment_t environ_cb);
+float get_steering_range(retro_environment_t environ_cb);
 
 // The frontend's value for an option, or our declared default if the frontend has no value for it
 // (or supports no options at all, which is the retrohost case).

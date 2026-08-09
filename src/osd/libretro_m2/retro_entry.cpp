@@ -33,6 +33,7 @@
 
 #include "m2vk_frame.h"
 #include "m2vk_reticle.h"
+#include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 
 #include "renderer_vk/vk_context.h"
@@ -44,6 +45,10 @@
 #include "emuopts.h"
 #include "drivenum.h"
 #include "main.h"
+
+// after emu.h, which it reads MAME's ioport / running_machine types out of and which only a .cpp may
+// include
+#include "m2vk_steer.h"
 
 #include "corestr.h"
 
@@ -563,6 +568,10 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
 	const bool flat_luma = m2opt::get_flat_luma(s_environ_cb);
 	const unsigned transparency = m2opt::get_transparency(s_environ_cb);
+	const unsigned steer_response = m2opt::get_steering_response(s_environ_cb);
+	const float steer_deadzone = m2opt::get_steering_deadzone(s_environ_cb);
+	const float steer_range = m2opt::get_steering_range(s_environ_cb);
+	const bool steer_display = m2opt::get_steering_display(s_environ_cb);
 
 	// The resolution is logged as "native" rather than as the 0x0 the parser produces for a value it
 	// did not recognise: "model2_internal_res=0x0" reads as a bug in the option, when what it means is
@@ -574,13 +583,17 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	else
 		std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
-	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s\n",
+	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% %s=%s\n",
 			m2opt::KEY_RENDERER, renderer.c_str(),
 			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic],
 			m2opt::KEY_INTERNAL_RES, res_text,
 			m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
 			m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
-			m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple");
+			m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple",
+			m2opt::KEY_STEERING_RESPONSE, m2opt::STEERING_RESPONSE_VALUES[steer_response],
+			m2opt::KEY_STEERING_DEADZONE, double(steer_deadzone) * 100.0,
+			m2opt::KEY_STEERING_RANGE, double(steer_range) * 100.0,
+			m2opt::KEY_STEERING_DISPLAY, steer_display ? "on" : "off");
 
 	// The frontend's remap labels, per game, from the same layout row the pad reads. This is what makes
 	// the Controls menu say "GEAR 1" and "VR1 (Red)" instead of "Button 2" and "Button 6", and it is the
@@ -610,7 +623,9 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	//
 	// Presence, not value: M2VK_SS=99 is refused back to 1x by its reader, and a line saying the switch
 	// was set is still the right thing to have printed.
-	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_FLAT_LUMA", "M2VK_BLEND" })
+	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_FLAT_LUMA", "M2VK_BLEND",
+			"M2VK_STEER_LINEAR", "M2VK_STEER_DEADZONE", "M2VK_STEER_GAMMA", "M2VK_STEER_RANGE",
+			"M2VK_STEERBAR" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -645,6 +660,20 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	m2vk::set_option_force_solid(flat_shading);
 	m2vk::set_option_flat_luma(flat_luma);
 	m2vk::set_option_blend(transparency);
+
+	// The steering shape, parked the same way and read by the pad as it shapes the left stick. It is
+	// set here rather than at input_init() because the options belong to the libretro thread and this
+	// is the only place it has them; input_init() then recomposes them against the M2VK_STEER_*
+	// switches, which override each of the three one for one. devnotes/steering-curve.md §3.5.
+	//
+	// ⚠️ Which games this reaches is not decided here and cannot be: the machine has not started, and
+	// the detector that asks it whether it declares an IPT_PADDLE runs on the first RUNNING frame.
+	m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
+
+	// The read-out bar, which is not part of the shape and is parked separately for that reason: it
+	// changes no input, and the emulation thread reads it to decide whether to sample the paddle port
+	// at all (m2vk_steerbar.h).
+	m2vk::set_option_steerbar(steer_display);
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
 	// composites them itself (m2vk_frame.h). On the software path the two hooks in screen_update()
@@ -836,6 +865,7 @@ RETRO_API void retro_unload_game(void)
 	// so the aim must not: a second game would otherwise open with the first one's crosshair on it
 	// until the frontend next moved the pointer.
 	m2vk::reticle_end_run();
+	m2vk::steerbar_end_run();
 
 	// What was announced, not the high-water mark: the next content load gets a fresh
 	// retro_get_system_av_info and must announce its first frame's size rather than assume the last
@@ -884,6 +914,13 @@ RETRO_API void retro_run(void)
 	//                     that one frame's deferral decision and its push constant agree. Takes effect
 	//                     on the next uploaded frame. Nothing to rebuild: all three pipelines were
 	//                     created at context_reset.
+	//   steering        — three numbers in m2vk::steer(), read by the pad a few lines below this as it
+	//                     shapes the axis. Takes effect on the next frame, which for this option is the
+	//                     whole point: a steering feel is judged by nudging it between laps, and one
+	//                     that needs a content reload to try is unusable.
+	//   steering display — a bool in m2vk_steerbar.cpp, read by the emulation thread on the next frame
+	//                     it publishes and by both blitters on the one after. Takes effect on the next
+	//                     frame; it has to, since it is the instrument for setting the three above.
 	//
 	// model2_renderer and model2_diagnostic_input genuinely cannot: one decides whether hardware
 	// render was declared at all, before the machine started, and the other is baked into the input
@@ -895,11 +932,21 @@ RETRO_API void retro_run(void)
 		const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
 		const bool flat_luma = m2opt::get_flat_luma(s_environ_cb);
 		const unsigned transparency = m2opt::get_transparency(s_environ_cb);
+		const unsigned steer_response = m2opt::get_steering_response(s_environ_cb);
+		const float steer_deadzone = m2opt::get_steering_deadzone(s_environ_cb);
+		const float steer_range = m2opt::get_steering_range(s_environ_cb);
+		const bool steer_display = m2opt::get_steering_display(s_environ_cb);
 
 		m2vk::set_option_resolution(res_width, res_height);
 		m2vk::set_option_force_solid(flat_shading);
 		m2vk::set_option_flat_luma(flat_luma);
 		m2vk::set_option_blend(transparency);
+
+		// Recomposed against the switches rather than assigned, so that a live change means exactly
+		// what the same change at load would — a run pinned by M2VK_STEER_GAMMA stays pinned when the
+		// player touches an unrelated option, which is the failure this would otherwise have.
+		m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
+		m2vk::set_option_steerbar(steer_display);
 
 		char res_text[32];
 		if ((res_width == 0) || (res_height == 0))
@@ -908,11 +955,14 @@ RETRO_API void retro_run(void)
 			std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
 		s_log_cb(RETRO_LOG_INFO,
-				"[model2] core options changed: %s=%s %s=%s %s=%s %s=%s applied now; %s and %s need a reload\n",
+				"[model2] core options changed: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% applied now; %s and %s need a reload\n",
 				m2opt::KEY_INTERNAL_RES, res_text,
 				m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
 				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
 				m2opt::KEY_TRANSPARENCY, (transparency != 0) ? "blended" : "stipple",
+				m2opt::KEY_STEERING_RESPONSE, m2opt::STEERING_RESPONSE_VALUES[steer_response],
+				m2opt::KEY_STEERING_DEADZONE, double(steer_deadzone) * 100.0,
+				m2opt::KEY_STEERING_RANGE, double(steer_range) * 100.0,
 				m2opt::KEY_RENDERER, m2opt::KEY_DIAGNOSTIC_INPUT);
 	}
 

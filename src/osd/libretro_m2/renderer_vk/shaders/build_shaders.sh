@@ -77,6 +77,7 @@ emit frag passthrough.frag passthrough_frag
 emit frag overlay.frag     overlay_frag
 emit frag downsample.frag  downsample_frag
 emit frag reticle.frag     reticle_frag
+emit frag steerbar.frag    steerbar_frag
 emit vert poly.vert        poly_vert
 
 # poly.frag twice: the general variant, and the specialisation for polygons that cannot discard, which

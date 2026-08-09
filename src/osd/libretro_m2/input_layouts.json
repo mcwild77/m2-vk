@@ -191,6 +191,69 @@
       }
     },
     {
+      "id": "desert",
+      "sets": [
+        "desert"
+      ],
+      "lightgun": false,
+      "note": "tank cabinet: wheel, one pedal, six buttons. The buttons keep the generic row's order, so nothing a player has learned moves and only the wording arrives. Two controls the generic row cannot describe: BRAKE is an IPT_AD_STICK_Y, i.e. the left stick's Y axis and not a trigger, and there is no IPT_PEDAL2 at all, so L2 does nothing and is left unlabelled.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Machine Gun"
+        },
+        {
+          "source": "A",
+          "label": "Cannon"
+        },
+        {
+          "source": "Y",
+          "label": "Shift"
+        },
+        {
+          "source": "X",
+          "label": "VR1 (Blue)"
+        },
+        {
+          "source": "R",
+          "label": "VR2 (Green)"
+        },
+        {
+          "source": "L",
+          "label": "VR3 (Red)"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7",
+          "why": "the machine declares no IPT_BUTTON7 — leaving it on the L2 threshold, as the generic row does, binds a button that does not exist"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8",
+          "why": "no IPT_BUTTON8 either; the accelerator on R2 is IPT_PEDAL and is bound outside the layout"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Machine Gun",
+        "A": "Cannon",
+        "Y": "Shift",
+        "X": "VR1 (Blue)",
+        "L": "VR3 (Red)",
+        "R": "VR2 (Green)",
+        "R2": "Accelerator",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering",
+        "LSTICK_Y": "Brake"
+      }
+    },
+    {
       "id": "doa",
       "sets": [
         "doa"
@@ -386,11 +449,11 @@
           "label": "Shift Down"
         },
         {
-          "source": "Y",
+          "source": "B",
           "label": "View 1 (Zoom In)"
         },
         {
-          "source": "X",
+          "source": "A",
           "label": "View 2 (Zoom Out)"
         },
         {
@@ -415,8 +478,8 @@
         }
       ],
       "labels": {
-        "Y": "View 1 (Zoom In)",
-        "X": "View 2 (Zoom Out)",
+        "B": "View 1 (Zoom In)",
+        "A": "View 2 (Zoom Out)",
         "L": "Shift Down",
         "R": "Shift Up",
         "L2": "Brake Pedal",

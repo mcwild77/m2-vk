@@ -8,6 +8,10 @@
 #include "emu.h"
 #include "emuopts.h"
 
+// after emu.h, which it reads MAME's ioport / running_machine types out of and which only a .cpp may
+// include
+#include "m2vk_steer.h"
+
 #include "util/strformat.h"
 
 #include <algorithm>
@@ -297,6 +301,7 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 	if (kind == RETRO_DEVICE_NONE)
 	{
 		reset();
+		shape_and_publish_steer();
 		return;
 	}
 
@@ -364,6 +369,39 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 	// summing, so there is nothing to fix there. devnotes/lightgun.md §1.2, §2.2, §2.4.
 	if (kind == RETRO_DEVICE_LIGHTGUN)
 		m_axes[AXIS_LEFT_X] = m_axes[AXIS_LEFT_Y] = 0;
+
+	// Last, and it has to be: the gun gate above is part of the chain, so shaping before it would
+	// curve an axis that is about to be thrown away, and the read-out would report a value MAME is
+	// never handed. Everything that writes m_axes[AXIS_LEFT_X] has run by this point.
+	shape_and_publish_steer();
+}
+
+// The steering chain and its sample. m2vk::steer_shape() is the whole of devnotes/steering-curve.md
+// §3.4 — deadzone, curve, range, and the pre-compensation that makes MAME's own deadzone/saturation
+// the identity for this axis — and it returns its argument unchanged unless the machine declares an
+// IPT_PADDLE field and a shape has been named. So on every set that does not steer, and on every run
+// with no M2VK_STEER_* switch set, this function is exactly what it was at step 1: two writes of one
+// value, and a read-out that prints them equal.
+//
+// SHAPING IS PER PORT; only the read-out is port 0's. The published sample is a single line about
+// the steering wheel and the wheel is player 1's, but every pad's own axis is shaped, which is what
+// the two-seat cabinets need.
+//
+// ⚠️ X only, never Y. desert's brake is IPT_AD_STICK_Y on the same stick (model2.cpp:1812), so a
+// curve on Y would bend a pedal. devnotes/steering-curve.md §3.1.
+void libretro_m2_pad_device::shape_and_publish_steer()
+{
+	const int32_t raw    = m_axes[AXIS_LEFT_X];
+	const int32_t shaped = m2vk::steer_shape(raw);
+	m_axes[AXIS_LEFT_X]  = shaped;
+
+	if (m_port != 0)
+		return;
+
+	m2vk::steer_state &s = m2vk::steer();
+	s.raw    = raw;
+	s.shaped = shaped;
+	s.polls++;
 }
 
 // One layout entry to a button state. Everything without the tag bit is an ordinary RetroPad button
@@ -845,6 +883,25 @@ void libretro_m2_input::input_init(running_machine &machine)
 	// first: osd().init() runs at machine.cpp:156 and m_ioport.initialize() at 169, so the port list is
 	// still empty at this point and the dump comes out with no fields at all. It is taken from
 	// libretro_m2_osd_interface::update() instead, behind safe_to_read(). See m2vk_inputdump.h.
+
+	// MAME's own analog shaping, captured while the machine's options are in hand. Everything this
+	// module emits on an absolute axis goes through input_device_joystick::adjust_absolute_value
+	// (inputdev.cpp:475), which applies these two and which this OSD overrides for nothing — so the
+	// middle 70 % of stick travel is the whole of a wheel's lock to lock. Step 2 of
+	// devnotes/steering-curve.md inverts exactly this transform for the steering axis and no other,
+	// which is why the numbers are read rather than assumed: a user who has overridden either one
+	// still gets a correct inversion.
+	//
+	// ⚠️ The steering DETECTOR is deliberately not here. The port list is still empty at this point;
+	// see m2vk_steer.h.
+	m2vk::steer().deadzone   = machine.options().joystick_deadzone();
+	m2vk::steer().saturation = machine.options().joystick_saturation();
+
+	// The M2VK_STEER_* switches — read here rather than at the detector's one-shot so that they are in
+	// place well before the first frontend sample, and so that a machine with no paddle still parses
+	// them and can report them. Each one overrides the core option that supplies the same number, which
+	// retro_load_game() has already parked; this recomposes the two.
+	m2vk::steer_config();
 
 	// Resolved once, here, and shared by every pad: the row belongs to the machine and a port has no say
 	// in it any more. It is a pointer into a constexpr table with static storage duration, so it outlives
