@@ -85,3 +85,7 @@ emit vert poly.vert        poly_vert
 # header comment in poly.frag.
 emit frag poly.frag        poly_frag
 emit frag poly.frag        poly_early_frag -DEARLY_Z=1
+
+# Namco System 22 untextured polygon pass (S2).
+emit vert s22.vert         s22_vert
+emit frag s22.frag         s22_frag

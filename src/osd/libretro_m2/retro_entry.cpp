@@ -35,6 +35,7 @@
 #include "m2vk_reticle.h"
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
+#include "s22_seam.h"
 
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
@@ -694,6 +695,13 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	//                 what the coverage comparison differences against.
 	const bool no_3d = std::getenv("M2VK_NO_3D") != nullptr;
 	m2vk::set_rasterize(!no_3d && (!s_hw_render || (std::getenv("M2VK_SW_3D") != nullptr)));
+
+	// The System 22 GPU pass (S2) owns the 3D under the same condition the Model 2 hardware path does:
+	// a Vulkan context is up and neither M2VK_NO_3D nor M2VK_SW_3D has taken it back. set_gpu(true) both
+	// attaches the record consumer and stops the driver's render_triangle_fan, so software draws no 3D.
+	// In the Model 2 build this is a harmless flag write — no S22 seam site ever calls into it.
+	const bool s22_gpu = s_hw_render && !no_3d && (std::getenv("M2VK_SW_3D") == nullptr);
+	s22::set_gpu(s22_gpu);
 
 	// The content's own directory, plus a place for sets the frontend keeps alongside the core.
 	// The second entry is what makes a clone loadable when its parent set lives elsewhere.

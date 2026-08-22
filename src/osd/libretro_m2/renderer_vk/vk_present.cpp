@@ -38,6 +38,7 @@
 
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_geom.h"
+#include "renderer_vk/s22_geom.h"
 
 #include "m2vk_frame.h"
 #include "m2vk_reticle.h"
@@ -1123,6 +1124,7 @@ void forget_ring()
 {
 	// The polygon pass's own handles belonged to the same device and go the same way.
 	m2vk::geom_forget();
+	s22::geom_forget();
 
 	// Zeroed rather than left stale: the frontend may still hold a pointer to a slot's handover.
 	for (frame_slot &slot : s_slots)
@@ -1242,6 +1244,7 @@ void destroy_ring()
 
 	dump_destroy();
 	m2vk::geom_destroy();
+	s22::geom_destroy();
 	destroy_shared();
 
 	// The frame counts are the point of this line as much as the ring is: they are what says whether
@@ -1568,6 +1571,15 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 		return false;
 	}
 
+	// The System 22 pass, built alongside it and sharing the same render pass and sync index. Stashes
+	// the handles only; its pipeline is built lazily on the first captured frame, so the Model 2 build
+	// pays nothing here.
+	if (!s22::geom_build(iface, s_fns, s_render_pass, count))
+	{
+		destroy_ring();
+		return false;
+	}
+
 	// Set before the loop so that a slot which fails half-built is still destroyed by destroy_ring.
 	s_slot_count = count;
 	for (uint32_t i = 0; i < count; i++)
@@ -1793,7 +1805,7 @@ void draw_steerbar(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
 // passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0. `draw_3d` says
 // whether the polygon pass has anything to put between the two.
-bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool draw_3d, bool dump)
+bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool draw_3d, bool draw_3d_s22, bool dump)
 {
 	if (!check(s_fns.reset_command_pool(s_device, slot.pool, 0), "vkResetCommandPool"))
 		return false;
@@ -1898,6 +1910,12 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	// pixel per square: a fine dither that reads as smooth translucency, which is what it is for.
 	if (draw_3d)
 		m2vk::geom_draw(index, slot.cmd, s_width, s_height, draw_width, draw_height, ss ? s_ss : 1);
+
+	// The System 22 untextured pass (S2). Over the background, in place of the Model 2 3D — the two are
+	// never both live in one build. It draws in painter's order with the depth test off, so it neither
+	// reads nor writes the depth attachment the Model 2 pass shares.
+	if (draw_3d_s22)
+		s22::geom_draw(index, slot.cmd, s_width, s_height, draw_width, draw_height);
 
 	if (draw_over)
 	{
@@ -2117,10 +2135,16 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// a frame's upload and is one behaviour rather than two.
 	const bool draw_3d = (layers != nullptr) && m2vk::geom_upload(index, *record);
 
+	// The System 22 untextured pass. Independent of the Model 2 layers path: the S22 core draws its 3D
+	// over MAME's finished 2D frame (which the seam has stripped of software 3D), so it rides the
+	// passthrough — layers is null and the background is `pixels`. geom_upload returns false in the
+	// Model 2 build (nothing ever captures), so this costs one predicate there.
+	const bool draw_3d_s22 = s22::geom_upload(index);
+
 	const bool dump = !s_dump_done && !s_dump_prefix.empty() && (s_dump_mapped != nullptr)
 			&& (s_frames == s_dump_frame);
 
-	if (!record_and_submit(slot, index, layers != nullptr, draw_3d, dump))
+	if (!record_and_submit(slot, index, layers != nullptr, draw_3d, draw_3d_s22, dump))
 	{
 		if (!s_reported_frame_error)
 		{
@@ -2200,6 +2224,7 @@ void present_end_run()
 {
 	present_shutdown();
 	m2vk::geom_end_run();
+	s22::geom_end_run();
 	s_frames = 0;
 
 	// The record's own serials restart with the run, so the watermarks that chase them have to as

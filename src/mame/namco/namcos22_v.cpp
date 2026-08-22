@@ -9,6 +9,10 @@
 #include "emu.h"
 #include "namcos22.h"
 
+#ifdef S22VK
+#include "libretro_m2/s22_seam.h"
+#endif
+
 
 // poly constructor
 
@@ -441,10 +445,17 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
 			extra.pens += color2;
 	}
 
+#ifdef S22VK
+	s22::submit_quad(clipv, clipverts, color, extra.cmode, m_state.m_is_ss22,
+			extra.texture_enabled, extra.alpha_enabled, direct, u32(extra.pens[0]));
+	if (s22::sw_owns_3d())
+#endif
+	{
 	if (m_state.m_is_ss22)
 		render_triangle_fan<4>(m_cliprect, render_delegate(&namcos22_renderer::renderscanline_poly_ss22, this), clipverts, clipv);
 	else
 		render_triangle_fan<4>(m_cliprect, render_delegate(&namcos22_renderer::renderscanline_poly, this), clipverts, clipv);
+	}
 }
 
 
@@ -532,6 +543,13 @@ void namcos22_renderer::render_sprite(screen_device &screen, bitmap_rgb32 &bitma
 	// scene clip
 	m_cliprect.set(node->data.sprite.cx_min, node->data.sprite.cx_max, node->data.sprite.cy_min, node->data.sprite.cy_max);
 	m_cliprect &= screen.visible_area();
+
+#ifdef S22VK
+	s22::submit_sprite(node->data.sprite.rows, node->data.sprite.cols,
+			node->data.sprite.xpos, node->data.sprite.ypos,
+			node->data.sprite.sizex, node->data.sprite.sizey,
+			node->data.sprite.color, m_state.m_is_ss22);
+#endif
 
 	int offset = 0;
 
@@ -669,6 +687,10 @@ void namcos22_renderer::render_scene_nodes(screen_device &screen, bitmap_rgb32 &
 
 void namcos22_renderer::render_scene(screen_device &screen, bitmap_rgb32 &bitmap)
 {
+#ifdef S22VK
+	s22::frame_begin(m_state.m_is_ss22 ? 1 : 0);
+#endif
+
 	struct namcos22_scenenode *node = &m_scenenode_root;
 	for (int i = NAMCOS22_RADIX_BUCKETS - 1; i >= 0; i--)
 	{
@@ -677,6 +699,10 @@ void namcos22_renderer::render_scene(screen_device &screen, bitmap_rgb32 &bitmap
 	}
 
 	wait("render_scene");
+
+#ifdef S22VK
+	s22::frame_end();
+#endif
 }
 
 
