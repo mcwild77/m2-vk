@@ -73,6 +73,14 @@ bool geom_upload(uint32_t slot);
 void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height,
 		unsigned draw_width, unsigned draw_height);
 
+// The prioverchar over-pass (Super System 22 only). Redraws just the primitives flagged "priority over
+// the text layer" (poly cmode&7==1, sprite cz==0xfe) a SECOND time, after the caller has drawn the OVER
+// text overlay — so those primitives sit above the text, exactly as MAME's mixer priority 7 does. Draws
+// nothing when there is no such primitive (every plain-S22 frame, most SS22 frames). Same args, same
+// pipeline and buffers as geom_draw; restores the full attachment scissor before returning.
+void geom_draw_over(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height,
+		unsigned draw_width, unsigned draw_height);
+
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.
 void geom_end_run();
 

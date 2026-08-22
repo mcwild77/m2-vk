@@ -459,7 +459,7 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
 
 		s22::submit_quad(clipv, clipverts, color, extra.cmode, m_state.m_is_ss22,
 				extra.texture_enabled, direct, u32(extra.pens[0]),
-				extra.bn, extra.shade_enabled, sh,
+				extra.bn, extra.shade_enabled, extra.prioverchar & 1, sh,
 				m_cliprect.left(), m_cliprect.top(), m_cliprect.right(), m_cliprect.bottom());
 	}
 	if (s22::sw_owns_3d())
@@ -548,6 +548,18 @@ void namcos22_renderer::poly3d_drawsprite(
 		extra.alpha = alpha;
 		extra.alpha_enabled = (color & 0x7f) != m_state.m_poly_alpha_color;
 
+#ifdef S22VK
+		// The GPU sprite path: one textured quad per tile, in tree order with the polygons. The mirroring
+		// of a flipped sprite is already in vert[]; only the one-texel flip shift crosses. code_base is the
+		// tile's byte offset into the (RAW) sprite gfx, so get_data(0) is the region base the OSD uploaded.
+		s22::submit_drawsprite(vert, u32(extra.source - gfx->get_data(0)), gfx->rowbytes(),
+				color, flipx, flipy, m_state.m_is_ss22,
+				extra.fogfactor, u32(extra.fogcolor.to_rgba()) & 0x00ffffffu,
+				extra.fadefactor, u32(extra.fadecolor.to_rgba()) & 0x00ffffffu,
+				extra.alpha, extra.alpha_enabled, prioverchar & 1,
+				m_cliprect.left(), m_cliprect.top(), m_cliprect.right(), m_cliprect.bottom());
+		if (s22::sw_owns_3d())
+#endif
 		render_polygon<4, 2>(m_cliprect, render_delegate(&namcos22_renderer::renderscanline_sprite, this), vert);
 	}
 }
@@ -720,6 +732,13 @@ void namcos22_renderer::render_scene(screen_device &screen, bitmap_rgb32 &bitmap
 	s22::set_texture_ram(m_state.m_texture_tilemap, m_state.m_texture_tileattr.get(),
 			m_state.m_texture_tiledata, m_state.m_texture_ayx_to_pixel.get(), m_state.m_palette->pens(),
 			gamma_lut);
+	// The sprite gfx (gfx(2), the "sprite" ROM region) — Super System 22 only; plain System 22 has no
+	// such region and no sprites, so this hands over null and the GPU sprite path never fires. Static and
+	// ROM-derived, so the OSD uploads it once. The region base is gfx(2)->get_data(0) for the RAW layout.
+	if (memory_region *const sr = m_state.machine().root_device().memregion("sprite"))
+		s22::set_sprite_ram(sr->base(), uint32_t(sr->bytes()));
+	else
+		s22::set_sprite_ram(nullptr, 0);
 	{
 		// The per-frame globals of the SS22 shading tail (renderscanline_poly_ss22): screen fade,
 		// poly fade, poly alpha and the four z-fog tables. Same for every quad in the frame, so handed
@@ -2633,11 +2652,13 @@ u32 namcos22s_state::screen_update_namcos22s(screen_device &screen, bitmap_rgb32
 	}
 
 #ifdef S22VK
-	// As screen_update_namcos22, but the topmost text on Super System 22 mixes at priority 6 (the
-	// draw_text_layer at priority 4 is the layered-under text, left in the passthrough background).
-	// Untested — no SS22 ROM is in the set yet — and sprites are z-interleaved with polygons in the
-	// tree, which this flat overlay does not resolve; that is the deferred SS22 compositing question.
-	s22::capture_over(bitmap, screen.priority(), 6, cliprect);
+	// The OVER text overlay. With the GPU owning the 3D, no primitive writes the priority buffer, so the
+	// only priority present is the text tilemap's own value (4) from draw_text_layer above — the priority-6
+	// "text over a polygon" case never arises here. So capture ALL text (priority 4): it is redrawn over
+	// the GPU 3D, which places the text above every NORMAL primitive, exactly as MAME's priority-6 re-mix
+	// does. A primitive flagged prioverchar (poly cmode&7==1, sprite cz==0xfe) is then drawn a second time
+	// over this overlay by geom_draw_over, so it wins over the text — MAME's priority-7 case.
+	s22::capture_over(bitmap, screen.priority(), 4, cliprect);
 #endif
 
 	return 0;

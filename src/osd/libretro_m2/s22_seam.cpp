@@ -218,8 +218,15 @@ void submit(quad const &q)
 
 void submit(sprite const &s)
 {
+	// Node-level, for the S1 diagnostic tap's counting. The GPU consumes sprites per tile (below), from
+	// poly3d_drawsprite, where every parameter is resolved — so this overload no longer feeds the record.
 	g_tap.on_sprite(s);
-	// Sprites are not on the GPU path yet (S2 does quads first; the ROMs present emit none).
+}
+
+void submit(sprite_tile const &s)
+{
+	if (g_gpu_capture)
+		record_sprite(s);
 }
 
 void set_gpu(bool on)
@@ -247,6 +254,12 @@ void set_texture_ram(uint16_t const *ttmap, uint8_t const *ttattr, uint8_t const
 texture_ram const &get_texture_ram()
 {
 	return g_texram;
+}
+
+void set_sprite_ram(uint8_t const *sprite, uint32_t bytes)
+{
+	g_texram.sprite = sprite;
+	g_texram.sprite_bytes = bytes;
 }
 
 // The per-frame globals of the SS22 shading tail. File-scope for the same reason g_texram is: the tap

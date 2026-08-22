@@ -56,13 +56,24 @@ layout(std430, set = 0, binding = 3) readonly buffer ayx_block    { uint ayx[]; 
 layout(std430, set = 0, binding = 4) readonly buffer pal_block    { uint palette[];};  // 0x00RRGGBB pens
 layout(std430, set = 0, binding = 5) readonly buffer cz_block     { uint czram[];  };  // 4 z-fog banks, 0x2000 each
 layout(std430, set = 0, binding = 6) readonly buffer gamma_block  { uint gamma[];  };  // plain-S22 final gamma: rlut|glut|blut
+layout(std430, set = 0, binding = 7) readonly buffer sprite_block { uint sprgfx[]; };  // gfx(2): 8bpp 32x32 sprite tiles
 
 const uint FLAG_TEXTURED = 1u;
 const uint FLAG_SHADE    = 2u;
+const uint FLAG_SPRITE   = 4u;    // this vertex is a sprite tile — take the sprite fetch below
+const uint FLAG_SFLIPX   = 8u;    // sprite: the one-texel x sampling shift
+const uint FLAG_SFLIPY   = 16u;   // sprite: the one-texel y sampling shift
 
 const uint SF0_ZFOG     = 1u << 10;
 const uint SF0_ALPHA_EN = 1u << 11;
 const uint SF0_SS22     = 1u << 12;
+
+// Sprite sf0 (read only under FLAG_SPRITE): fogfactor | fadefactor<<8 | alpha<<16 | flags.
+const uint SSF_ALPHA_EN = 1u << 24;
+
+// Sprite gfx layout: 32 bytes per tile row (line_modulo), 0x1000000 bytes total on Super System 22.
+const uint SPRITE_ROW  = 32u;
+const uint SPRITE_MASK = 0xffffffu;
 
 // Buffer-size masks (entries - 1). Fixed by the hardware; see s22_geom.cpp for the sizes.
 const uint TTDATA_MASK = 0xffffffu;   // 0x1000000 bytes
@@ -78,6 +89,7 @@ uint ayx_at(uint i)    { i &= AYX_MASK;    return (ayx[i >> 2u]    >> ((i & 3u) 
 uint ttmap_at(uint i)  { i &= TTMAP_MASK;  return (ttmap[i >> 1u]  >> ((i & 1u) << 4u)) & 0xffffu; }
 uint czram_at(uint i)  { i &= CZRAM_MASK;  return (czram[i >> 2u]  >> ((i & 3u) << 3u)) & 0xffu; }
 uint gamma_at(uint i)  { i &= 0x3ffu;      return (gamma[i >> 2u]  >> ((i & 3u) << 3u)) & 0xffu; }
+uint sprite_at(uint i) { i &= SPRITE_MASK; return (sprgfx[i >> 2u] >> ((i & 3u) << 3u)) & 0xffu; }
 
 ivec3 unpack_rgb(uint p) { return ivec3(int((p >> 16u) & 0xffu), int((p >> 8u) & 0xffu), int(p & 0xffu)); }
 
@@ -91,6 +103,54 @@ ivec3 mame_scale(ivec3 c, ivec3 s)    { return clamp((c * s) >> 8, 0, 255); }
 void main()
 {
 	const uint attr = v_attr;
+
+	// Sprite tiles (Super System 22): renderscanline_sprite's fetch — a screen-aligned affine textured
+	// quad, no perspective and no shade. u/v ride v_uvw.xy interpolated linearly (ooz = 1); the pens base
+	// is (color & 0x7f) << 8 like the poly path; the tile byte offset is v_bn; fog/fade/alpha ride sf0
+	// (own layout) and the fade colour rides v_base. Handled here and returned; the poly tail is untouched.
+	if ((attr & FLAG_SPRITE) != 0u)
+	{
+		const uint scolor = (attr >> 8u) & 0x7fu;
+		const int  flipx = ((attr & FLAG_SFLIPX) != 0u) ? 1 : 0;
+		const int  flipy = ((attr & FLAG_SFLIPY) != 0u) ? 1 : 0;
+
+		const int lu = int(v_uvw.x) - flipx;   // (int)x_index - flipx
+		const int lv = int(v_uvw.y) - flipy;   // (int)y_index - flipy
+		const uint pen = sprite_at(v_bn + uint(lv) * SPRITE_ROW + uint(lu));
+		if (pen == 0xffu)                       // 0xff is the sprite transparent pen
+			discard;
+
+		ivec3 srgb = unpack_rgb(palette[((scolor << 8u) + pen) & PAL_MASK]);
+
+		const uint  s0 = v_sf0;
+		const int   sfog  = int(s0 & 0xffu);
+		const int   sfade = int((s0 >> 8u) & 0xffu);
+		const int   salpha = int((s0 >> 16u) & 0xffu);
+		const bool  salpha_en = (s0 & SSF_ALPHA_EN) != 0u;
+		const ivec3 sfogcolor  = unpack_rgb(v_sf1);
+		const ivec3 sfadecolor = unpack_rgb(v_base);
+
+		// fog, then fade, then a per-pixel destination alpha blend — the order renderscanline_sprite uses.
+		const int fog = 255 - sfog;
+		if (fog != 255)
+			srgb = mame_blend(srgb, sfogcolor, fog);
+		const int fadef = 255 - sfade;
+		if (fadef != 255)
+			srgb = mame_blend(srgb, sfadecolor, fadef);
+
+		float sa = 1.0;
+		if (salpha != 255 && (salpha_en || pen == pc.alpha_pen))
+			sa = float(salpha) / 255.0;   // blend weight = extra.alpha (see s22_geom.cpp)
+
+		srgb = clamp(srgb, 0, 255);
+		// SS22 final gamma (^3), the last op the mixer applies to every output pixel.
+		srgb = ivec3(int(gamma_at(         (uint(srgb.r) ^ 3u))),
+		             int(gamma_at(0x100u + (uint(srgb.g) ^ 3u))),
+		             int(gamma_at(0x200u + (uint(srgb.b) ^ 3u))));
+		o_color = vec4(vec3(srgb) / 255.0, sa);
+		return;
+	}
+
 	const bool textured = (attr & FLAG_TEXTURED) != 0u;
 	const bool shade_enabled = (attr & FLAG_SHADE) != 0u;
 	const uint color = (attr >> 8u) & 0x7fu;

@@ -85,6 +85,11 @@ constexpr VkDeviceSize CZRAM_BYTES   = CZRAM_BANK * 4;
 // ROM-derived, shared like the tile system. Applied as the last step in s22.frag on plain-S22 quads.
 constexpr VkDeviceSize GAMMA_BYTES   = 0x300;
 
+// The sprite gfx (gfx(2), the "sprite" ROM region): 8bpp 32x32 tiles, char_modulo 1024, line_modulo 32.
+// Static and ROM-derived, uploaded once like the tile system. 0x1000000 bytes on Super System 22; a
+// small placeholder on plain System 22, which emits no sprites — the buffer is bound but never sampled.
+constexpr VkDeviceSize SPRITE_MAX_BYTES = 0x1000000;
+
 // 44 bytes: screen position, the three screen-linear params the fragment divides, the shade param, the
 // three flat per-quad words, then the two flat per-quad shading-tail words. Attribute offsets below are
 // written out by hand.
@@ -105,11 +110,18 @@ static_assert(sizeof(gpu_vertex) == 44, "the vertex attribute offsets below are 
 // Attribute flag bits, matched in s22.frag.
 constexpr uint32_t ATTR_TEXTURED = 1u;
 constexpr uint32_t ATTR_SHADE    = 2u;
+constexpr uint32_t ATTR_SPRITE   = 4u;    // this vertex is a sprite tile — s22.frag takes the sprite fetch
+constexpr uint32_t ATTR_SFLIPX   = 8u;    // sprite: the one-texel x sampling shift
+constexpr uint32_t ATTR_SFLIPY   = 16u;   // sprite: the one-texel y sampling shift
 
-// sf0 bit layout, matched in s22.frag.
+// sf0 bit layout for a POLYGON, matched in s22.frag.
 constexpr uint32_t SF0_ZFOG      = 1u << 10;
 constexpr uint32_t SF0_ALPHA_EN  = 1u << 11;
 constexpr uint32_t SF0_SS22      = 1u << 12;
+
+// sf0 bit layout for a SPRITE (read only under ATTR_SPRITE): fogfactor | fadefactor<<8 | alpha<<16 |
+// flags. A sprite is always Super System 22, so the SS22 final gamma is implied — no ss22 bit needed.
+constexpr uint32_t SSF_ALPHA_EN  = 1u << 24;
 
 // The push block: the visible picture's half-extent in pixels (s22.vert), then the SS22 shading tail's
 // per-frame globals (s22.frag) — screen fade, poly fade and poly alpha, the same for every quad.
@@ -161,6 +173,11 @@ struct geom_slot
 	// One draw per clip-window run; host-side, so it grows on its own. One entry for a game that never
 	// windows the 3D (ridgerac); SS22 letterbox games (tokyowar) alternate a couple of windows a frame.
 	std::vector<draw_batch> batches;
+
+	// The prioverchar over-pass: one entry per primitive flagged "priority over the text layer", each a
+	// range into the SAME index buffer. Drawn a second time by geom_draw_over, after the OVER text
+	// overlay, so those primitives sit above the text. Empty on plain S22 and on SS22 frames with none.
+	std::vector<draw_batch> over_batches;
 };
 
 
@@ -168,9 +185,19 @@ struct geom_slot
 //  state
 //============================================================
 
-// The record. Written on the emulation thread, read on the frontend's, never at the same time.
+// The record. Written on the emulation thread, read on the frontend's, never at the same time. Quads
+// and sprite tiles live in separate vectors; s_order is the single interleaved draw order (the tree
+// walk), so painter's order across both kinds is preserved. A sprite is Super System 22 only.
 std::vector<quad> s_quads;
 uint32_t s_quad_count = 0;
+std::vector<sprite_tile> s_sprites;
+uint32_t s_sprite_count = 0;
+
+enum : uint8_t { ITEM_QUAD = 0, ITEM_SPRITE = 1 };
+struct order_item { uint8_t kind; uint32_t index; };
+std::vector<order_item> s_order;
+uint32_t s_order_count = 0;
+
 uint64_t s_serial = 0;
 bool     s_valid = false;
 int      s_variant = 0;
@@ -188,6 +215,7 @@ mapped_buffer s_ttdata;
 mapped_buffer s_ttattr;
 mapped_buffer s_ttmap;
 mapped_buffer s_ayx;
+mapped_buffer s_sprite;    // gfx(2) sprite tiles; a placeholder on plain S22 (bound, never sampled)
 bool s_static_uploaded = false;
 
 VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
@@ -310,13 +338,13 @@ bool size_slot(geom_slot &slot, uint32_t quads)
 // once, after everything exists — the static buffers never move and the palette buffer is fixed size.
 void write_descriptor(geom_slot &slot)
 {
-	const VkBuffer buffers[7] = {
+	const VkBuffer buffers[8] = {
 		s_ttdata.buffer, s_ttattr.buffer, s_ttmap.buffer, s_ayx.buffer,
-		slot.palette.buffer, slot.czram.buffer, slot.gamma.buffer };
+		slot.palette.buffer, slot.czram.buffer, slot.gamma.buffer, s_sprite.buffer };
 
-	VkDescriptorBufferInfo info[7]{};
-	VkWriteDescriptorSet write[7]{};
-	for (uint32_t i = 0; i < 7; i++)
+	VkDescriptorBufferInfo info[8]{};
+	VkWriteDescriptorSet write[8]{};
+	for (uint32_t i = 0; i < 8; i++)
 	{
 		info[i].buffer = buffers[i];
 		info[i].offset = 0;
@@ -330,15 +358,15 @@ void write_descriptor(geom_slot &slot)
 		write[i].pBufferInfo = &info[i];
 	}
 
-	s_fns.update_descriptor_sets(s_device, 7, write, 0, nullptr);
+	s_fns.update_descriptor_sets(s_device, 8, write, 0, nullptr);
 }
 
 bool build_descriptor_layout()
 {
-	// Seven storage buffers: the four static tile-system arrays, the per-slot palette, the per-slot
-	// z-fog tables (czram), then the static plain-S22 gamma LUT.
-	VkDescriptorSetLayoutBinding bindings[7]{};
-	for (uint32_t i = 0; i < 7; i++)
+	// Eight storage buffers: the four static tile-system arrays, the per-slot palette, the per-slot
+	// z-fog tables (czram), the static plain-S22 gamma LUT, then the static sprite gfx (gfx(2)).
+	VkDescriptorSetLayoutBinding bindings[8]{};
+	for (uint32_t i = 0; i < 8; i++)
 	{
 		bindings[i].binding = i;
 		bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -348,7 +376,7 @@ bool build_descriptor_layout()
 
 	VkDescriptorSetLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layout_info.bindingCount = 7;
+	layout_info.bindingCount = 8;
 	layout_info.pBindings = bindings;
 	if (!check(s_fns.create_descriptor_set_layout(s_device, &layout_info, nullptr, &s_set_layout),
 			"vkCreateDescriptorSetLayout (s22)"))
@@ -358,7 +386,7 @@ bool build_descriptor_layout()
 
 	VkDescriptorPoolSize size{};
 	size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	size.descriptorCount = s_slot_count * 7;
+	size.descriptorCount = s_slot_count * 8;
 
 	VkDescriptorPoolCreateInfo pool_info{};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -549,6 +577,17 @@ bool upload_static()
 	std::memcpy(s_ttmap.mapped, t.ttmap, size_t(TTMAP_BYTES));
 	std::memcpy(s_ayx.mapped, t.ayx, size_t(AYX_BYTES));
 
+	// The sprite gfx (gfx(2)). On Super System 22 it is the "sprite" region; on plain System 22 there is
+	// no gfx(2), so a tiny placeholder keeps binding 7 valid (the sprite path never fires there).
+	const bool have_sprite = (t.sprite != nullptr) && (t.sprite_bytes != 0);
+	const VkDeviceSize sprite_size = have_sprite ? VkDeviceSize(t.sprite_bytes) : VkDeviceSize(16);
+	if (!create_buffer(s_sprite, sprite_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 sprite)"))
+		return false;
+	if (have_sprite)
+		std::memcpy(s_sprite.mapped, t.sprite, size_t(sprite_size));
+	else
+		std::memset(s_sprite.mapped, 0, size_t(sprite_size));
+
 	s_static_uploaded = true;
 	return true;
 }
@@ -611,14 +650,32 @@ void record_begin(int variant)
 {
 	s_variant = variant;
 	s_quad_count = 0;
+	s_sprite_count = 0;
+	s_order_count = 0;
 	s_valid = false;
+}
+
+static void push_order(uint8_t kind, uint32_t index)
+{
+	if (s_order_count == s_order.size())
+		s_order.resize(s_order.size() + (s_order.size() / 2) + INITIAL_QUAD_CAPACITY);
+	s_order[s_order_count++] = order_item{ kind, index };
 }
 
 void record_quad(quad const &q)
 {
 	if (s_quad_count == s_quads.size())
 		s_quads.resize(s_quads.size() + (s_quads.size() / 2) + INITIAL_QUAD_CAPACITY);
+	push_order(ITEM_QUAD, s_quad_count);
 	s_quads[s_quad_count++] = q;
+}
+
+void record_sprite(sprite_tile const &s)
+{
+	if (s_sprite_count == s_sprites.size())
+		s_sprites.resize(s_sprites.size() + (s_sprites.size() / 2) + INITIAL_QUAD_CAPACITY);
+	push_order(ITEM_SPRITE, s_sprite_count);
+	s_sprites[s_sprite_count++] = s;
 }
 
 void record_end()
@@ -679,6 +736,7 @@ void geom_destroy()
 	destroy_buffer(s_ttattr);
 	destroy_buffer(s_ttmap);
 	destroy_buffer(s_ayx);
+	destroy_buffer(s_sprite);
 
 	if (s_pipeline != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline, nullptr);
@@ -717,6 +775,7 @@ void geom_forget()
 	s_ttattr = mapped_buffer{};
 	s_ttmap = mapped_buffer{};
 	s_ayx = mapped_buffer{};
+	s_sprite = mapped_buffer{};
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
 	s_descriptor_pool = VK_NULL_HANDLE;
@@ -733,13 +792,15 @@ bool geom_upload(uint32_t slot_index)
 {
 	// Before any Vulkan work, so the Model 2 build (which never captures) returns here every frame and
 	// never builds anything.
-	if (!s_valid || (s_quad_count == 0) || (slot_index >= s_slot_count))
+	if (!s_valid || (s_order_count == 0) || (slot_index >= s_slot_count))
 		return false;
 	if (!ensure_ready())
 		return false;
 
 	geom_slot &slot = s_slots[slot_index];
-	if ((slot.capacity < s_quad_count) && !size_slot(slot, s_quad_count + (s_quad_count / 2)))
+	// Each item (quad or sprite tile) fits in one per-quad slot (6 verts / 12 indices), so size by the
+	// total item count. A sprite tile uses 4 verts / 6 indices, comfortably within that.
+	if ((slot.capacity < s_order_count) && !size_slot(slot, s_order_count + (s_order_count / 2)))
 		return false;
 
 	// The palette is the one thing in the tile system that changes per frame; re-upload the live pens.
@@ -778,24 +839,44 @@ bool geom_upload(uint32_t slot_index)
 	auto *const idx = static_cast<uint32_t *>(slot.indices.mapped);
 	uint32_t vcount = 0, icount = 0;
 	slot.batches.clear();
+	slot.over_batches.clear();
 
-	for (uint32_t qi = 0; qi < s_quad_count; qi++)
+	// Walk the interleaved draw order (the tree walk) so quads and sprites keep their relative depth: the
+	// painter's pass draws them in this exact sequence, last writer wins. One pipeline handles both; the
+	// vertex's ATTR_SPRITE flag switches the fragment fetch.
+	for (uint32_t oi = 0; oi < s_order_count; oi++)
 	{
-		quad const &q = s_quads[qi];
-		uint32_t n = q.num_verts;
-		if (n < 3)
-			continue;
-		if (n > MAX_QUAD_VERTS)
-			n = MAX_QUAD_VERTS;
+		const order_item it = s_order[oi];
 
-		// The quad's clip window, or full-screen under the attribution switch.
-		const int16_t cl = no_scissor() ? int16_t(0)   : q.clip_l;
-		const int16_t ct = no_scissor() ? int16_t(0)   : q.clip_t;
-		const int16_t cr = no_scissor() ? int16_t(639) : q.clip_r;
-		const int16_t cb = no_scissor() ? int16_t(479) : q.clip_b;
+		int16_t rcl, rct, rcr, rcb;
+		int prioverchar;
+		uint32_t nq = 0;   // quad vertex count; 0 marks a sprite tile below
+		if (it.kind == ITEM_QUAD)
+		{
+			quad const &q = s_quads[it.index];
+			nq = q.num_verts;
+			if (nq < 3)
+				continue;
+			if (nq > MAX_QUAD_VERTS)
+				nq = MAX_QUAD_VERTS;
+			rcl = q.clip_l; rct = q.clip_t; rcr = q.clip_r; rcb = q.clip_b;
+			prioverchar = q.prioverchar;
+		}
+		else
+		{
+			sprite_tile const &s = s_sprites[it.index];
+			rcl = s.clip_l; rct = s.clip_t; rcr = s.clip_r; rcb = s.clip_b;
+			prioverchar = s.prioverchar;
+		}
 
-		// Start a new run whenever the clip window changes; render_scene walks the tree in draw order, so
-		// a run is a maximal span of consecutive quads that share a scissor. geom_draw sets it once per run.
+		// The item's clip window, or full-screen under the attribution switch.
+		const int16_t cl = no_scissor() ? int16_t(0)   : rcl;
+		const int16_t ct = no_scissor() ? int16_t(0)   : rct;
+		const int16_t cr = no_scissor() ? int16_t(639) : rcr;
+		const int16_t cb = no_scissor() ? int16_t(479) : rcb;
+
+		// Start a new run whenever the clip window changes; the walk is in draw order, so a run is a
+		// maximal span of consecutive items (quad or sprite) that share a scissor. geom_draw sets it once.
 		if (slot.batches.empty()
 				|| (slot.batches.back().left != cl) || (slot.batches.back().top != ct)
 				|| (slot.batches.back().right != cr) || (slot.batches.back().bottom != cb))
@@ -803,46 +884,97 @@ bool geom_upload(uint32_t slot_index)
 			slot.batches.push_back(draw_batch{ cl, ct, cr, cb, icount, 0 });
 		}
 
-		const uint32_t attr = (q.textured ? ATTR_TEXTURED : 0u)
-				| (q.shade_enabled ? ATTR_SHADE : 0u)
-				| ((uint32_t(q.color) & 0x7fu) << 8u)
-				| ((uint32_t(q.cmode) & 0xffu) << 16u);
-		const uint32_t bn = uint32_t(q.texturebank);
-		const uint32_t base = q.basecolor;
+		const uint32_t item_first = icount;
 
-		// The per-quad shading-tail words. sf0 packs the small scalars and flags; sf1 is the fog colour.
-		// cz_sdelta is signed (-256..255), stored biased by 256 into a 9-bit field.
-		const uint32_t sf0 = uint32_t(q.fogfactor)
-				| ((uint32_t(q.cz_bank) & 3u) << 8u)
-				| (q.zfog_enabled ? SF0_ZFOG : 0u)
-				| (q.alpha_enabled ? SF0_ALPHA_EN : 0u)
-				| (q.ss22 ? SF0_SS22 : 0u)
-				| ((uint32_t(int(q.cz_sdelta) + 256) & 0x1ffu) << 13u);
-		const uint32_t sf1 = q.fogcolor & 0x00ffffffu;
+		if (it.kind == ITEM_QUAD)
+		{
+			quad const &q = s_quads[it.index];
 
-		const uint32_t vbase = vcount;
-		for (uint32_t i = 0; i < n; i++)
-		{
-			gpu_vertex &v = verts[vcount++];
-			v.x = q.x[i];
-			v.y = q.y[i];
-			v.uoz = q.uoz[i];
-			v.voz = q.voz[i];
-			v.ooz = q.ooz[i];
-			v.iw = q.bri[i];
-			v.attr = attr;
-			v.bn = bn;
-			v.base = base;
-			v.sf0 = sf0;
-			v.sf1 = sf1;
+			const uint32_t attr = (q.textured ? ATTR_TEXTURED : 0u)
+					| (q.shade_enabled ? ATTR_SHADE : 0u)
+					| ((uint32_t(q.color) & 0x7fu) << 8u)
+					| ((uint32_t(q.cmode) & 0xffu) << 16u);
+			const uint32_t bn = uint32_t(q.texturebank);
+			const uint32_t base = q.basecolor;
+
+			// The per-quad shading-tail words. sf0 packs the small scalars and flags; sf1 is the fog colour.
+			// cz_sdelta is signed (-256..255), stored biased by 256 into a 9-bit field.
+			const uint32_t sf0 = uint32_t(q.fogfactor)
+					| ((uint32_t(q.cz_bank) & 3u) << 8u)
+					| (q.zfog_enabled ? SF0_ZFOG : 0u)
+					| (q.alpha_enabled ? SF0_ALPHA_EN : 0u)
+					| (q.ss22 ? SF0_SS22 : 0u)
+					| ((uint32_t(int(q.cz_sdelta) + 256) & 0x1ffu) << 13u);
+			const uint32_t sf1 = q.fogcolor & 0x00ffffffu;
+
+			const uint32_t vbase = vcount;
+			for (uint32_t i = 0; i < nq; i++)
+			{
+				gpu_vertex &v = verts[vcount++];
+				v.x = q.x[i];
+				v.y = q.y[i];
+				v.uoz = q.uoz[i];
+				v.voz = q.voz[i];
+				v.ooz = q.ooz[i];
+				v.iw = q.bri[i];
+				v.attr = attr;
+				v.bn = bn;
+				v.base = base;
+				v.sf0 = sf0;
+				v.sf1 = sf1;
+			}
+			for (uint32_t i = 1; i + 1 < nq; i++)
+			{
+				idx[icount++] = vbase;
+				idx[icount++] = vbase + i;
+				idx[icount++] = vbase + i + 1;
+			}
 		}
-		for (uint32_t i = 1; i + 1 < n; i++)
+		else
 		{
-			idx[icount++] = vbase;
-			idx[icount++] = vbase + i;
-			idx[icount++] = vbase + i + 1;
+			sprite_tile const &s = s_sprites[it.index];
+
+			// A sprite reuses the vertex layout: affine u/v ride uoz/voz with ooz = 1 (no perspective), the
+			// pal bank rides attr (color<<8, the poly pens_base), the tile byte offset rides bn, the fade
+			// colour rides base, and sf0/sf1 carry the sprite shading tail (own layout, see the constants).
+			const uint32_t attr = ATTR_SPRITE
+					| (s.flipx ? ATTR_SFLIPX : 0u)
+					| (s.flipy ? ATTR_SFLIPY : 0u)
+					| ((uint32_t(s.color) & 0x7fu) << 8u);
+			const uint32_t bn = s.code_base;
+			const uint32_t base = s.fadecolor & 0x00ffffffu;
+			const uint32_t sf0 = uint32_t(s.fogfactor)
+					| (uint32_t(s.fadefactor) << 8u)
+					| (uint32_t(s.alpha) << 16u)
+					| (s.alpha_enabled ? SSF_ALPHA_EN : 0u);
+			const uint32_t sf1 = s.fogcolor & 0x00ffffffu;
+
+			const uint32_t vbase = vcount;
+			for (int i = 0; i < 4; i++)
+			{
+				gpu_vertex &v = verts[vcount++];
+				v.x = s.x[i];
+				v.y = s.y[i];
+				v.uoz = s.u[i];
+				v.voz = s.v[i];
+				v.ooz = 1.0f;
+				v.iw = 0.0f;
+				v.attr = attr;
+				v.bn = bn;
+				v.base = base;
+				v.sf0 = sf0;
+				v.sf1 = sf1;
+			}
+			idx[icount++] = vbase;     idx[icount++] = vbase + 1; idx[icount++] = vbase + 2;
+			idx[icount++] = vbase;     idx[icount++] = vbase + 2; idx[icount++] = vbase + 3;
 		}
+
 		slot.batches.back().index_count = icount - slot.batches.back().first_index;
+
+		// A prioverchar primitive (SS22 only) is redrawn over the text; record its index range so
+		// geom_draw_over can replay it after the OVER overlay. Its triangles are contiguous here.
+		if ((s_variant == 1) && (prioverchar & 1) && (icount > item_first))
+			slot.over_batches.push_back(draw_batch{ cl, ct, cr, cb, item_first, icount - item_first });
 	}
 
 	slot.index_count = icount;
@@ -858,23 +990,20 @@ bool geom_upload(uint32_t slot_index)
 	if (!s_reported_first && (icount != 0))
 	{
 		s_reported_first = true;
-		vk_log(RETRO_LOG_INFO, "s22: first GPU geometry (textured) — %u quads, %u indices (%s)\n",
-				unsigned(s_quad_count), unsigned(icount), s_variant ? "ss22" : "s22");
+		vk_log(RETRO_LOG_INFO, "s22: first GPU geometry — %u quads, %u sprite tiles, %u indices (%s)\n",
+				unsigned(s_quad_count), unsigned(s_sprite_count), unsigned(icount), s_variant ? "ss22" : "s22");
 	}
 
 	return icount != 0;
 }
 
-void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height,
-		unsigned draw_width, unsigned draw_height)
+// Binds the pipeline/descriptor/buffers, pushes the per-frame globals, then draws a batch list — one
+// scissored indexed draw per clip-window run — and restores the full attachment scissor. Shared by the
+// main pass (slot.batches) and the prioverchar over-pass (slot.over_batches): the two differ only in
+// which batch list they replay and when the caller invokes them, not in state.
+static void draw_batches(VkCommandBuffer cmd, geom_slot &slot, std::vector<draw_batch> const &batches,
+		unsigned width, unsigned height, unsigned draw_width, unsigned draw_height)
 {
-	if (!s_ready || (slot_index >= s_slot_count))
-		return;
-
-	geom_slot &slot = s_slots[slot_index];
-	if ((slot.index_count == 0) || (slot.descriptor == VK_NULL_HANDLE))
-		return;
-
 	// The VISIBLE half-extent, resolution-invariant for the reason s22.vert gives: the vertex shader
 	// turns bitmap pixels into NDC, so the attachment size never enters here. The caller has already set
 	// the viewport and scissor to the (possibly larger) attachment extent.
@@ -927,7 +1056,7 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 
 	VkRect2D set_to{};
 	bool     scissor_set = false;
-	for (draw_batch const &b : slot.batches)
+	for (draw_batch const &b : batches)
 	{
 		if (b.index_count == 0)
 			continue;
@@ -965,6 +1094,32 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
 }
 
+void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height,
+		unsigned draw_width, unsigned draw_height)
+{
+	if (!s_ready || (slot_index >= s_slot_count))
+		return;
+
+	geom_slot &slot = s_slots[slot_index];
+	if ((slot.index_count == 0) || (slot.descriptor == VK_NULL_HANDLE))
+		return;
+
+	draw_batches(cmd, slot, slot.batches, width, height, draw_width, draw_height);
+}
+
+void geom_draw_over(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height,
+		unsigned draw_width, unsigned draw_height)
+{
+	if (!s_ready || (slot_index >= s_slot_count))
+		return;
+
+	geom_slot &slot = s_slots[slot_index];
+	if (slot.over_batches.empty() || (slot.descriptor == VK_NULL_HANDLE))
+		return;
+
+	draw_batches(cmd, slot, slot.over_batches, width, height, draw_width, draw_height);
+}
+
 void geom_end_run()
 {
 	if (s_reported_first)
@@ -978,6 +1133,8 @@ void geom_end_run()
 	s_drawn_serial = 0;
 	s_valid = false;
 	s_quad_count = 0;
+	s_sprite_count = 0;
+	s_order_count = 0;
 }
 
 } // namespace s22

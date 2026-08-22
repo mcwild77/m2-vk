@@ -52,6 +52,9 @@ struct quad
 	bool     textured;       // extra.texture_enabled: sample the tile, else use basecolor
 	bool     shade_enabled;  // extra.shade_enabled: apply the per-pixel hardware brightness
 	bool     direct;         // pre-projected ("direct") quad, not z-clipped
+	uint8_t  prioverchar;    // bit0: (cmode & 7) == 1 — this quad has priority OVER the SS22 text layer,
+	                         // so the text must NOT redraw on top of it (mixer priority 7, not 6). The GPU
+	                         // draws such quads a second time over the OVER text overlay; see s22_geom.cpp.
 
 	// The per-quad part of the shading tail (renderscanline_poly / _ss22). The per-frame globals
 	// (screen fade, poly fade, alpha factor, alpha pen) are handed over once a frame by
@@ -111,6 +114,10 @@ struct texture_ram
 	uint8_t  const *gamma = nullptr;    // m_gamma_proms: rlut[0x100]|glut[0x100]|blut[0x100], the plain
 	                                    // System 22 final gamma LUT (namcos22_mix_text_layer). Static,
 	                                    // ROM-derived; null on Super System 22 (which has no gamma PROMs).
+	uint8_t  const *sprite = nullptr;   // the "sprite" ROM region (gfx(2)): 8bpp 32x32 tiles, char_modulo
+	                                    // 1024, line_modulo 32. Static, ROM-derived, uploaded once like
+	                                    // ttdata. Null on plain System 22 (no sprite layer / no gfx(2)).
+	uint32_t sprite_bytes = 0;          // the region's size in bytes (0x1000000 on Super System 22).
 };
 
 // One sprite node. render_sprite() expands it to rows*cols poly3d_drawsprite() calls; the seam taps
@@ -122,6 +129,29 @@ struct sprite
 	int16_t  sizex, sizey;
 	uint16_t color;          // color & 0x7f
 	bool     ss22;
+};
+
+// One sprite TILE, as poly3d_drawsprite() resolves it — the GPU analogue of quad. render_sprite()
+// expands a sprite node to rows*cols of these, each a screen-aligned textured quad the software path
+// draws with render_polygon<4,2>/renderscanline_sprite. Affine (no perspective): u/v run 0..width and
+// 0..height across the tile and are interpolated linearly. Everything is a copy carrying no MAME type.
+struct sprite_tile
+{
+	float    x[4], y[4];     // screen space (the four corners; may be mirrored when flipped)
+	float    u[4], v[4];     // tile space, 0..32 (vert.p[0]/p[1]); linear across the quad
+	uint32_t code_base;      // (code % elements) * char_modulo — byte offset of the tile in the sprite gfx
+	uint16_t line_modulo;    // gfx->rowbytes() (32); the row stride within a tile
+	uint16_t color;          // color & 0x7f — the palette bank; pens base is (color & 0x7f) << 8
+	uint32_t fogcolor;       // 0x00RRGGBB — the global fog colour (m_fog_*)
+	uint32_t fadecolor;      // 0x00RRGGBB — the screen-fade colour (m_screen_fade_*)
+	uint8_t  fogfactor;      // extra.fogfactor (= cz_factor); the scanline blends with 0xff - this
+	uint8_t  fadefactor;     // extra.fadefactor (= m_screen_fade_factor when enabled, else 0)
+	uint8_t  alpha;          // extra.alpha (= 0xff - node.alpha); the blend weight when the pixel alphas
+	uint8_t  flipx, flipy;   // 0/1; the one-texel sampling shift (the mirroring is baked into x/y)
+	bool     alpha_enabled;  // (color & 0x7f) != m_poly_alpha_color
+	bool     ss22;           // always true (sprites are Super System 22 only) — carried for symmetry
+	uint8_t  prioverchar;    // bit0: node prioverchar (cz == 0xfe) — this sprite sits OVER the text layer
+	int16_t  clip_l, clip_t, clip_r, clip_b;   // m_cliprect, inclusive bitmap pixels — the per-run scissor
 };
 
 namespace detail {
@@ -147,6 +177,12 @@ void set_gpu(bool on);
 void set_texture_ram(uint16_t const *ttmap, uint8_t const *ttattr, uint8_t const *ttdata,
 		uint8_t const *ayx, uint32_t const *palette, uint8_t const *gamma);
 texture_ram const &get_texture_ram();
+
+// The sprite gfx region (gfx(2), the "sprite" ROM). Stored into the same texture_ram; a separate setter
+// so set_texture_ram's callers are undisturbed. Called by the driver from the frame bracket, only on
+// Super System 22 (plain S22 has no gfx(2) — pass null, and the sprite path never fires). Static and
+// ROM-derived, so it is uploaded once; re-storing the pointer each frame costs two writes.
+void set_sprite_ram(uint8_t const *sprite, uint32_t bytes);
 
 // The per-frame globals of the SS22 shading tail (shading_globals above). Called by the driver from
 // the frame bracket, once a frame; cheap (stores values and four stable pointers). Inert unless
@@ -176,15 +212,17 @@ inline bool sw_owns_3d() { return detail::g_sw_owns_3d; }
 void frame_begin(int variant);
 void frame_end();
 
-// Plumbing (s22_seam.cpp). The two submit() overloads take the snapshots above.
+// Plumbing (s22_seam.cpp). The submit() overloads take the snapshots above.
 void submit(quad const &q);
 void submit(sprite const &s);
+void submit(sprite_tile const &s);
 
 // The GPU record consumer (s22_geom.cpp). Called on the emulation thread from the seam plumbing when
 // set_gpu(true) has turned capture on; type-free so the seam and the driver need no renderer headers.
 // record_begin resets the frame's quad list, record_quad appends one, record_end marks it readable.
 void record_begin(int variant);
 void record_quad(quad const &q);
+void record_sprite(sprite_tile const &s);
 void record_end();
 
 // Type-free seam helper for the quad site. Vertex is the driver's poly vertex (it exposes .x, .y and
@@ -192,7 +230,7 @@ void record_end();
 template <typename Vertex>
 inline void submit_quad(Vertex const *v, int nverts, int color, int cmode,
 		bool ss22, bool textured, bool direct, uint32_t basecolor,
-		int texturebank, bool shade_enabled, quad_shading const &sh,
+		int texturebank, bool shade_enabled, int prioverchar, quad_shading const &sh,
 		int clip_l, int clip_t, int clip_r, int clip_b)
 {
 	if (!active())
@@ -225,6 +263,7 @@ inline void submit_quad(Vertex const *v, int nverts, int color, int cmode,
 	q.textured     = textured;
 	q.shade_enabled = shade_enabled;
 	q.direct       = direct;
+	q.prioverchar  = uint8_t(prioverchar & 1);
 
 	q.fogfactor    = uint8_t(sh.fogfactor);
 	q.fogcolor     = sh.fogcolor & 0x00ffffffu;
@@ -254,6 +293,49 @@ inline void submit_sprite(int rows, int cols, int xpos, int ypos,
 	s.sizey = int16_t(sizey);
 	s.color = uint16_t(color & 0x7f);
 	s.ss22  = ss22;
+	submit(s);
+}
+
+// Per-tile sprite site (poly3d_drawsprite), the GPU analogue of submit_quad. Vertex is the driver's
+// poly vertex (it exposes .x, .y and .p[]), deduced at the one call site so this header needs none of
+// the driver's headers. Called once per sprite tile, after poly3d_drawsprite has resolved everything;
+// the mirroring of a flipped sprite is already in the vertex positions, so only the one-texel flip shift
+// crosses as flipx/flipy. Inert unless capturing.
+template <typename Vertex>
+inline void submit_drawsprite(Vertex const *v, uint32_t code_base, int line_modulo,
+		int color, int flipx, int flipy, bool ss22,
+		int fogfactor, uint32_t fogcolor, int fadefactor, uint32_t fadecolor,
+		int alpha, bool alpha_enabled, int prioverchar,
+		int clip_l, int clip_t, int clip_r, int clip_b)
+{
+	if (!active())
+		return;
+
+	sprite_tile s;
+	for (int i = 0; i < 4; i++)
+	{
+		s.x[i] = float(v[i].x);
+		s.y[i] = float(v[i].y);
+		s.u[i] = float(v[i].p[0]);   // 0..width
+		s.v[i] = float(v[i].p[1]);   // 0..height
+	}
+	s.code_base     = code_base;
+	s.line_modulo   = uint16_t(line_modulo);
+	s.color         = uint16_t(color & 0x7f);
+	s.fogcolor      = fogcolor & 0x00ffffffu;
+	s.fadecolor     = fadecolor & 0x00ffffffu;
+	s.fogfactor     = uint8_t(fogfactor & 0xff);
+	s.fadefactor    = uint8_t(fadefactor & 0xff);
+	s.alpha         = uint8_t(alpha & 0xff);
+	s.flipx         = uint8_t(flipx ? 1 : 0);
+	s.flipy         = uint8_t(flipy ? 1 : 0);
+	s.alpha_enabled = alpha_enabled;
+	s.ss22          = ss22;
+	s.prioverchar   = uint8_t(prioverchar & 1);
+	s.clip_l        = int16_t(clip_l);
+	s.clip_t        = int16_t(clip_t);
+	s.clip_r        = int16_t(clip_r);
+	s.clip_b        = int16_t(clip_b);
 	submit(s);
 }
 

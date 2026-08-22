@@ -1926,6 +1926,12 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 		s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
 	}
 
+	// The System 22 prioverchar over-pass: primitives flagged "priority over the text layer" (poly
+	// cmode&7==1, sprite cz==0xfe) are redrawn over the OVER text overlay just drawn, so they sit above
+	// the text — MAME's mixer priority 7. A no-op on plain S22 and on SS22 frames that have none.
+	if (draw_3d_s22)
+		s22::geom_draw_over(index, slot.cmd, s_width, s_height, draw_width, draw_height);
+
 	// The reticle goes over the foreground too, and inside the supersampled pass rather than after the
 	// resolve, so that at n>1 it is drawn at n times the size and comes back down antialiased along
 	// with everything else.
