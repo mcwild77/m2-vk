@@ -60,6 +60,16 @@ struct steer_state
 	float    gamma      = 1.0f;
 	float    range_opt  = 1.0f;
 
+	// Output slew limiter — the input-layer "damping" a self-centring wheel has. Max change per
+	// emulated frame, in ±STEER_ABS_MAX units, resolved by steer_apply() from a frame count. One rate
+	// when the magnitude grows (the player forcing the wheel out), one when it shrinks (the spring
+	// recentring), which is why a slam to lock and a release take different numbers of frames. 0 ==
+	// that direction is instant, which is the identity and the default — so every ab.sh baseline is
+	// untouched, the limiter never leaving its rest state because no fixture scripts an analog axis.
+	// devnotes/steering-curve.md §6.
+	int32_t  damp_drive  = 0;
+	int32_t  damp_return = 0;
+
 	// Switches, so a live option change recomposes without re-reading the environment.
 	bool     sw_linear  = false;   // M2VK_STEER_LINEAR named and non-zero → force pipeline off
 	bool     sw_dz      = false;
@@ -68,6 +78,11 @@ struct steer_state
 	float    sw_dz_val    = 0.0f;
 	float    sw_gamma_val = 1.0f;
 	float    sw_range_val = 1.0f;
+
+	bool     sw_damp_drive  = false;   // M2VK_STEER_DAMP_DRIVE / _RETURN, a frame count (presence overrides)
+	bool     sw_damp_return = false;
+	unsigned sw_damp_drive_val  = 0;   // frames-to-full-travel; 0 = instant
+	unsigned sw_damp_return_val = 0;
 
 	// Written by the pad, read by the read-out. In MAME's ±65536 units.
 	int32_t  raw    = 0;
@@ -113,6 +128,19 @@ inline float g_opt_dz    = 0.0f;
 inline float g_opt_gamma = 1.0f;
 inline float g_opt_range = 1.0f;
 
+// Damping frame counts, parked by set_option_steer_damping(). 0 == instant, the identity and the
+// default, so a build that never calls the setter (or a machine that does not steer) damps nothing.
+inline unsigned g_opt_damp_drive_frames  = 0;
+inline unsigned g_opt_damp_return_frames = 0;
+
+// A frame count to a per-frame step: the travel that reaches full lock (STEER_ABS_MAX from centre)
+// in `frames` steps, rounded so a coarse count still lands exactly on the stop. 0 frames → 0, the
+// "instant" sentinel steer_damp() reads as "no limit this direction".
+inline int32_t damp_step(unsigned frames)
+{
+	return (frames == 0) ? 0 : int32_t((int64_t(STEER_ABS_MAX) + frames / 2) / frames);
+}
+
 } // namespace detail
 
 // Resolve the three numbers the chain runs. Called from steer_config() at machine start and from
@@ -120,10 +148,12 @@ inline float g_opt_range = 1.0f;
 inline void steer_apply()
 {
 	steer_state &s = steer();
-	s.dz_opt    = s.sw_dz    ? s.sw_dz_val    : detail::g_opt_dz;
-	s.gamma     = s.sw_gamma ? s.sw_gamma_val : detail::g_opt_gamma;
-	s.range_opt = s.sw_range ? s.sw_range_val : detail::g_opt_range;
-	s.shaping   = !s.sw_linear;
+	s.dz_opt      = s.sw_dz    ? s.sw_dz_val    : detail::g_opt_dz;
+	s.gamma       = s.sw_gamma ? s.sw_gamma_val : detail::g_opt_gamma;
+	s.range_opt   = s.sw_range ? s.sw_range_val : detail::g_opt_range;
+	s.damp_drive  = detail::damp_step(s.sw_damp_drive  ? s.sw_damp_drive_val  : detail::g_opt_damp_drive_frames);
+	s.damp_return = detail::damp_step(s.sw_damp_return ? s.sw_damp_return_val : detail::g_opt_damp_return_frames);
+	s.shaping     = !s.sw_linear;
 }
 
 inline void set_option_steering(float deadzone, float gamma, float range)
@@ -131,6 +161,15 @@ inline void set_option_steering(float deadzone, float gamma, float range)
 	detail::g_opt_dz    = std::clamp(deadzone, 0.0f, 0.5f);
 	detail::g_opt_gamma = std::clamp(gamma,    1.0f, 4.0f);
 	detail::g_opt_range = std::clamp(range,    0.5f, 1.0f);
+	steer_apply();
+}
+
+// Park the two damping frame counts. Separate from set_option_steering() so the curve and the slew
+// limiter stay independent option groups; both recompose through steer_apply(). 0 == instant.
+inline void set_option_steer_damping(unsigned drive_frames, unsigned return_frames)
+{
+	detail::g_opt_damp_drive_frames  = drive_frames;
+	detail::g_opt_damp_return_frames = return_frames;
 	steer_apply();
 }
 
@@ -147,6 +186,17 @@ inline void steer_config()
 	s.sw_dz    = detail::steer_env("M2VK_STEER_DEADZONE", s.sw_dz_val,    0.0f, 0.5f);
 	s.sw_gamma = detail::steer_env("M2VK_STEER_GAMMA",    s.sw_gamma_val, 1.0f, 4.0f);
 	s.sw_range = detail::steer_env("M2VK_STEER_RANGE",    s.sw_range_val, 0.5f, 1.0f);
+
+	// Frame counts, so read as integers rather than through steer_env's float clamp. Presence is the
+	// override, matching M2VK_STEER_LINEAR: a switch set to 0 pins damping OFF, which the option cannot.
+	char const *const dd = std::getenv("M2VK_STEER_DAMP_DRIVE");
+	s.sw_damp_drive = (dd != nullptr);
+	if (s.sw_damp_drive)
+		s.sw_damp_drive_val = unsigned(std::strtoul(dd, nullptr, 10));
+	char const *const dr = std::getenv("M2VK_STEER_DAMP_RETURN");
+	s.sw_damp_return = (dr != nullptr);
+	if (s.sw_damp_return)
+		s.sw_damp_return_val = unsigned(std::strtoul(dr, nullptr, 10));
 
 	steer_apply();
 }
@@ -188,6 +238,41 @@ inline int32_t steer_shape(int32_t raw)
 	if (out > STEER_ABS_MAX)
 		out = STEER_ABS_MAX;
 	return (u < 0.0) ? -out : out;
+}
+
+// Rate-limit the shaped axis toward its target — the input-layer damping a self-centring wheel has,
+// which the official emulator applies before the game sees the axis (measured: ~4 frames to lock,
+// ~7 to recentre, i.e. the two rates are not equal). state is the port's own carry (last frame's
+// output) in ±STEER_ABS_MAX units; each pad seat keeps its own. In/out in ±STEER_ABS_MAX.
+//
+// Asymmetric by construction: damp_drive when the magnitude grows (the player forcing the wheel
+// out), damp_return when it shrinks (the spring recentring). Crossing centre in one motion counts as
+// growing toward the far lock, so a full left-to-right sweep runs at the drive rate throughout.
+//
+// The identity paths are load-bearing. M2VK_STEER_LINEAR (the harness pin) and a machine that does
+// not steer both track the target exactly and never lag; and a rate of 0 (the default, both
+// directions) is a straight passthrough that keeps `state` on the target — so a centred stick still
+// reaches MAME as a hard zero on the first frame, which is the invariant every ab.sh baseline rests
+// on. Damping is deliberately NOT gated on s.shaping: a player may want a linear curve with a damped
+// wheel, and only the LINEAR switch (not the Linear response option) forces the whole chain flat.
+inline int32_t steer_damp(int32_t target, int32_t &state)
+{
+	const steer_state &s = steer();
+	if (!s.active || s.sw_linear)
+	{
+		state = target;
+		return target;
+	}
+
+	const int32_t step = (std::abs(target) < std::abs(state)) ? s.damp_return : s.damp_drive;
+	if (step <= 0)
+	{
+		state = target;
+		return target;
+	}
+
+	state += std::clamp(target - state, -step, step);
+	return state;
 }
 
 namespace detail {
@@ -269,6 +354,13 @@ inline void steer_resolve(running_machine &machine, uint64_t frame)
 				double(s.gamma),     s.sw_gamma ? "switch" : "core option",
 				double(s.range_opt), s.sw_range ? "switch" : "core option");
 	}
+
+	if ((s.damp_drive > 0) || (s.damp_return > 0))
+		std::fprintf(stderr, "[steer] damping ON: drive step=%d (%s) return step=%d (%s) per frame, of %d full lock\n",
+				s.damp_drive,  s.sw_damp_drive  ? "switch" : "core option",
+				s.damp_return, s.sw_damp_return ? "switch" : "core option", int(STEER_ABS_MAX));
+	else
+		std::fprintf(stderr, "[steer] damping OFF (both directions instant)\n");
 
 	if (s.period != 0)
 		std::fprintf(stderr, "[steer] read-out active, every %u frame(s)\n", s.period);

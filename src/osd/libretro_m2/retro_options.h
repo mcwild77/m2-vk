@@ -98,6 +98,14 @@ inline constexpr char const *KEY_STEERING_DEADZONE = "model2_steering_deadzone";
 inline constexpr char const *KEY_STEERING_RESPONSE = "model2_steering_response";
 inline constexpr char const *KEY_STEERING_RANGE    = "model2_steering_range";
 
+// Steering damping — a rate limit on the shaped axis, in frames-to-full-lock. The official emulator
+// applies one before the game reads the wheel (a self-centring wheel cannot snap), and a thumbstick
+// that reaches lock in one frame feels twitchy without it. Two knobs because the reference is
+// asymmetric: DRIVE is how fast the value follows the stick out, RETURN how fast it recentres when
+// released. Both default Off (instant), which is the identity. m2vk_steer.h runs it.
+inline constexpr char const *KEY_STEERING_DAMP_DRIVE  = "model2_steering_damp_drive";
+inline constexpr char const *KEY_STEERING_DAMP_RETURN = "model2_steering_damp_return";
+
 // Steering read-out bar. Off by default — a bar over the picture is pixels no fixture reference
 // would have, so a run with it on would difference against a background that does not.
 inline constexpr char const *KEY_STEERING_DISPLAY = "model2_steering_display";
@@ -194,6 +202,11 @@ unsigned get_steering_response(retro_environment_t environ_cb);
 // Percentage strings parsed to fractions. Unparseable → the declared default.
 float get_steering_deadzone(retro_environment_t environ_cb);
 float get_steering_range(retro_environment_t environ_cb);
+
+// Frame counts for the damping slew limiter — the string is a bare frame count, or "Off". Anything
+// unrecognised (including "Off") → 0, which m2vk::set_option_steer_damping() reads as instant.
+unsigned get_steering_damp_drive(retro_environment_t environ_cb);
+unsigned get_steering_damp_return(retro_environment_t environ_cb);
 
 // The frontend's value for an option, or our declared default if the frontend has no value for it
 // (or supports no options at all, which is the retrohost case).

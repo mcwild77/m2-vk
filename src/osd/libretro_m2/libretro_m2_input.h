@@ -186,6 +186,12 @@ private:
 	int32_t   m_axes[AXIS_COUNT];
 	int32_t   m_buttons[BUTTON_COUNT];
 
+	// This seat's steering-damp carry: last frame's shaped-and-limited axis value, in
+	// ±osd::input_device::ABSOLUTE_MAX units, fed back into m2vk::steer_damp() each frame. Per device
+	// because a two-seat cabinet's wheels are independent. Rest is 0, restored by reset(), which is
+	// what keeps a never-touched axis (every ab.sh fixture) byte-exact.
+	int32_t   m_steer_damp;
+
 	// The diagnostic combo as a button, and how long its controls have been down. Not a slot in
 	// m_buttons because no RetroPad control feeds it — it is computed from several of them, which is
 	// exactly the invariant the static_assert over the slot enum protects.

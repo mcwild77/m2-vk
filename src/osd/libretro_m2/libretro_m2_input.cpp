@@ -273,6 +273,7 @@ void libretro_m2_pad_device::reset()
 	std::memset(m_buttons, 0, sizeof(m_buttons));
 	m_combo = 0;
 	m_combo_frames = 0;
+	m_steer_damp = 0;
 }
 
 // Reads one RetroPad. Runs on the libretro thread from retro_run(), between the emulation thread
@@ -383,14 +384,23 @@ void libretro_m2_pad_device::shape_and_publish_steer()
 {
 	const int32_t raw    = m_axes[AXIS_LEFT_X];
 	const int32_t shaped = m2vk::steer_shape(raw);
-	m_axes[AXIS_LEFT_X]  = shaped;
+
+	// Then rate-limit toward that target — the wheel's damping. Carries this seat's own state, so a
+	// slam is followed out over several frames and a release recentres over several more. A no-op with
+	// damping off (the default) or under M2VK_STEER_LINEAR: steer_damp() tracks the target exactly and
+	// leaves m_steer_damp on it, so the axis MAME receives is byte-identical to the undamped chain.
+	const int32_t damped = m2vk::steer_damp(shaped, m_steer_damp);
+	m_axes[AXIS_LEFT_X]  = damped;
 
 	if (m_port != 0)
 		return;
 
+	// The read-out and the display bar want the value MAME is actually handed, which is the damped one:
+	// on the bar the white notch is the raw stick and the green is this, so the lag between them is the
+	// damping made visible — exactly what steering-handcheck.md tunes against.
 	m2vk::steer_state &s = m2vk::steer();
 	s.raw    = raw;
-	s.shaped = shaped;
+	s.shaped = damped;
 	s.polls++;
 }
 

@@ -571,6 +571,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	const unsigned steer_response = m2opt::get_steering_response(s_environ_cb);
 	const float steer_deadzone = m2opt::get_steering_deadzone(s_environ_cb);
 	const float steer_range = m2opt::get_steering_range(s_environ_cb);
+	const unsigned steer_damp_drive = m2opt::get_steering_damp_drive(s_environ_cb);
+	const unsigned steer_damp_return = m2opt::get_steering_damp_return(s_environ_cb);
 	const bool steer_display = m2opt::get_steering_display(s_environ_cb);
 
 	// The resolution is logged as "native" rather than as the 0x0 the parser produces for a value it
@@ -583,7 +585,14 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	else
 		std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
-	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% %s=%s\n",
+	// Frame counts formatted as "off" or "<n>f", so the options line reads them the way the menu does.
+	char damp_drive_text[8], damp_return_text[8];
+	if (steer_damp_drive == 0)  std::snprintf(damp_drive_text,  sizeof(damp_drive_text),  "off");
+	else                        std::snprintf(damp_drive_text,  sizeof(damp_drive_text),  "%uf", steer_damp_drive);
+	if (steer_damp_return == 0) std::snprintf(damp_return_text, sizeof(damp_return_text), "off");
+	else                        std::snprintf(damp_return_text, sizeof(damp_return_text), "%uf", steer_damp_return);
+
+	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% %s=%s/%s %s=%s\n",
 			m2opt::KEY_RENDERER, renderer.c_str(),
 			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic],
 			m2opt::KEY_INTERNAL_RES, res_text,
@@ -593,6 +602,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			m2opt::KEY_STEERING_RESPONSE, m2opt::STEERING_RESPONSE_VALUES[steer_response],
 			m2opt::KEY_STEERING_DEADZONE, double(steer_deadzone) * 100.0,
 			m2opt::KEY_STEERING_RANGE, double(steer_range) * 100.0,
+			"model2_steering_damp", damp_drive_text, damp_return_text,
 			m2opt::KEY_STEERING_DISPLAY, steer_display ? "on" : "off");
 
 	// The frontend's remap labels, per game, from the same layout row the pad reads. This is what makes
@@ -625,7 +635,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// was set is still the right thing to have printed.
 	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_FLAT_LUMA", "M2VK_BLEND",
 			"M2VK_STEER_LINEAR", "M2VK_STEER_DEADZONE", "M2VK_STEER_GAMMA", "M2VK_STEER_RANGE",
-			"M2VK_STEERBAR" })
+			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -663,6 +673,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 
 	// input_init() recomposes these against the M2VK_STEER_* switches once the machine exists.
 	m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
+	m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 	m2vk::set_option_steerbar(steer_display);
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
@@ -920,6 +931,8 @@ RETRO_API void retro_run(void)
 		const unsigned steer_response = m2opt::get_steering_response(s_environ_cb);
 		const float steer_deadzone = m2opt::get_steering_deadzone(s_environ_cb);
 		const float steer_range = m2opt::get_steering_range(s_environ_cb);
+		const unsigned steer_damp_drive = m2opt::get_steering_damp_drive(s_environ_cb);
+		const unsigned steer_damp_return = m2opt::get_steering_damp_return(s_environ_cb);
 		const bool steer_display = m2opt::get_steering_display(s_environ_cb);
 
 		m2vk::set_option_resolution(res_width, res_height);
@@ -930,6 +943,7 @@ RETRO_API void retro_run(void)
 		// Recomposes against the switches, so a run pinned by M2VK_STEER_GAMMA stays pinned when the
 		// player touches an unrelated option.
 		m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
+		m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 		m2vk::set_option_steerbar(steer_display);
 
 		char res_text[32];

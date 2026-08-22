@@ -210,7 +210,58 @@ const retro_core_option_v2_definition DEFINITIONS[] = {
 			{ "60%",  "60%" },
 			{ nullptr, nullptr }
 		},
-		"100%"
+		// 80%, decided by hand-check. See steering-handcheck.md.
+		"80%"
+	},
+	{
+		m2opt::KEY_STEERING_DAMP_DRIVE,
+		"Steering Damping (Turn)",
+		nullptr,
+		"How quickly the wheel follows the stick when you turn. A real cabinet's wheel has weight and "
+		"cannot snap to full lock the way a thumbstick can, so the games — and the original emulator — "
+		"ease it there over a few frames, which is a large part of why a stick feels twitchy without it. "
+		"Lower is faster (fewer frames to full lock); Off is instant, the old behaviour. Pair it with "
+		"Return below. Only affects games with a wheel. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			// The value is a bare frame count, parsed by get_steering_damp_drive(); "Off" → instant.
+			{ "Off", "Off (instant)" },
+			{ "2",   "2 frames (very fast)" },
+			{ "3",   "3 frames" },
+			{ "4",   "4 frames" },
+			{ "5",   "5 frames" },
+			{ "6",   "6 frames (slow)" },
+			{ "8",   "8 frames (very slow)" },
+			{ nullptr, nullptr }
+		},
+		// 4 frames, decided by hand-check against the official emulator's timed wheel. See
+		// steering-handcheck.md.
+		"4"
+	},
+	{
+		m2opt::KEY_STEERING_DAMP_RETURN,
+		"Steering Damping (Return)",
+		nullptr,
+		"How quickly the wheel recentres when you let go of the stick, as a self-centring wheel's spring "
+		"does. Usually a little slower than Turn above — that asymmetry is what a real wheel feels like. "
+		"Lower is faster (fewer frames back to centre); Off is instant, the old behaviour. Only affects "
+		"games with a wheel. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "Off", "Off (instant)" },
+			{ "4",   "4 frames (very fast)" },
+			{ "5",   "5 frames" },
+			{ "6",   "6 frames" },
+			{ "7",   "7 frames" },
+			{ "8",   "8 frames" },
+			{ "10",  "10 frames (slow)" },
+			{ "12",  "12 frames (very slow)" },
+			{ nullptr, nullptr }
+		},
+		// 8 frames, decided by hand-check. See steering-handcheck.md.
+		"8"
 	},
 	{
 		m2opt::KEY_STEERING_DISPLAY,
@@ -453,7 +504,34 @@ float m2opt::get_steering_deadzone(retro_environment_t environ_cb)
 
 float m2opt::get_steering_range(retro_environment_t environ_cb)
 {
-	return percent_option(environ_cb, KEY_STEERING_RANGE, 1.0f);
+	return percent_option(environ_cb, KEY_STEERING_RANGE, 0.8f);
+}
+
+namespace {
+
+// "Off" or garbage → 0 (the instant sentinel); a bare "<n>" with no trailing junk → n. The 0-and-huge
+// guards keep a hand-written .opt file from asking for a nonsense rate; the setter clamps nothing.
+unsigned frames_option(retro_environment_t environ_cb, char const *key)
+{
+	const std::string value = m2opt::get(environ_cb, key);
+	unsigned n = 0;
+	char tail = 0;
+	const int matched = std::sscanf(value.c_str(), "%u%c", &n, &tail);
+	if ((matched != 1) || (n == 0) || (n > 240))
+		return 0;
+	return n;
+}
+
+} // anonymous namespace
+
+unsigned m2opt::get_steering_damp_drive(retro_environment_t environ_cb)
+{
+	return frames_option(environ_cb, KEY_STEERING_DAMP_DRIVE);
+}
+
+unsigned m2opt::get_steering_damp_return(retro_environment_t environ_cb)
+{
+	return frames_option(environ_cb, KEY_STEERING_DAMP_RETURN);
 }
 
 bool m2opt::updated(retro_environment_t environ_cb)
