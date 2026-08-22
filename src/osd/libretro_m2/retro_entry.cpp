@@ -331,6 +331,15 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 	bool no_content = false;
 	cb(RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &no_content);
 
+	// The Internal Resolution option's native size is the hardware's, which differs by driver family:
+	// 496x384 for Model 2, 640x480 for System 22. The OSD's object files are shared across subtargets,
+	// so the family cannot be a compile-time constant — but each subtarget's dylib compiles in only its
+	// own driver table (the driver_list::find() note below at line ~555), so a flagship name that exists
+	// in exactly one family tells them apart before any game is loaded. Positive-detect System 22 and
+	// leave Model 2's authored default in place otherwise, so a future third family is safe by default.
+	if (driver_list::find("ridgerac") >= 0)
+		m2opt::set_native_resolution("640x480");
+
 	// Options are published here rather than in retro_init(): a frontend reads them before the
 	// core is initialised, so that it can show them and restore the user's values first.
 	m2opt::declare(cb);

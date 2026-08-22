@@ -446,8 +446,22 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
 	}
 
 #ifdef S22VK
-	s22::submit_quad(clipv, clipverts, color, extra.cmode, m_state.m_is_ss22,
-			extra.texture_enabled, extra.alpha_enabled, direct, u32(extra.pens[0]));
+	{
+		s22::quad_shading sh;
+		sh.fogfactor     = extra.fogfactor;
+		sh.fogcolor      = u32(extra.fogcolor.to_rgba()) & 0x00ffffffu;
+		sh.zfog_enabled  = extra.zfog_enabled;
+		sh.cz_sdelta     = extra.cz_sdelta;
+		sh.alpha_enabled = extra.alpha_enabled;
+		if (extra.zfog_enabled)
+			for (int b = 0; b < 4; b++)
+				if (extra.czram == m_state.m_recalc_czram[b].get()) { sh.cz_bank = b; break; }
+
+		s22::submit_quad(clipv, clipverts, color, extra.cmode, m_state.m_is_ss22,
+				extra.texture_enabled, direct, u32(extra.pens[0]),
+				extra.bn, extra.shade_enabled, sh,
+				m_cliprect.left(), m_cliprect.top(), m_cliprect.right(), m_cliprect.bottom());
+	}
 	if (s22::sw_owns_3d())
 #endif
 	{
@@ -689,6 +703,43 @@ void namcos22_renderer::render_scene(screen_device &screen, bitmap_rgb32 &bitmap
 {
 #ifdef S22VK
 	s22::frame_begin(m_state.m_is_ss22 ? 1 : 0);
+	// The final gamma LUT (rlut|glut|blut, 0x300 bytes), applied to every output pixel by the mixer.
+	// Plain System 22 reads a static PROM (m_gamma_proms); Super System 22 reads mixer RAM at byte
+	// 0x100 (screen_update_namcos22s's post-pass), which changes per frame and is u32-word ordered — the
+	// shader swaps the byte index (^3) for that case. Both members are protected, so fetch publicly.
+	uint8_t const *gamma_lut = nullptr;
+	if (m_state.m_is_ss22)
+	{
+		if (memory_share *const ms = m_state.machine().root_device().memshare("video_mixer"))
+			gamma_lut = static_cast<uint8_t const *>(ms->ptr()) + 0x100;
+	}
+	else if (memory_region *const gr = m_state.machine().root_device().memregion("gamma_proms"))
+	{
+		gamma_lut = gr->base();
+	}
+	s22::set_texture_ram(m_state.m_texture_tilemap, m_state.m_texture_tileattr.get(),
+			m_state.m_texture_tiledata, m_state.m_texture_ayx_to_pixel.get(), m_state.m_palette->pens(),
+			gamma_lut);
+	{
+		// The per-frame globals of the SS22 shading tail (renderscanline_poly_ss22): screen fade,
+		// poly fade, poly alpha and the four z-fog tables. Same for every quad in the frame, so handed
+		// over once here rather than per quad. Screen fade is gated by mixer flag 0, exactly as the
+		// scanline path gates extra.fadefactor.
+		s22::shading_globals g;
+		g.alpha_pen         = m_state.m_poly_alpha_pen;
+		g.alpha_factor      = m_state.m_poly_alpha_factor;
+		g.fade_factor       = BIT(m_state.m_mixer_flags, 0) ? m_state.m_screen_fade_factor : 0;
+		g.fade_r            = m_state.m_screen_fade_r;
+		g.fade_g            = m_state.m_screen_fade_g;
+		g.fade_b            = m_state.m_screen_fade_b;
+		g.poly_fade_enabled = m_state.m_poly_fade_enabled;
+		g.poly_r            = m_state.m_poly_fade_r;
+		g.poly_g            = m_state.m_poly_fade_g;
+		g.poly_b            = m_state.m_poly_fade_b;
+		for (int b = 0; b < 4; b++)
+			g.czram[b] = m_state.m_recalc_czram[b].get();
+		s22::set_shading_state(g);
+	}
 #endif
 
 	struct namcos22_scenenode *node = &m_scenenode_root;
@@ -702,6 +753,14 @@ void namcos22_renderer::render_scene(screen_device &screen, bitmap_rgb32 &bitmap
 
 #ifdef S22VK
 	s22::frame_end();
+
+	// When the GPU owns the 3D, poly3d_drawquad still allocates one object_data per quad but never
+	// enqueues a render unit (render_triangle_fan is skipped below the seam). wait() early-outs with no
+	// units outstanding and so never resets the poly arrays, so the object_data arena grows every frame
+	// and after a few thousand frames poly_array::next() chains deeply enough to overflow the stack.
+	// Reclaim it here, once a frame; the software path is left untouched (wait() resets it as usual).
+	if (!s22::sw_owns_3d())
+		object_data().reset();
 #endif
 }
 
@@ -2573,6 +2632,14 @@ u32 namcos22s_state::screen_update_namcos22s(screen_device &screen, bitmap_rgb32
 		}
 	}
 
+#ifdef S22VK
+	// As screen_update_namcos22, but the topmost text on Super System 22 mixes at priority 6 (the
+	// draw_text_layer at priority 4 is the layered-under text, left in the passthrough background).
+	// Untested — no SS22 ROM is in the set yet — and sprites are z-interleaved with polygons in the
+	// tree, which this flat overlay does not resolve; that is the deferred SS22 compositing question.
+	s22::capture_over(bitmap, screen.priority(), 6, cliprect);
+#endif
+
 	return 0;
 }
 
@@ -2591,6 +2658,13 @@ u32 namcos22_state::screen_update_namcos22(screen_device &screen, bitmap_rgb32 &
 	draw_polygons();
 	m_poly->render_scene(screen, bitmap);
 	draw_text_layer(screen, bitmap, cliprect); // text layer + final mix
+
+#ifdef S22VK
+	// With the GPU owning the 3D, the text layer just mixed onto `bitmap` sits under the polygons the
+	// GPU draws over the whole 2D frame. Snapshot it (priority 2 marks the text tiles) so the renderer
+	// can redraw it above the 3D. Inert while the software rasteriser owns the 3D.
+	s22::capture_over(bitmap, screen.priority(), 2, cliprect);
+#endif
 
 	return 0;
 }

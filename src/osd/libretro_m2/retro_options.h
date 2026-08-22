@@ -165,6 +165,14 @@ inline constexpr char const *STEERING_RESPONSE_VALUES[STEER_RESPONSE_COUNT] = {
 inline constexpr float STEERING_RESPONSE_GAMMA[STEER_RESPONSE_COUNT] = {
 	1.0f, 1.3f, 1.7f, 2.2f, 3.0f };
 
+// Set which entry of the Internal Resolution option is the hardware's native size, before declare().
+// Model 2's is 496x384 (the authored default); System 22's is 640x480. Retargets the option's default
+// and moves the "(Native)" label onto the matching entry. `native` must be one of the option's value
+// strings ("<w>x<h>"); anything else is ignored, leaving the Model 2 default in place. The build's
+// object files are shared across subtargets, so this cannot be a compile-time choice — retro_entry
+// detects the driver family (driver_list) at retro_set_environment() time and calls this first.
+void set_native_resolution(char const *native);
+
 // Publish the option set to the frontend. Must be called from retro_set_environment(), which is
 // where a frontend expects to find out about options — it is called before retro_init().
 void declare(retro_environment_t environ_cb);

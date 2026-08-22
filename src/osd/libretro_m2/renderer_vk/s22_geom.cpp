@@ -2,21 +2,29 @@
 // copyright-holders:mcwild77
 /*********************************************************************************************************************************
 
-    Namco (Super) System 22 — the polygon pass (S2: untextured first).
+    Namco (Super) System 22 — the polygon pass (S2b: textured).
 
     See s22_geom.h for the shape of the phase and s22_seam.h for the stream. This file is the record
-    the seam fills on the emulation thread, plus the GPU pipeline that turns it into flat Gouraud-shaded
-    triangles on the frontend's thread. It is deliberately a fraction of vk_geom.cpp: no textures, no
-    colour tables, no per-polygon parameter buffer, no scissor, no depth buffer. Just position and a
-    resolved colour per vertex, drawn in record order.
+    the seam fills on the emulation thread, plus the GPU pipeline that turns it into textured, shaded
+    triangles on the frontend's thread. The texel fetch is renderscanline_poly's, done per fragment in
+    s22.frag; this file uploads the tile system it reads and builds the per-frame geometry.
 
-    Depth is a painter's algorithm: the System 22 tree is walked back-to-front, so the stream arrives
-    far-to-near and the last polygon to touch a pixel is the nearest. That needs no depth test — the
-    pipeline disables it and leaves the ring's depth attachment (Model 2's) alone.
+    Two things are settled and are the ones to understand before editing:
 
-    Threading mirrors m2vk_frame.cpp: the record is a single object, written on the emulation thread
-    during render_scene and read on the frontend's thread from retro_run. Those never overlap — the
-    emulation thread is parked on the OSD's baton for the whole of retro_run — so there is no lock.
+      * DEPTH IS DRAW ORDER, NOT z, as it is for Model 2 — but the System 22 tree is walked
+        BACK-TO-FRONT (see s22_seam.h), the opposite of Model 2's stream, so the ordering is a plain
+        painter's algorithm: draw in record order, last writer wins the pixel. That needs no depth
+        buffer at all, so this pipeline disables the depth test and leaves the ring's depth attachment
+        (which Model 2 needs) untouched.
+
+      * THE TEXTURE SYSTEM IS STATIC AND SHARED. ttmap / ttattr / ttdata / ayx are ROM-derived and
+        fixed after init_tables, so they are uploaded ONCE into buffers shared by every slot. Only the
+        palette changes per frame, and it is small (128 KB), so it is the one thing re-uploaded each
+        frame, per slot. The Model 2 build never captures, so none of this is ever allocated there.
+
+    Like vk_geom, per-frame buffers are host-visible device-local and written with no staging copy, and
+    the record is turned into buffers on the frontend's thread from data the emulation thread wrote and
+    is now parked against, so there is no lock.
 
 *********************************************************************************************************************************/
 
@@ -28,6 +36,7 @@
 #include "renderer_vk/shaders/s22_frag_spv.h"
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -48,8 +57,7 @@ namespace {
 // Matches vk_present's ceiling on the sync-index mask; the two are indexed by the same thing.
 constexpr uint32_t MAX_SLOTS = 8;
 
-// Where the per-slot buffers start. ridgerac peaks near 2000 quads a scene (S1's tap), so this never
-// reallocates in the steady state; a frame past it grows the buffers once and they stay grown.
+// ridgerac peaks near 2000 quads a scene (S1's tap), so this never reallocates in the steady state.
 constexpr uint32_t INITIAL_QUAD_CAPACITY = 4096;
 
 // A sanity bound on a count that comes from emulated hardware, and headroom for the index type.
@@ -59,22 +67,66 @@ constexpr uint32_t MAX_QUAD_CAPACITY = 1u << 21;
 constexpr uint32_t MAX_QUAD_VERTS = 6;
 constexpr uint32_t MAX_QUAD_INDICES = 12;
 
-// 16 bytes: position (with the meaningless painter's-order z) and the resolved flat colour.
+// The tile system's fixed sizes (bytes), from init_tables in namcos22_v.cpp. ttdata is the "textile"
+// region (0x1000000); ttmap is 0x100000 halfwords; ttattr is 0x100000 unpacked bytes; ayx is 16*16*16;
+// palette is 0x8000 pens. The shader masks every index to these, so they are the ground truth for both.
+constexpr VkDeviceSize TTDATA_BYTES  = 0x1000000;
+constexpr VkDeviceSize TTATTR_BYTES  = 0x100000;
+constexpr VkDeviceSize TTMAP_BYTES   = 0x100000 * 2;
+constexpr VkDeviceSize AYX_BYTES     = 0x1000;
+constexpr VkDeviceSize PALETTE_BYTES = 0x8000 * sizeof(uint32_t);
+
+// The SS22 z-fog tables (recalc_czram): four banks of 0x2000 bytes, concatenated. Per-slot and
+// re-uploaded each frame (contents change), the same handling the palette gets.
+constexpr VkDeviceSize CZRAM_BANK    = 0x2000;
+constexpr VkDeviceSize CZRAM_BYTES   = CZRAM_BANK * 4;
+
+// The plain System 22 final gamma LUT (m_gamma_proms): rlut|glut|blut, 0x100 bytes each. Static,
+// ROM-derived, shared like the tile system. Applied as the last step in s22.frag on plain-S22 quads.
+constexpr VkDeviceSize GAMMA_BYTES   = 0x300;
+
+// 44 bytes: screen position, the three screen-linear params the fragment divides, the shade param, the
+// three flat per-quad words, then the two flat per-quad shading-tail words. Attribute offsets below are
+// written out by hand.
 struct gpu_vertex
 {
-	float    x, y, z;
-	uint32_t rgba;          // R8G8B8A8_UNORM, i.e. R in the low byte
+	float    x, y;            // screen space
+	float    uoz, voz, ooz;   // (u+0.5)*ooz, (v+0.5)*ooz, ooz  (driver clipv.p[1], p[2], p[0])
+	float    iw;              // (bri+0.5)*ooz                   (driver clipv.p[3])
+	uint32_t attr;            // flags | (color & 0x7f) << 8 | cmode << 16
+	uint32_t bn;              // texturebank
+	uint32_t base;            // untextured fill, 0x00RRGGBB
+	uint32_t sf0;             // fogfactor | cz_bank<<8 | zfog<<10 | alpha_en<<11 | ss22<<12 | (sdelta+256)<<13
+	uint32_t sf1;             // fog colour, 0x00RRGGBB
 };
 
-static_assert(sizeof(gpu_vertex) == 16, "the vertex attribute offsets below are written out by hand");
+static_assert(sizeof(gpu_vertex) == 44, "the vertex attribute offsets below are written out by hand");
 
-// The vertex shader's push block: the visible picture's half-extent in pixels.
+// Attribute flag bits, matched in s22.frag.
+constexpr uint32_t ATTR_TEXTURED = 1u;
+constexpr uint32_t ATTR_SHADE    = 2u;
+
+// sf0 bit layout, matched in s22.frag.
+constexpr uint32_t SF0_ZFOG      = 1u << 10;
+constexpr uint32_t SF0_ALPHA_EN  = 1u << 11;
+constexpr uint32_t SF0_SS22      = 1u << 12;
+
+// The push block: the visible picture's half-extent in pixels (s22.vert), then the SS22 shading tail's
+// per-frame globals (s22.frag) — screen fade, poly fade and poly alpha, the same for every quad.
 struct push_block
 {
-	float half_width, half_height;
+	float    half_width, half_height;
+	uint32_t alpha_pen;
+	uint32_t alpha_factor;
+	uint32_t fade_factor;
+	uint32_t fade_r, fade_g, fade_b;
+	uint32_t poly_flags;              // bit0 = poly_fade_enabled
+	uint32_t poly_r, poly_g, poly_b;
 };
 
-static_assert(sizeof(push_block) == 8, "s22.vert's push block is two words");
+static_assert(sizeof(push_block) == 48, "s22 push block is twelve words");
+
+constexpr uint32_t PFLAG_POLY_FADE = 1u;
 
 struct mapped_buffer
 {
@@ -84,12 +136,31 @@ struct mapped_buffer
 	VkDeviceSize   size = 0;
 };
 
+// One indexed draw: a run of consecutive quads that share a clip window. Same idea as vk_geom's
+// draw_batch — the rectangle is carried in bitmap pixels rather than a VkRect2D, because geom_draw is
+// where the attachment extent (and the internal-resolution scale) is known and the clamp belongs.
+struct draw_batch
+{
+	int16_t  left, top, right, bottom;   // inclusive, m_cliprect as MAME spelled it
+	uint32_t first_index;
+	uint32_t index_count;
+};
+
 struct geom_slot
 {
-	mapped_buffer vertices;
-	mapped_buffer indices;
-	uint32_t      capacity = 0;     // quads the two buffers are sized for
-	uint32_t      index_count = 0;  // what this slot's recorded draw will submit
+	mapped_buffer   vertices;
+	mapped_buffer   indices;
+	mapped_buffer   palette;               // 128 KB, re-uploaded each frame
+	mapped_buffer   czram;                 // 32 KB (4 z-fog banks), re-uploaded each frame
+	mapped_buffer   gamma;                 // 768 B final gamma LUT, re-uploaded each frame (SS22's is
+	                                       // in mixer RAM and changes; plain S22's PROM just re-copies)
+	VkDescriptorSet descriptor = VK_NULL_HANDLE;
+	uint32_t        capacity = 0;          // quads the vertex/index buffers are sized for
+	uint32_t        index_count = 0;       // what this slot's recorded draw will submit
+
+	// One draw per clip-window run; host-side, so it grows on its own. One entry for a game that never
+	// windows the 3D (ridgerac); SS22 letterbox games (tokyowar) alternate a couple of windows a frame.
+	std::vector<draw_batch> batches;
 };
 
 
@@ -112,16 +183,41 @@ const retro_hw_render_interface_vulkan *s_iface = nullptr;
 vk_funcs s_fns;
 VkDevice s_device = VK_NULL_HANDLE;
 
-VkPipelineLayout s_pipeline_layout = VK_NULL_HANDLE;
-VkPipeline       s_pipeline = VK_NULL_HANDLE;
-bool s_pipeline_ready = false;
-bool s_pipeline_failed = false;
+// The static, shared texture system. Built once, when the first captured frame has the pointers.
+mapped_buffer s_ttdata;
+mapped_buffer s_ttattr;
+mapped_buffer s_ttmap;
+mapped_buffer s_ayx;
+bool s_static_uploaded = false;
+
+VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
+VkPipeline            s_pipeline = VK_NULL_HANDLE;
+VkDescriptorSetLayout s_set_layout = VK_NULL_HANDLE;
+VkDescriptorPool      s_descriptor_pool = VK_NULL_HANDLE;
+bool s_ready = false;
+bool s_failed = false;
 
 // Reporting, once per run.
 bool     s_reported_first = false;
 uint64_t s_run_quads = 0;
 uint32_t s_max_quads = 0;
 uint64_t s_drawn_serial = 0;
+
+// M2VK_NO_SCISSOR=1 collapses every quad's clip window to full-screen — one run for the frame, the
+// pre-scissor behaviour. The same attribution switch vk_geom exposes: it answers "did the per-quad
+// scissor move these pixels", which for SS22 letterbox games (tokyowar) it does, hard.
+bool s_no_scissor = false;
+bool s_no_scissor_known = false;
+
+bool no_scissor()
+{
+	if (!s_no_scissor_known)
+	{
+		s_no_scissor = (std::getenv("M2VK_NO_SCISSOR") != nullptr);
+		s_no_scissor_known = true;
+	}
+	return s_no_scissor;
+}
 
 
 //============================================================
@@ -210,51 +306,85 @@ bool size_slot(geom_slot &slot, uint32_t quads)
 	return true;
 }
 
-// The polygon's base palette colour (pens[0], 0x00RRGGBB) modulated by the per-vertex hardware
-// brightness. renderscanline_poly computes shade = (bri + 0.5) and scales each channel by
-// (shade << 2) / 256 = shade / 64; bri arrives here premultiplied by ooz, so bri/ooz recovers it.
-uint32_t shade_color(uint32_t base, float bri_over_z, float ooz)
+// Points a slot's descriptor set at the four shared static buffers and its own palette buffer. Written
+// once, after everything exists — the static buffers never move and the palette buffer is fixed size.
+void write_descriptor(geom_slot &slot)
 {
-	float shade = 1.0f;
-	if (ooz > 1e-9f || ooz < -1e-9f)
-		shade = (bri_over_z / ooz) / 64.0f;
-	if (shade < 0.0f)
-		shade = 0.0f;
+	const VkBuffer buffers[7] = {
+		s_ttdata.buffer, s_ttattr.buffer, s_ttmap.buffer, s_ayx.buffer,
+		slot.palette.buffer, slot.czram.buffer, slot.gamma.buffer };
 
-	auto ch = [shade](uint32_t c) -> uint32_t
+	VkDescriptorBufferInfo info[7]{};
+	VkWriteDescriptorSet write[7]{};
+	for (uint32_t i = 0; i < 7; i++)
 	{
-		int v = int(float(c) * shade + 0.5f);
-		if (v > 255) v = 255;
-		return uint32_t(v);
-	};
+		info[i].buffer = buffers[i];
+		info[i].offset = 0;
+		info[i].range = VK_WHOLE_SIZE;
 
-	const uint32_t r = ch((base >> 16) & 0xff);
-	const uint32_t g = ch((base >> 8) & 0xff);
-	const uint32_t b = ch(base & 0xff);
-	return r | (g << 8) | (b << 16) | 0xff000000u;
+		write[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write[i].dstSet = slot.descriptor;
+		write[i].dstBinding = i;
+		write[i].descriptorCount = 1;
+		write[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		write[i].pBufferInfo = &info[i];
+	}
+
+	s_fns.update_descriptor_sets(s_device, 7, write, 0, nullptr);
 }
 
-bool ensure_pipeline()
+bool build_descriptor_layout()
 {
-	if (s_pipeline_ready)
-		return true;
-	if (s_pipeline_failed || (s_device == VK_NULL_HANDLE) || (s_render_pass == VK_NULL_HANDLE))
-		return false;
+	// Seven storage buffers: the four static tile-system arrays, the per-slot palette, the per-slot
+	// z-fog tables (czram), then the static plain-S22 gamma LUT.
+	VkDescriptorSetLayoutBinding bindings[7]{};
+	for (uint32_t i = 0; i < 7; i++)
+	{
+		bindings[i].binding = i;
+		bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		bindings[i].descriptorCount = 1;
+		bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	}
 
+	VkDescriptorSetLayoutCreateInfo layout_info{};
+	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layout_info.bindingCount = 7;
+	layout_info.pBindings = bindings;
+	if (!check(s_fns.create_descriptor_set_layout(s_device, &layout_info, nullptr, &s_set_layout),
+			"vkCreateDescriptorSetLayout (s22)"))
+	{
+		return false;
+	}
+
+	VkDescriptorPoolSize size{};
+	size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	size.descriptorCount = s_slot_count * 7;
+
+	VkDescriptorPoolCreateInfo pool_info{};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.maxSets = s_slot_count;
+	pool_info.poolSizeCount = 1;
+	pool_info.pPoolSizes = &size;
+	return check(s_fns.create_descriptor_pool(s_device, &pool_info, nullptr, &s_descriptor_pool),
+			"vkCreateDescriptorPool (s22)");
+}
+
+bool build_pipeline()
+{
 	VkPushConstantRange push{};
-	push.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	push.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	push.offset = 0;
 	push.size = sizeof(push_block);
 
 	VkPipelineLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	layout_info.setLayoutCount = 0;
+	layout_info.setLayoutCount = 1;
+	layout_info.pSetLayouts = &s_set_layout;
 	layout_info.pushConstantRangeCount = 1;
 	layout_info.pPushConstantRanges = &push;
 	if (!check(s_fns.create_pipeline_layout(s_device, &layout_info, nullptr, &s_pipeline_layout),
 			"vkCreatePipelineLayout (s22)"))
 	{
-		s_pipeline_failed = true;
 		return false;
 	}
 
@@ -288,21 +418,21 @@ bool ensure_pipeline()
 		binding.stride = sizeof(gpu_vertex);
 		binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		VkVertexInputAttributeDescription attrs[2]{};
-		attrs[0].location = 0;
-		attrs[0].binding = 0;
-		attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;   // x, y, painter's-order z
-		attrs[0].offset = 0;
-		attrs[1].location = 1;
-		attrs[1].binding = 0;
-		attrs[1].format = VK_FORMAT_R8G8B8A8_UNORM;     // resolved flat colour
-		attrs[1].offset = 12;
+		VkVertexInputAttributeDescription attrs[8]{};
+		attrs[0].location = 0; attrs[0].binding = 0; attrs[0].format = VK_FORMAT_R32G32_SFLOAT;     attrs[0].offset = 0;
+		attrs[1].location = 1; attrs[1].binding = 0; attrs[1].format = VK_FORMAT_R32G32B32_SFLOAT;  attrs[1].offset = 8;
+		attrs[2].location = 2; attrs[2].binding = 0; attrs[2].format = VK_FORMAT_R32_SFLOAT;        attrs[2].offset = 20;
+		attrs[3].location = 3; attrs[3].binding = 0; attrs[3].format = VK_FORMAT_R32_UINT;          attrs[3].offset = 24;
+		attrs[4].location = 4; attrs[4].binding = 0; attrs[4].format = VK_FORMAT_R32_UINT;          attrs[4].offset = 28;
+		attrs[5].location = 5; attrs[5].binding = 0; attrs[5].format = VK_FORMAT_R32_UINT;          attrs[5].offset = 32;
+		attrs[6].location = 6; attrs[6].binding = 0; attrs[6].format = VK_FORMAT_R32_UINT;          attrs[6].offset = 36;
+		attrs[7].location = 7; attrs[7].binding = 0; attrs[7].format = VK_FORMAT_R32_UINT;          attrs[7].offset = 40;
 
 		VkPipelineVertexInputStateCreateInfo vertex_input{};
 		vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertex_input.vertexBindingDescriptionCount = 1;
 		vertex_input.pVertexBindingDescriptions = &binding;
-		vertex_input.vertexAttributeDescriptionCount = 2;
+		vertex_input.vertexAttributeDescriptionCount = 8;
 		vertex_input.pVertexAttributeDescriptions = attrs;
 
 		VkPipelineInputAssemblyStateCreateInfo assembly{};
@@ -314,8 +444,8 @@ bool ensure_pipeline()
 		viewport_state.viewportCount = 1;
 		viewport_state.scissorCount = 1;
 
-		// No culling: the geometry engine's check_culling already rejected back faces and the fan's
-		// winding is whatever the game's vertex order made it, exactly as the software path.
+		// No culling: check_culling already rejected back faces and the fan's winding is whatever the
+		// game's vertex order made it, exactly as the software path.
 		VkPipelineRasterizationStateCreateInfo raster{};
 		raster.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 		raster.polygonMode = VK_POLYGON_MODE_FILL;
@@ -338,8 +468,21 @@ bool ensure_pipeline()
 		depth.depthBoundsTestEnable = VK_FALSE;
 		depth.stencilTestEnable = VK_FALSE;
 
+		// SS22 poly alpha (renderscanline_poly_ss22's final rgb.blend(dest, ...)) is done here as a
+		// per-pixel destination blend: the fragment emits alpha = (0xff - poly_alpha)/255 for a pixel that
+		// alpha-blends and 1.0 for an opaque one, and SRC_ALPHA/ONE_MINUS_SRC_ALPHA reproduces the mix.
+		// Opaque pixels (every plain-S22 pixel, and every non-alpha SS22 pixel) emit alpha 1.0, so the
+		// blend passes the source through unchanged and is bit-exact. The software mix is integer >>8 and
+		// this is UNORM float, so an actual alpha pixel carries a small rounding residual — expected, and
+		// noted for the SS22 tail (its accuracy ground truth is looser than Model 2's).
 		VkPipelineColorBlendAttachmentState blend_attachment{};
-		blend_attachment.blendEnable = VK_FALSE;
+		blend_attachment.blendEnable = VK_TRUE;
+		blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+		blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 		blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
 				| VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
@@ -379,13 +522,81 @@ bool ensure_pipeline()
 	if (vert != VK_NULL_HANDLE)
 		s_fns.destroy_shader_module(s_device, vert, nullptr);
 
-	if (!ok)
+	return ok;
+}
+
+// Uploads the four static tile-system buffers once. On little-endian hardware the packed uint buffers
+// are byte-for-byte the driver's arrays, so each is a plain memcpy — the unpack lives in the shader.
+bool upload_static()
+{
+	if (s_static_uploaded)
+		return true;
+
+	texture_ram const &t = get_texture_ram();
+	if ((t.ttdata == nullptr) || (t.ttattr == nullptr) || (t.ttmap == nullptr) || (t.ayx == nullptr))
+		return false;
+
+	if (!create_buffer(s_ttdata, TTDATA_BYTES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 ttdata)")
+			|| !create_buffer(s_ttattr, TTATTR_BYTES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 ttattr)")
+			|| !create_buffer(s_ttmap, TTMAP_BYTES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 ttmap)")
+			|| !create_buffer(s_ayx, AYX_BYTES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 ayx)"))
 	{
-		s_pipeline_failed = true;
 		return false;
 	}
 
-	s_pipeline_ready = true;
+	std::memcpy(s_ttdata.mapped, t.ttdata, size_t(TTDATA_BYTES));
+	std::memcpy(s_ttattr.mapped, t.ttattr, size_t(TTATTR_BYTES));
+	std::memcpy(s_ttmap.mapped, t.ttmap, size_t(TTMAP_BYTES));
+	std::memcpy(s_ayx.mapped, t.ayx, size_t(AYX_BYTES));
+
+	s_static_uploaded = true;
+	return true;
+}
+
+// Everything the draw needs: pipeline, descriptor pool/sets, static tile buffers, per-slot palette
+// buffers. Built once, on the first captured frame that has the texture pointers. The Model 2 build —
+// which never captures — never reaches here, so it makes no Vulkan call from this file.
+bool ensure_ready()
+{
+	if (s_ready)
+		return true;
+	if (s_failed || (s_device == VK_NULL_HANDLE) || (s_render_pass == VK_NULL_HANDLE))
+		return false;
+
+	if (!build_descriptor_layout() || !build_pipeline() || !upload_static())
+	{
+		s_failed = true;
+		return false;
+	}
+
+	for (uint32_t i = 0; i < s_slot_count; i++)
+	{
+		geom_slot &slot = s_slots[i];
+
+		VkDescriptorSetAllocateInfo set_alloc{};
+		set_alloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		set_alloc.descriptorPool = s_descriptor_pool;
+		set_alloc.descriptorSetCount = 1;
+		set_alloc.pSetLayouts = &s_set_layout;
+		if (!check(s_fns.allocate_descriptor_sets(s_device, &set_alloc, &slot.descriptor),
+				"vkAllocateDescriptorSets (s22)"))
+		{
+			s_failed = true;
+			return false;
+		}
+
+		if (!create_buffer(slot.palette, PALETTE_BYTES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 palette)")
+				|| !create_buffer(slot.czram, CZRAM_BYTES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 czram)")
+				|| !create_buffer(slot.gamma, GAMMA_BYTES, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "vkCreateBuffer (s22 gamma)"))
+		{
+			s_failed = true;
+			return false;
+		}
+
+		write_descriptor(slot);
+	}
+
+	s_ready = true;
 	return true;
 }
 
@@ -430,16 +641,20 @@ bool geom_build(const retro_hw_render_interface_vulkan &iface, const vk_funcs &f
 	s_render_pass = render_pass;
 	s_slot_count = (slot_count < MAX_SLOTS) ? slot_count : MAX_SLOTS;
 
-	// The pipeline and per-slot buffers are built lazily on the first upload that carries geometry, so
-	// a build that never captures (the Model 2 core) makes no Vulkan call from here.
-	s_pipeline_ready = false;
-	s_pipeline_failed = false;
+	// Everything is built lazily on the first upload that carries geometry, so a build that never
+	// captures (the Model 2 core) makes no Vulkan call from here.
+	s_ready = false;
+	s_failed = false;
+	s_static_uploaded = false;
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
+	s_set_layout = VK_NULL_HANDLE;
+	s_descriptor_pool = VK_NULL_HANDLE;
 	for (geom_slot &slot : s_slots)
 	{
 		slot.capacity = 0;
 		slot.index_count = 0;
+		slot.descriptor = VK_NULL_HANDLE;
 	}
 	return true;
 }
@@ -453,18 +668,34 @@ void geom_destroy()
 	{
 		destroy_buffer(slot.vertices);
 		destroy_buffer(slot.indices);
+		destroy_buffer(slot.palette);
+		destroy_buffer(slot.czram);
+		destroy_buffer(slot.gamma);
 		slot.capacity = 0;
 		slot.index_count = 0;
+		slot.descriptor = VK_NULL_HANDLE;
 	}
+	destroy_buffer(s_ttdata);
+	destroy_buffer(s_ttattr);
+	destroy_buffer(s_ttmap);
+	destroy_buffer(s_ayx);
+
 	if (s_pipeline != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline, nullptr);
 	if (s_pipeline_layout != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline_layout(s_device, s_pipeline_layout, nullptr);
+	if (s_descriptor_pool != VK_NULL_HANDLE)
+		s_fns.destroy_descriptor_pool(s_device, s_descriptor_pool, nullptr);
+	if (s_set_layout != VK_NULL_HANDLE)
+		s_fns.destroy_descriptor_set_layout(s_device, s_set_layout, nullptr);
 
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
-	s_pipeline_ready = false;
-	s_pipeline_failed = false;
+	s_descriptor_pool = VK_NULL_HANDLE;
+	s_set_layout = VK_NULL_HANDLE;
+	s_ready = false;
+	s_failed = false;
+	s_static_uploaded = false;
 	s_render_pass = VK_NULL_HANDLE;
 	s_slot_count = 0;
 }
@@ -475,13 +706,24 @@ void geom_forget()
 	{
 		slot.vertices = mapped_buffer{};
 		slot.indices = mapped_buffer{};
+		slot.palette = mapped_buffer{};
+		slot.czram = mapped_buffer{};
+		slot.gamma = mapped_buffer{};
 		slot.capacity = 0;
 		slot.index_count = 0;
+		slot.descriptor = VK_NULL_HANDLE;
 	}
+	s_ttdata = mapped_buffer{};
+	s_ttattr = mapped_buffer{};
+	s_ttmap = mapped_buffer{};
+	s_ayx = mapped_buffer{};
 	s_pipeline = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
-	s_pipeline_ready = false;
-	s_pipeline_failed = false;
+	s_descriptor_pool = VK_NULL_HANDLE;
+	s_set_layout = VK_NULL_HANDLE;
+	s_ready = false;
+	s_failed = false;
+	s_static_uploaded = false;
 	s_render_pass = VK_NULL_HANDLE;
 	s_slot_count = 0;
 	s_device = VK_NULL_HANDLE;
@@ -490,19 +732,52 @@ void geom_forget()
 bool geom_upload(uint32_t slot_index)
 {
 	// Before any Vulkan work, so the Model 2 build (which never captures) returns here every frame and
-	// never builds the pipeline.
+	// never builds anything.
 	if (!s_valid || (s_quad_count == 0) || (slot_index >= s_slot_count))
 		return false;
-	if (!ensure_pipeline())
+	if (!ensure_ready())
 		return false;
 
 	geom_slot &slot = s_slots[slot_index];
 	if ((slot.capacity < s_quad_count) && !size_slot(slot, s_quad_count + (s_quad_count / 2)))
 		return false;
 
+	// The palette is the one thing in the tile system that changes per frame; re-upload the live pens.
+	if (texture_ram const &t = get_texture_ram(); t.palette != nullptr)
+		std::memcpy(slot.palette.mapped, t.palette, size_t(PALETTE_BYTES));
+
+	// The four z-fog tables change per frame too (recalc_czram); re-upload them concatenated. A plain
+	// System 22 game has no czram (the tables are SS22-only), so a null bank is zero-filled — its quads
+	// never set zfog anyway, so the contents are never read.
+	{
+		shading_globals const &g = get_shading_globals();
+		auto *const cz = static_cast<uint8_t *>(slot.czram.mapped);
+		for (int b = 0; b < 4; b++)
+		{
+			if (g.czram[b] != nullptr)
+				std::memcpy(cz + b * size_t(CZRAM_BANK), g.czram[b], size_t(CZRAM_BANK));
+			else
+				std::memset(cz + b * size_t(CZRAM_BANK), 0, size_t(CZRAM_BANK));
+		}
+	}
+
+	// The final gamma LUT (rlut|glut|blut). Plain System 22's is a static PROM, Super System 22's is in
+	// mixer RAM and changes per frame; either way the driver hands over the active source each frame. A
+	// null LUT (a game with no gamma) is an identity ramp so the shader step is a no-op.
+	{
+		auto *const gm = static_cast<uint8_t *>(slot.gamma.mapped);
+		if (texture_ram const &t = get_texture_ram(); t.gamma != nullptr)
+			std::memcpy(gm, t.gamma, size_t(GAMMA_BYTES));
+		else
+			for (int c = 0; c < 3; c++)
+				for (int i = 0; i < 0x100; i++)
+					gm[c * 0x100 + i] = uint8_t(i);
+	}
+
 	auto *const verts = static_cast<gpu_vertex *>(slot.vertices.mapped);
 	auto *const idx = static_cast<uint32_t *>(slot.indices.mapped);
 	uint32_t vcount = 0, icount = 0;
+	slot.batches.clear();
 
 	for (uint32_t qi = 0; qi < s_quad_count; qi++)
 	{
@@ -513,21 +788,61 @@ bool geom_upload(uint32_t slot_index)
 		if (n > MAX_QUAD_VERTS)
 			n = MAX_QUAD_VERTS;
 
-		const uint32_t base = vcount;
+		// The quad's clip window, or full-screen under the attribution switch.
+		const int16_t cl = no_scissor() ? int16_t(0)   : q.clip_l;
+		const int16_t ct = no_scissor() ? int16_t(0)   : q.clip_t;
+		const int16_t cr = no_scissor() ? int16_t(639) : q.clip_r;
+		const int16_t cb = no_scissor() ? int16_t(479) : q.clip_b;
+
+		// Start a new run whenever the clip window changes; render_scene walks the tree in draw order, so
+		// a run is a maximal span of consecutive quads that share a scissor. geom_draw sets it once per run.
+		if (slot.batches.empty()
+				|| (slot.batches.back().left != cl) || (slot.batches.back().top != ct)
+				|| (slot.batches.back().right != cr) || (slot.batches.back().bottom != cb))
+		{
+			slot.batches.push_back(draw_batch{ cl, ct, cr, cb, icount, 0 });
+		}
+
+		const uint32_t attr = (q.textured ? ATTR_TEXTURED : 0u)
+				| (q.shade_enabled ? ATTR_SHADE : 0u)
+				| ((uint32_t(q.color) & 0x7fu) << 8u)
+				| ((uint32_t(q.cmode) & 0xffu) << 16u);
+		const uint32_t bn = uint32_t(q.texturebank);
+		const uint32_t base = q.basecolor;
+
+		// The per-quad shading-tail words. sf0 packs the small scalars and flags; sf1 is the fog colour.
+		// cz_sdelta is signed (-256..255), stored biased by 256 into a 9-bit field.
+		const uint32_t sf0 = uint32_t(q.fogfactor)
+				| ((uint32_t(q.cz_bank) & 3u) << 8u)
+				| (q.zfog_enabled ? SF0_ZFOG : 0u)
+				| (q.alpha_enabled ? SF0_ALPHA_EN : 0u)
+				| (q.ss22 ? SF0_SS22 : 0u)
+				| ((uint32_t(int(q.cz_sdelta) + 256) & 0x1ffu) << 13u);
+		const uint32_t sf1 = q.fogcolor & 0x00ffffffu;
+
+		const uint32_t vbase = vcount;
 		for (uint32_t i = 0; i < n; i++)
 		{
 			gpu_vertex &v = verts[vcount++];
 			v.x = q.x[i];
 			v.y = q.y[i];
-			v.z = 0.5f;     // painter's order: depth test is off, so this is a placeholder in [0,1]
-			v.rgba = shade_color(q.basecolor, q.bri[i], q.ooz[i]);
+			v.uoz = q.uoz[i];
+			v.voz = q.voz[i];
+			v.ooz = q.ooz[i];
+			v.iw = q.bri[i];
+			v.attr = attr;
+			v.bn = bn;
+			v.base = base;
+			v.sf0 = sf0;
+			v.sf1 = sf1;
 		}
 		for (uint32_t i = 1; i + 1 < n; i++)
 		{
-			idx[icount++] = base;
-			idx[icount++] = base + i;
-			idx[icount++] = base + i + 1;
+			idx[icount++] = vbase;
+			idx[icount++] = vbase + i;
+			idx[icount++] = vbase + i + 1;
 		}
+		slot.batches.back().index_count = icount - slot.batches.back().first_index;
 	}
 
 	slot.index_count = icount;
@@ -543,7 +858,7 @@ bool geom_upload(uint32_t slot_index)
 	if (!s_reported_first && (icount != 0))
 	{
 		s_reported_first = true;
-		vk_log(RETRO_LOG_INFO, "s22: first GPU geometry — %u quads, %u indices (%s)\n",
+		vk_log(RETRO_LOG_INFO, "s22: first GPU geometry (textured) — %u quads, %u indices (%s)\n",
 				unsigned(s_quad_count), unsigned(icount), s_variant ? "ss22" : "s22");
 	}
 
@@ -553,29 +868,101 @@ bool geom_upload(uint32_t slot_index)
 void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigned height,
 		unsigned draw_width, unsigned draw_height)
 {
-	(void)draw_width;
-	(void)draw_height;
-
-	if (!s_pipeline_ready || (slot_index >= s_slot_count))
+	if (!s_ready || (slot_index >= s_slot_count))
 		return;
 
 	geom_slot &slot = s_slots[slot_index];
-	if (slot.index_count == 0)
+	if ((slot.index_count == 0) || (slot.descriptor == VK_NULL_HANDLE))
 		return;
 
-	// The VISIBLE half-extent, resolution-invariant for the reason poly.vert gives: the vertex shader
+	// The VISIBLE half-extent, resolution-invariant for the reason s22.vert gives: the vertex shader
 	// turns bitmap pixels into NDC, so the attachment size never enters here. The caller has already set
 	// the viewport and scissor to the (possibly larger) attachment extent.
 	push_block push{};
 	push.half_width = float(width) * 0.5f;
 	push.half_height = float(height) * 0.5f;
 
+	// The SS22 shading tail's per-frame globals — screen fade, poly fade, poly alpha — the same for every
+	// quad. The z-fog tables came over the czram buffer; these ride the push constant.
+	shading_globals const &g = get_shading_globals();
+	if (char const *const dbg = std::getenv("M2VK_S22_SHADEDUMP"); dbg && *dbg)
+	{
+		static uint64_t last = ~0ull;
+		if (s_serial != last)
+		{
+			last = s_serial;
+			vk_log(RETRO_LOG_INFO, "s22 globals: pfade=%d poly=(%d,%d,%d) fade_factor=%d fade=(%d,%d,%d) alpha_factor=%d alpha_pen=%d\n",
+					g.poly_fade_enabled ? 1 : 0, g.poly_r, g.poly_g, g.poly_b,
+					g.fade_factor, g.fade_r, g.fade_g, g.fade_b, g.alpha_factor, g.alpha_pen);
+		}
+	}
+	push.alpha_pen    = uint32_t(g.alpha_pen & 0xff);
+	push.alpha_factor = uint32_t(g.alpha_factor & 0xff);
+	push.fade_factor  = uint32_t(g.fade_factor & 0xff);
+	push.fade_r       = uint32_t(g.fade_r & 0xffff);
+	push.fade_g       = uint32_t(g.fade_g & 0xffff);
+	push.fade_b       = uint32_t(g.fade_b & 0xffff);
+	push.poly_flags   = g.poly_fade_enabled ? PFLAG_POLY_FADE : 0u;
+	push.poly_r       = uint32_t(g.poly_r & 0xffff);
+	push.poly_g       = uint32_t(g.poly_g & 0xffff);
+	push.poly_b       = uint32_t(g.poly_b & 0xffff);
+
 	const VkDeviceSize offset = 0;
 	s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
-	s_fns.cmd_push_constants(cmd, s_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
+	s_fns.cmd_bind_descriptor_sets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
+			0, 1, &slot.descriptor, 0, nullptr);
+	s_fns.cmd_push_constants(cmd, s_pipeline_layout,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
 	s_fns.cmd_bind_vertex_buffers(cmd, 0, 1, &slot.vertices.buffer, &offset);
 	s_fns.cmd_bind_index_buffer(cmd, slot.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
-	s_fns.cmd_draw_indexed(cmd, slot.index_count, 1, 0, 0, 0);
+
+	// One draw per clip-window run, each with its own scissor. The rectangle is inclusive in bitmap
+	// pixels; the caller passes width/height as the visible extent MAME clipped against (640x480), so an
+	// m_destmap pixel spans scale_x by scale_y attachment pixels — the same internal-resolution scale
+	// vk_geom applies, rounded OUTWARD so a fractional scale never shaves a boundary column. Most games
+	// window nothing (one full-screen run), so the scissor is a no-op there; SS22 letterbox games window
+	// the 3D into a black-barred viewport, which is the whole point of applying it (tokyowar's sky).
+	const float scale_x = float(draw_width) / float(width);
+	const float scale_y = float(draw_height) / float(height);
+
+	VkRect2D set_to{};
+	bool     scissor_set = false;
+	for (draw_batch const &b : slot.batches)
+	{
+		if (b.index_count == 0)
+			continue;
+
+		const int32_t x0 = (b.left < 0) ? 0 : int32_t(std::floor(float(b.left) * scale_x));
+		const int32_t y0 = (b.top < 0) ? 0 : int32_t(std::floor(float(b.top) * scale_y));
+		const double right_f = (double(b.right) + 1.0) * double(scale_x);
+		const double bottom_f = (double(b.bottom) + 1.0) * double(scale_y);
+		const int32_t x1 = (right_f >= double(draw_width)) ? int32_t(draw_width) - 1
+				: int32_t(std::ceil(right_f)) - 1;
+		const int32_t y1 = (bottom_f >= double(draw_height)) ? int32_t(draw_height) - 1
+				: int32_t(std::ceil(bottom_f)) - 1;
+		if ((x1 < x0) || (y1 < y0))
+			continue;
+
+		VkRect2D rect{};
+		rect.offset = { x0, y0 };
+		rect.extent = { uint32_t(x1 - x0 + 1), uint32_t(y1 - y0 + 1) };
+		if (!scissor_set || (rect.offset.x != set_to.offset.x) || (rect.offset.y != set_to.offset.y)
+				|| (rect.extent.width != set_to.extent.width) || (rect.extent.height != set_to.extent.height))
+		{
+			s_fns.cmd_set_scissor(cmd, 0, 1, &rect);
+			set_to = rect;
+			scissor_set = true;
+		}
+
+		s_fns.cmd_draw_indexed(cmd, b.index_count, 1, b.first_index, 0, 0);
+	}
+
+	// Put the full extent back: the caller drew the 2D under-layer before this and draws the over layer
+	// after, so a leftover polygon window would clip the foreground overlay to it. (Mirrors vk_geom.)
+	VkRect2D full{};
+	full.offset = { 0, 0 };
+	full.extent = { draw_width, draw_height };
+	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
 }
 
 void geom_end_run()

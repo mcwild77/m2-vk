@@ -2,7 +2,7 @@
 // copyright-holders:mcwild77
 /*********************************************************************************************************************************
 
-    Namco (Super) System 22 — the polygon pass (S2: untextured first).
+    Namco (Super) System 22 — the polygon pass (S2b: textured).
 
     The System 22 analogue of vk_geom.h, deliberately much smaller. The seam in namcos22_v.cpp taps
     the quad stream (s22_seam.h) and, when set_gpu(true) has turned capture on, hands each projected
@@ -18,11 +18,11 @@
         buffer at all, so this pipeline disables the depth test and leaves the ring's depth attachment
         (which Model 2 needs) untouched.
 
-      * UNTEXTURED FIRST. S2 lands the geometry before the texture tail. Every quad is drawn as a flat
-        Gouraud-shaded polygon in its base palette colour (pens[0], resolved at the seam) modulated by
-        the per-vertex brightness the hardware interpolates. Textured surfaces therefore come out as
-        flat colour regions for now; the texel fetch is a later S2 step. An untextured polygon is
-        exactly right; a textured one is the right shape and the right shading, the wrong fill.
+      * TEXTURED. Each quad samples the tile system per fragment (s22.frag transliterates
+        renderscanline_poly's texel fetch), or takes its flat base palette colour when the driver
+        disabled textures; shading is per-pixel from the interpolated brightness. Fog, fade and poly
+        alpha (the SS22 tail) are NOT applied yet — that is the next S2 step, so a fogged scene still
+        differs from software.
 
     Like vk_geom, the record is turned into buffers on the frontend's thread from data the emulation
     thread wrote and is now parked against, and the buffers are written straight into device-local
@@ -66,8 +66,10 @@ bool geom_upload(uint32_t slot);
 
 // Records the polygon pass. The caller has set the viewport and scissor to the attachment's extent
 // and drawn the 2D background already; this draws the 3D over it. width/height are the VISIBLE extent
-// (640x480) the vertex shader turns into NDC; draw_width/draw_height are the attachment's, unused here
-// beyond the viewport the caller already set — there is no per-polygon scissor in the untextured pass.
+// (640x480) the vertex shader turns into NDC AND the space the per-quad clip windows live in;
+// draw_width/draw_height are the attachment's, used to scale the per-run scissor to it. One indexed
+// draw per clip-window run (SS22 letterbox games window the 3D; see the scissor note in the .cpp); the
+// scissor is restored to the full attachment before returning so the OVER overlay is not clipped.
 void geom_draw(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned height,
 		unsigned draw_width, unsigned draw_height);
 

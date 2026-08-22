@@ -1,16 +1,220 @@
 #version 450
 
-// Namco System 22 libretro core — the untextured polygon fragment (S2: untextured first).
+// Namco System 22 libretro core — the polygon fragment (S2 shading tail: fog, fade, poly-alpha).
 //
-// The flat Gouraud colour, straight through. No texel fetch, no fog, no alpha: those are later S2
-// steps. The alpha channel is 1.0 so the polygon is opaque against the 2D composite, exactly as an
-// untextured System 22 polygon is.
+// This is namcos22_renderer::renderscanline_poly (plain System 22) and renderscanline_poly_ss22
+// (Super System 22) from src/mame/namco/namcos22_v.cpp, the per-pixel shading tail, transliterated.
+// Where a line looks gratuitously literal — a mask that provably does nothing, a >>8 where a divide by
+// 255 would read cleaner — it is literal because the software rasteriser is the reference and matching
+// its integer arithmetic bit-for-bit is the job. rgbaint_t::blend is (a*f + b*(256-f)) >> 8 and
+// scale_*_and_clamp is clamp((c*s) >> 8, 0, 255); both are reproduced here in integer.
+//
+// The two paths differ in ORDER: plain System 22 fogs BEFORE it shades; Super System 22 shades first,
+// then fogs (per-z from the czram table, or direct), then poly-fade, then screen-fade, then a per-pixel
+// destination alpha blend. The alpha blend against the framebuffer is the one effect not done here: the
+// fragment emits its alpha weight and fixed-function SRC_ALPHA/ONE_MINUS_SRC_ALPHA blending does the
+// mix (see s22_geom.cpp) — that step is float UNORM, not integer >>8, so an alpha pixel carries a small
+// rounding residual, expected for the SS22 tail. Screen fade, poly fade, alpha factor and alpha pen are
+// per-frame globals on the push constant; the four z-fog tables are a storage buffer; everything else
+// is per quad on the vertex.
+//
+// The texture system is uploaded as raw storage buffers exactly as it sits in the driver's arrays — no
+// decode, no atlas — and every index is masked to its buffer so a coordinate the software renderer
+// would read past the end of stays in bounds here instead.
 
-layout(location = 0) in vec4 v_color;
+layout(location = 0) noperspective in vec3  v_uvw;   // (u+0.5)*ooz, (v+0.5)*ooz, ooz  (driver param[1,2,0])
+layout(location = 1) noperspective in float v_iw;    // (bri+0.5)*ooz                   (driver param[3])
+layout(location = 2) flat          in uint  v_attr;  // flags | color<<8 | cmode<<16
+layout(location = 3) flat          in uint  v_bn;    // texturebank
+layout(location = 4) flat          in uint  v_base;  // untextured fill, 0x00RRGGBB
+layout(location = 5) flat          in uint  v_sf0;   // fogfactor | cz_bank<<8 | zfog<<10 | alpha_en<<11 | ss22<<12 | (sdelta+256)<<13
+layout(location = 6) flat          in uint  v_sf1;   // fog colour, 0x00RRGGBB
 
 layout(location = 0) out vec4 o_color;
 
+// Shared with s22.vert. half_size belongs to the vertex shader; the rest are the SS22 tail's per-frame
+// globals read below.
+layout(push_constant) uniform push_block
+{
+	vec2 half_size;
+	uint alpha_pen;
+	uint alpha_factor;
+	uint fade_factor;
+	uint fade_r, fade_g, fade_b;
+	uint poly_flags;
+	uint poly_r, poly_g, poly_b;
+} pc;
+
+const uint PFLAG_POLY_FADE = 1u;
+
+// The tile system, byte- and halfword-packed into uint words: on little-endian hardware byte i of the
+// buffer is raw byte i, so the upload is a plain memcpy and the unpack lives here.
+layout(std430, set = 0, binding = 0) readonly buffer ttdata_block { uint ttdata[]; };  // 8bpp tile pixels
+layout(std430, set = 0, binding = 1) readonly buffer ttattr_block { uint ttattr[]; };  // per-tile orientation
+layout(std430, set = 0, binding = 2) readonly buffer ttmap_block  { uint ttmap[];  };  // 16-bit tile numbers
+layout(std430, set = 0, binding = 3) readonly buffer ayx_block    { uint ayx[];    };  // attr/y/x -> pixel
+layout(std430, set = 0, binding = 4) readonly buffer pal_block    { uint palette[];};  // 0x00RRGGBB pens
+layout(std430, set = 0, binding = 5) readonly buffer cz_block     { uint czram[];  };  // 4 z-fog banks, 0x2000 each
+layout(std430, set = 0, binding = 6) readonly buffer gamma_block  { uint gamma[];  };  // plain-S22 final gamma: rlut|glut|blut
+
+const uint FLAG_TEXTURED = 1u;
+const uint FLAG_SHADE    = 2u;
+
+const uint SF0_ZFOG     = 1u << 10;
+const uint SF0_ALPHA_EN = 1u << 11;
+const uint SF0_SS22     = 1u << 12;
+
+// Buffer-size masks (entries - 1). Fixed by the hardware; see s22_geom.cpp for the sizes.
+const uint TTDATA_MASK = 0xffffffu;   // 0x1000000 bytes
+const uint TTATTR_MASK = 0xfffffu;    // 0x100000 bytes
+const uint TTMAP_MASK  = 0xfffffu;    // 0x100000 halfwords
+const uint AYX_MASK    = 0xfffu;      // 0x1000 bytes
+const uint PAL_MASK    = 0x7fffu;     // 0x8000 entries
+const uint CZRAM_MASK  = 0x7fffu;     // 0x8000 bytes (4 banks of 0x2000)
+
+uint ttdata_at(uint i) { i &= TTDATA_MASK; return (ttdata[i >> 2u] >> ((i & 3u) << 3u)) & 0xffu; }
+uint ttattr_at(uint i) { i &= TTATTR_MASK; return (ttattr[i >> 2u] >> ((i & 3u) << 3u)) & 0xffu; }
+uint ayx_at(uint i)    { i &= AYX_MASK;    return (ayx[i >> 2u]    >> ((i & 3u) << 3u)) & 0xffu; }
+uint ttmap_at(uint i)  { i &= TTMAP_MASK;  return (ttmap[i >> 1u]  >> ((i & 1u) << 4u)) & 0xffffu; }
+uint czram_at(uint i)  { i &= CZRAM_MASK;  return (czram[i >> 2u]  >> ((i & 3u) << 3u)) & 0xffu; }
+uint gamma_at(uint i)  { i &= 0x3ffu;      return (gamma[i >> 2u]  >> ((i & 3u) << 3u)) & 0xffu; }
+
+ivec3 unpack_rgb(uint p) { return ivec3(int((p >> 16u) & 0xffu), int((p >> 8u) & 0xffu), int(p & 0xffu)); }
+
+// rgbaint_t::blend(other, factor): (this*factor + other*(256-factor)) >> 8, per channel, no clamp.
+ivec3 mame_blend(ivec3 a, ivec3 b, int f) { return (a * f + b * (256 - f)) >> 8; }
+
+// rgbaint_t::scale_imm_and_clamp / scale_and_clamp: clamp((c * scale) >> 8, 0, 255).
+ivec3 mame_scale_imm(ivec3 c, int s)  { return clamp((c * s) >> 8, 0, 255); }
+ivec3 mame_scale(ivec3 c, ivec3 s)    { return clamp((c * s) >> 8, 0, 255); }
+
 void main()
 {
-	o_color = vec4(v_color.rgb, 1.0);
+	const uint attr = v_attr;
+	const bool textured = (attr & FLAG_TEXTURED) != 0u;
+	const bool shade_enabled = (attr & FLAG_SHADE) != 0u;
+	const uint color = (attr >> 8u) & 0x7fu;
+	const uint cmode = (attr >> 16u) & 0xffu;
+
+	const uint  sf0 = v_sf0;
+	const int   fogfactor = int(sf0 & 0xffu);
+	const uint  cz_bank   = (sf0 >> 8u) & 3u;
+	const bool  zfog      = (sf0 & SF0_ZFOG) != 0u;
+	const bool  alpha_en  = (sf0 & SF0_ALPHA_EN) != 0u;
+	const bool  ss22      = (sf0 & SF0_SS22) != 0u;
+	const int   cz_sdelta = int((sf0 >> 13u) & 0x1ffu) - 256;
+	const ivec3 fogcolor  = unpack_rgb(v_sf1);
+
+	// The driver names the interpolated param[0] "z" and its reciprocal "ooz"; ooz is the true view
+	// depth that recovers a perspective-correct u,v,shade from the screen-linear varyings.
+	const float z = v_uvw.z;
+	const float ooz = 1.0 / z;
+
+	// The texel fetch (renderscanline_poly's), and the raw pen the alpha test compares against.
+	uint pen = 0u;
+	ivec3 rgb;
+	if (!textured)
+	{
+		rgb = unpack_rgb(v_base);
+	}
+	else
+	{
+		const int tx = int(v_uvw.x * ooz) & 0xfff;
+		const int ty = (int(v_uvw.y * ooz) & 0xfff) | int(v_bn << 12u);
+		const int to = ((ty << 4) & 0xfff00) | (tx >> 4);
+
+		const uint tile  = ttmap_at(uint(to));
+		const uint attrb = ttattr_at(uint(to));
+		const uint inner = ayx_at((attrb << 8u) | uint(((ty << 4) & 0xf0) | (tx & 0xf)));
+		pen = ttdata_at((tile << 8u) | inner);
+
+		// pens base / mask / shift from cmode, exactly as the scanline renderer resolves them once per poly.
+		uint pens_base = color << 8u;
+		uint penmask = 0xffu;
+		uint penshift = 0u;
+		if ((cmode & 4u) != 0u)
+		{
+			pens_base += 0xecu + ((cmode & 8u) << 1u);
+			penmask = 0x03u;
+			penshift = 2u * ((~cmode) & 3u);
+		}
+		else if ((cmode & 2u) != 0u)
+		{
+			pens_base += 0xe0u + ((cmode & 8u) << 1u);
+			penmask = 0x0fu;
+			penshift = 4u * ((~cmode) & 1u);
+		}
+
+		rgb = unpack_rgb(palette[(pens_base + ((pen >> penshift) & penmask)) & PAL_MASK]);
+	}
+
+	const int shade = int(v_iw * ooz) << 2;
+
+	float out_alpha = 1.0;
+
+	if (!ss22)
+	{
+		// plain System 22 (renderscanline_poly): fog BEFORE shade.
+		const int fog = 255 - fogfactor;
+		if (fog != 255)
+			rgb = mame_blend(rgb, fogcolor, fog);
+		if (shade_enabled)
+			rgb = mame_scale_imm(rgb, shade);
+	}
+	else
+	{
+		// Super System 22 (renderscanline_poly_ss22): shade, fog, poly-fade, screen-fade, alpha.
+		if (shade_enabled)
+			rgb = mame_scale_imm(rgb, shade);
+
+		if (zfog)
+		{
+			// per-z fog: discard the low byte, clamp to 0..0x1fff, look up the czram table for this bank.
+			int cz = int(ooz) >> 8;
+			if (cz > 0x1fff) cz = 0x1fff;
+			int ff = int(czram_at(cz_bank * 0x2000u + uint(cz))) + cz_sdelta;
+			if (ff > 0)
+			{
+				if (ff > 0xff) ff = 0xff;
+				rgb = mame_blend(rgb, fogcolor, 255 - ff);
+			}
+		}
+		else
+		{
+			const int fog = 255 - fogfactor;   // direct
+			if (fog != 255)
+				rgb = mame_blend(rgb, fogcolor, fog);
+		}
+
+		// poly fade (scale by the per-frame poly colour), then screen fade (blend toward it).
+		if ((pc.poly_flags & PFLAG_POLY_FADE) != 0u)
+			rgb = mame_scale(rgb, ivec3(int(pc.poly_r), int(pc.poly_g), int(pc.poly_b)));
+
+		const int fadef = 255 - int(pc.fade_factor);
+		if (fadef != 255)
+			rgb = mame_blend(rgb, ivec3(int(pc.fade_r), int(pc.fade_g), int(pc.fade_b)), fadef);
+
+		// alpha: a per-pixel destination blend when this colour alpha-blends or the pen is the alpha pen.
+		const int alocal = 255 - int(pc.alpha_factor);
+		if (alocal != 255 && (alpha_en || pen == pc.alpha_pen))
+			out_alpha = float(alocal) / 255.0;
+
+		// blend() does not clamp; the UNORM attachment would, so clamp here to keep the stored value exact.
+		rgb = clamp(rgb, 0, 255);
+	}
+
+	// Final gamma LUT — the last op on every output pixel in both mixers (namcos22_mix_text_layer for
+	// plain S22, screen_update_namcos22s's post-pass for SS22). This is why the GPU 3D read ~half as
+	// bright before: the software path brightens through this LUT and the GPU did not. Plain S22's LUT
+	// is a static PROM indexed directly; SS22's lives in mixer RAM as u32 words, so the byte index is
+	// swapped (^3 on little-endian), matching the driver's NATIVE_ENDIAN_VALUE_LE_BE(3,0). For an alpha
+	// pixel the fixed-function blend then happens in gamma space rather than before gamma — a small
+	// residual, accepted for the SS22 tail.
+	rgb = clamp(rgb, 0, 255);
+	uint gx = ss22 ? 3u : 0u;
+	rgb = ivec3(int(gamma_at(         (uint(rgb.r) ^ gx))),
+	            int(gamma_at(0x100u + (uint(rgb.g) ^ gx))),
+	            int(gamma_at(0x200u + (uint(rgb.b) ^ gx))));
+
+	o_color = vec4(vec3(rgb) / 255.0, out_alpha);
 }

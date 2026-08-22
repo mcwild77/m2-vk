@@ -39,6 +39,7 @@
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_geom.h"
 #include "renderer_vk/s22_geom.h"
+#include "s22_seam.h"
 
 #include "m2vk_frame.h"
 #include "m2vk_reticle.h"
@@ -2115,6 +2116,16 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// emulator's frame timing to the sync index. Not while the baseline is still being established.
 	const size_t bytes = size_t(width) * size_t(height) * sizeof(uint32_t);
 
+	// The System 22 2D-over overlay: the HUD/text that must sit above the GPU 3D. Present only when the
+	// S22 core owns the 3D and captured it this frame (nullptr in the Model 2 build and in S22 software
+	// mode). When present it turns the passthrough into an UNDER/OVER sandwich around the S22 3D — the
+	// same three-draws-in-one-pass Model 2 uses — with `pixels` (the finished 2D frame the seam has
+	// stripped of software 3D) as the UNDER background and this overlay drawn again after the 3D.
+	int s22_over_w = 0, s22_over_h = 0;
+	uint32_t const *const s22_over = s22::over_pixels(s22_over_w, s22_over_h);
+	const bool s22_sandwich = (layers == nullptr) && (s22_over != nullptr)
+			&& (unsigned(s22_over_w) == width) && (unsigned(s22_over_h) == height);
+
 	if (layers != nullptr)
 	{
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, layers->layer[m2vk::LAYER_UNDER].pixels.data(), bytes);
@@ -2123,6 +2134,8 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	else
 	{
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, pixels, bytes);
+		if (s22_sandwich)
+			std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, s22_over, bytes);
 	}
 
 	// The polygon stream, turned into this slot's vertex, index and parameter buffers. Only when the
@@ -2141,10 +2154,14 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// Model 2 build (nothing ever captures), so this costs one predicate there.
 	const bool draw_3d_s22 = s22::geom_upload(index);
 
+	// A foreground pass runs when Model 2 captured both layers, or when the S22 core handed back an
+	// overlay to sandwich its 3D between.
+	const bool draw_over = (layers != nullptr) || s22_sandwich;
+
 	const bool dump = !s_dump_done && !s_dump_prefix.empty() && (s_dump_mapped != nullptr)
 			&& (s_frames == s_dump_frame);
 
-	if (!record_and_submit(slot, index, layers != nullptr, draw_3d, draw_3d_s22, dump))
+	if (!record_and_submit(slot, index, draw_over, draw_3d, draw_3d_s22, dump))
 	{
 		if (!s_reported_frame_error)
 		{

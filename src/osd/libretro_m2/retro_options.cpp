@@ -17,7 +17,12 @@ namespace {
 
 // No categories: with this few options a category tree is more navigation than the options are
 // worth, and a frontend that supports categories renders an uncategorised set perfectly well.
-const retro_core_option_v2_definition DEFINITIONS[] = {
+//
+// Non-const because set_native_resolution() patches the Internal Resolution entry in place at startup
+// (the default and one "(Native)" label differ per driver family; the object file is shared across
+// subtargets, so this can't be a compile-time choice — it is decided at runtime from the loaded
+// driver family). Every declare form and default_value() read it after that patch has run.
+retro_core_option_v2_definition DEFINITIONS[] = {
 	{
 		m2opt::KEY_RENDERER,
 		"3D Renderer",
@@ -67,17 +72,19 @@ const retro_core_option_v2_definition DEFINITIONS[] = {
 		m2opt::KEY_INTERNAL_RES,
 		"Internal Resolution",
 		nullptr,
-		"The framebuffer the game is drawn into. The hardware's own is 496x384; anything above it "
-		"draws the same scene with more pixels, so polygon edges stop stair-stepping. Textures do not "
-		"get sharper — the mip level comes from the game, not from the resolution. Costs memory and "
-		"fill rate with the pixel count, so 2848x2136 is 32 times the work of native. Vulkan only; "
-		"the software renderer always draws at 496x384. Takes effect immediately.",
+		"The framebuffer the game is drawn into. Native is the hardware's own resolution; anything above "
+		"it draws the same scene with more pixels, so polygon edges stop stair-stepping. Textures do not "
+		"get sharper — the mip level comes from the game, not from the resolution. Costs memory and fill "
+		"rate with the pixel count. Vulkan only; the software renderer always draws at native. Takes "
+		"effect immediately.",
 		nullptr,
 		nullptr,
 		{
-			// The value IS the size, parsed by get_internal_size(). Every entry above native is 4:3;
-			// native is 1.2917, and the aspect the frontend is told never changes — these are sample
-			// grids for one picture, not different shapes of picture.
+			// The value IS the size, parsed by get_internal_size(). The list is shared between the two
+			// driver families; only which entry is native — and so the default and the "(Native)" label —
+			// differs, and set_native_resolution() patches that in at startup (496x384 for Model 2,
+			// 640x480 for System 22). The default authored here is Model 2's. The aspect the frontend is
+			// told never changes — these are sample grids for one picture, not different shapes of picture.
 			{ "496x384",   "496x384 (Native)" },
 			{ "640x480",   "640x480" },
 			{ "1024x768",  "1024x768" },
@@ -378,6 +385,47 @@ char const *default_value(char const *key)
 }
 
 } // anonymous namespace
+
+
+void m2opt::set_native_resolution(char const *native)
+{
+	if (native == nullptr)
+		return;
+
+	for (unsigned i = 0; i < OPTION_COUNT; i++)
+	{
+		if (std::strcmp(DEFINITIONS[i].key, KEY_INTERNAL_RES) != 0)
+			continue;
+
+		retro_core_option_v2_definition &def = DEFINITIONS[i];
+
+		// Only accept a size the option actually lists; a stray value would set a default the menu can
+		// never match, which reads as the menu being out of step with the core.
+		bool listed = false;
+		for (unsigned v = 0; def.values[v].value != nullptr; v++)
+		{
+			if (std::strcmp(def.values[v].value, native) == 0) { listed = true; break; }
+		}
+		if (!listed)
+			return;
+
+		def.default_value = def.values[0].value;  // reset then re-point, so repeated calls are idempotent
+		for (unsigned v = 0; def.values[v].value != nullptr; v++)
+		{
+			char const *const val = def.values[v].value;
+			const bool is_native = (std::strcmp(val, native) == 0);
+			// Only 496x384 and 640x480 are ever native; give the native one the label, the other its
+			// plain size. Every larger entry keeps its plain label untouched.
+			if (std::strcmp(val, "496x384") == 0)
+				def.values[v].label = is_native ? "496x384 (Native)" : "496x384";
+			else if (std::strcmp(val, "640x480") == 0)
+				def.values[v].label = is_native ? "640x480 (Native)" : "640x480";
+			if (is_native)
+				def.default_value = val;
+		}
+		return;
+	}
+}
 
 
 //============================================================
