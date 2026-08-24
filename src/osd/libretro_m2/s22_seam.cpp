@@ -236,6 +236,15 @@ void set_gpu(bool on)
 	recompute_active();
 }
 
+void set_no_3d()
+{
+	// M2VK_NO_3D: neither draws. Capture off (the GPU draws nothing) AND sw_owns_3d off (the driver skips
+	// render_triangle_fan / render_polygon), leaving just the 2D layers — the background reference.
+	g_gpu_capture = false;
+	detail::g_sw_owns_3d = false;
+	recompute_active();
+}
+
 // The texture pointers the driver hands over. File-scope rather than in s22_geom so the tap build (no
 // renderer) still links; the pointers are stable, so re-storing them every frame costs six writes.
 namespace { texture_ram g_texram; }

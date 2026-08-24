@@ -13,6 +13,7 @@
 #include "emuopts.h"
 #include "render.h"
 #include "screen.h"
+#include "dipalette.h"
 
 // after emu.h, which they read MAME's ioport / running_machine types out of and which only a .cpp
 // may include
@@ -368,10 +369,10 @@ void libretro_m2_osd_interface::capture_frame()
 		m_refresh_rate = ATTOSECONDS_TO_HZ(period);
 
 	screen_bitmap &sb = screen->curbitmap();
-	if (sb.format() != BITMAP_FORMAT_RGB32)
-		return; // Model 2 screens are RGB32
-
-	bitmap_rgb32 &bm = sb.as_rgb32();
+	const bitmap_format fmt = sb.format();
+	// Model 2 and namcos22 present RGB32; namcos21 (Star Blade et al.) draws a palettized IND16.
+	if (fmt != BITMAP_FORMAT_RGB32 && fmt != BITMAP_FORMAT_IND16)
+		return;
 
 	// Copy the VISIBLE area, not the whole bitmap. curbitmap() is the full raster — 656x424 for
 	// Model 2 — while the picture is the 496x384 visible rectangle. Handing the frontend the full
@@ -379,7 +380,9 @@ void libretro_m2_osd_interface::capture_frame()
 	const rectangle &vis = screen->visible_area();
 	const int w = vis.width();
 	const int h = vis.height();
-	if ((w <= 0) || (h <= 0) || (vis.max_x >= bm.width()) || (vis.max_y >= bm.height()))
+	const int bw = (fmt == BITMAP_FORMAT_RGB32) ? sb.as_rgb32().width()  : sb.as_ind16().width();
+	const int bh = (fmt == BITMAP_FORMAT_RGB32) ? sb.as_rgb32().height() : sb.as_ind16().height();
+	if ((w <= 0) || (h <= 0) || (vis.max_x >= bw) || (vis.max_y >= bh))
 		return;
 
 	m_aspect_ratio = double(w) / double(h);
@@ -391,8 +394,34 @@ void libretro_m2_osd_interface::capture_frame()
 		m_fb.resize(size_t(w) * size_t(h));
 	}
 
-	for (int y = 0; y < h; y++)
-		std::memcpy(&m_fb[size_t(y) * w], &bm.pix(vis.min_y + y, vis.min_x), size_t(w) * sizeof(uint32_t));
+	if (fmt == BITMAP_FORMAT_RGB32)
+	{
+		bitmap_rgb32 &bm = sb.as_rgb32();
+		for (int y = 0; y < h; y++)
+			std::memcpy(&m_fb[size_t(y) * w], &bm.pix(vis.min_y + y, vis.min_x), size_t(w) * sizeof(uint32_t));
+	}
+	else
+	{
+		// Palettized (namcos21): resolve each 16-bit index through the screen's own palette to the
+		// XRGB8888 the frontend expects. pen_t is already 0xAARRGGBB with alpha forced opaque.
+		//
+		// NOT screen->palette().pens(): screen.set_palette() stamps the device_palette_interface's
+		// m_format to the screen's own bitmap format (IND16 here), and for BITMAP_FORMAT_IND16
+		// allocate_color_tables() replaces pens() with a dummy 1:1 index identity table (dipalette.cpp) —
+		// it is meant for callers that go on to do their own indirection, not as a resolved colour array.
+		// The real per-pen RGB, for either bitmap format, is palette()->entry_list_adjusted().
+		if (!screen->has_palette())
+			return;
+		const pen_t *const pens = reinterpret_cast<const pen_t *>(screen->palette().palette()->entry_list_adjusted());
+		bitmap_ind16 &bm = sb.as_ind16();
+		for (int y = 0; y < h; y++)
+		{
+			const uint16_t *const src = &bm.pix(vis.min_y + y, vis.min_x);
+			uint32_t *const dst = &m_fb[size_t(y) * w];
+			for (int x = 0; x < w; x++)
+				dst[x] = pens[src[x]];
+		}
+	}
 
 	// The lightgun reticle, for the software path only — MAME draws no crosshair this OSD can see
 	// (m2vk_reticle.h), and this buffer is what renderer=software hands the frontend.

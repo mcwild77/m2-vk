@@ -12,6 +12,10 @@ TODO:
 #include "emu.h"
 #include "namcos21_3d.h"
 
+#ifdef S21VK
+#include "libretro_m2/s21_seam.h"
+#endif
+
 DEFINE_DEVICE_TYPE(NAMCOS21_3D, namcos21_3d_device, "namcos21_3d", "Namco System 21 3D Rasterizer")
 
 namcos21_3d_device::namcos21_3d_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock) :
@@ -47,6 +51,14 @@ void namcos21_3d_device::device_start()
 
 void namcos21_3d_device::swap_and_clear_poly_framebuffer()
 {
+#ifdef S21VK
+	// The double-buffer swap is the 3D list boundary (namcos21_kickstart drives it once per list). The
+	// work page that was just drawn becomes visible here, so close its recorded stream and open the new
+	// one. The two priming swaps at device_start run before any consumer attaches and are inert.
+	s21::frame_end();
+	s21::frame_begin();
+#endif
+
 	// swap work and visible framebuffers
 	m_poly_framebuffer_z.swap(m_poly_framebuffer_z2);
 	m_poly_framebuffer_pens.swap(m_poly_framebuffer_pens2);
@@ -256,6 +268,29 @@ void namcos21_3d_device::blit_single_quad(int sx[4], int sy[4], int zcode[4], u1
 		v[i].y = m_poly_frame_height / 2 + sy[i];
 		v[i].z = zcode[i];
 	}
+
+#ifdef S21VK
+	// Observation-only tap: record the resolved quad (screen-space corners, per-quad depth, final pen)
+	// and draw nothing extra — the software rasteriser below still owns the picture, so the output stays
+	// byte-identical to the T0 baseline. Placed after the backface early-out, so only visible quads reach
+	// it, and after the palette / depth-cue colour resolve, so `color` is the exact framebuffer pen.
+	if (s21::active())
+	{
+		int px[4], py[4];
+		for (int i = 0; i < 4; i++)
+		{
+			px[i] = int(v[i].x);
+			py[i] = int(v[i].y);
+		}
+		s21::submit_quad(px, py, zsort, color);
+	}
+
+	// When the GPU pass owns the 3D (set_gpu(true)), the software rasteriser stops drawing it — the
+	// record above is what gets rendered instead. Default is true, so T1 and every non-Vulkan build
+	// still fill the poly framebuffer here.
+	if (!s21::sw_owns_3d())
+		return;
+#endif
 
 	rendertri(&v[0], &v[1], &v[2], color, zsort);
 	rendertri(&v[2], &v[3], &v[0], color, zsort);

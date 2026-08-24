@@ -278,6 +278,10 @@ Palette:
 
 #include "namco_c355spr.h"
 
+#ifdef S21VK
+#include "libretro_m2/s21_seam.h"
+#endif
+
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6805/m6805.h"
 #include "cpu/m6809/m6809.h"
@@ -376,6 +380,10 @@ private:
 
 	bool sprite_mix_callback(u16 &dest, u8 &destpri, u16 colbase, u16 src, int srcpri, int pri);
 	void mix_layer0_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+#ifdef S21VK
+	void capture_over_sprites(screen_device &screen, const rectangle &cliprect, u16 pri1);
+	void capture_mix_sprites(screen_device &screen, const rectangle &cliprect);
+#endif
 	u32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	void common_map(address_map &map) ATTR_COLD;
@@ -461,6 +469,39 @@ void namcos21_c67_state::mix_layer0_sprites(screen_device &screen, bitmap_ind16 
 	}
 }
 
+#ifdef S21VK
+// Draws the C355 sprite bands that sit OVER the GPU 3D into a transparent overlay for the renderer to
+// composite after the polygons. Uses m_mix_layer0_bitmap as scratch (the software z-mix that also uses
+// it never runs on this path), filling it with pen 0 as the transparent sentinel; s21::capture_over does
+// the palette resolve. The sprite draws are the one part only the driver can do.
+void namcos21_c67_state::capture_over_sprites(screen_device &screen, const rectangle &cliprect, u16 pri1)
+{
+	m_mix_layer0_bitmap.fill(0, cliprect);
+
+	// pri1 in {0,2}: the flat layer-0 draws over the 3D. pri1==4's layer-0 is z-mixed against the polygon
+	// depth (mix_layer0_sprites) and is captured separately, by capture_mix_sprites below.
+	if (pri1 == 0 || pri1 == 2)
+		m_c355spr->draw(screen, m_mix_layer0_bitmap, cliprect, 0);
+
+	// The high-priority band always sits over everything.
+	m_c355spr->draw(screen, m_mix_layer0_bitmap, cliprect, 3);
+
+	s21::capture_over(m_mix_layer0_bitmap, reinterpret_cast<uint32_t const *>(m_palette->palette()->entry_list_adjusted()), cliprect);
+}
+
+// T2b: the pri1==4 layer-0 sprites, which mix_layer0_sprites gates per pixel against the polygon
+// z-buffer. Same band-0 draw as the pri1∈{0,2} branch above (into the same scratch bitmap, reused
+// after capture_over_sprites is done reading it this frame); s21::capture_mix does the per-pixel tag
+// and hands it to the GPU, which owns the only surviving z-buffer once T2a turns rendertri off.
+void namcos21_c67_state::capture_mix_sprites(screen_device &screen, const rectangle &cliprect)
+{
+	m_mix_layer0_bitmap.fill(0, cliprect);
+	m_c355spr->draw(screen, m_mix_layer0_bitmap, cliprect, 0);
+
+	s21::capture_mix(m_mix_layer0_bitmap, reinterpret_cast<uint32_t const *>(m_palette->palette()->entry_list_adjusted()), cliprect);
+}
+#endif
+
 u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	// solvalou after POST, definitely blanks screen
@@ -473,6 +514,21 @@ u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 	bitmap.fill(0xff, cliprect);
 	screen.priority().fill(0, cliprect);
 
+#ifdef S21VK
+	// Hand the CLUT to the GPU pass each frame (the game writes palette RAM live). m_palette->pens() is
+	// NOT usable here: screen.set_palette() stamps the interface's m_format to the screen's own bitmap
+	// format (IND16 for this driver), and device_palette_interface::allocate_color_tables() responds to
+	// BITMAP_FORMAT_IND16 by replacing pens() with a dummy 1:1 index identity table (dipalette.cpp) —
+	// real hardware-independent MAME code resolves an IND16 pixel through palette()->entry_list_adjusted()
+	// instead, so that is what the CLUT (and capture_frame's OSD-side resolve) must read too. When the GPU
+	// owns the 3D (T2), the software poly framebuffer blit and the C355 z-mix below are skipped — the GPU
+	// draws the 3D between the 2D layers instead. Default is true, so software mode is unchanged.
+	s21::set_palette(reinterpret_cast<uint32_t const *>(m_palette->palette()->entry_list_adjusted()), m_palette->entries());
+	const bool sw3d = s21::sw_owns_3d();
+#else
+	const bool sw3d = true;
+#endif
+
 	// draw low priority 2d sprites
 	m_c355spr->build_sprite_list_and_render_sprites(cliprect); // TODO : buffered?
 	m_c355spr->draw(screen, bitmap, cliprect, 2);
@@ -480,22 +536,39 @@ u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 	const u16 pri1 = (m_palette->read16_ext(0) >> 8) & 7;
 	//const u16 pri2 = (m_palette->read16_ext(1) >> 8) & 7; // always '2'?
 
-	switch (pri1)
+	if (sw3d)
 	{
-		case 0: // aircomb mission select & gameplay
-		case 2: // starblad/solvalou when going in service mode
-			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect);
-			m_c355spr->draw(screen, bitmap, cliprect, 0);
-			break;
-		case 4: // default gameplay for all games, aircomb attract mode
-		default:
-			m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect);
-			mix_layer0_sprites(screen, bitmap, cliprect);
-			break;
-	}
+		switch (pri1)
+		{
+			case 0: // aircomb mission select & gameplay
+			case 2: // starblad/solvalou when going in service mode
+				m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect);
+				m_c355spr->draw(screen, bitmap, cliprect, 0);
+				break;
+			case 4: // default gameplay for all games, aircomb attract mode
+			default:
+				m_namcos21_3d->copy_visible_poly_framebuffer(bitmap, cliprect);
+				mix_layer0_sprites(screen, bitmap, cliprect);
+				break;
+		}
 
-	// draw high priority 2d sprites
-	m_c355spr->draw(screen, bitmap, cliprect, 3);
+		// draw high priority 2d sprites
+		m_c355spr->draw(screen, bitmap, cliprect, 3);
+	}
+#ifdef S21VK
+	else
+	{
+		// The GPU owns the 3D, so the C355 bands that sit OVER the polygons go into a transparent overlay
+		// the renderer draws again after the GPU 3D — the same UNDER/OVER sandwich Model 2 / System 22 use.
+		// Band 1 (low-priority) is already in `bitmap` (the UNDER background); this captures the high-priority
+		// band, and — for pri1 in {0,2} — the flat layer-0 that draws over the 3D. pri1==4's layer-0 is
+		// z-mixed instead (T2b): captured separately below, gated on the GPU's own depth buffer rather than
+		// drawn unconditionally.
+		capture_over_sprites(screen, cliprect, pri1);
+		if (pri1 == 4)
+			capture_mix_sprites(screen, cliprect);
+	}
+#endif
 
 	return 0;
 }

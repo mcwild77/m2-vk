@@ -89,3 +89,10 @@ emit frag poly.frag        poly_early_frag -DEARLY_Z=1
 # Namco System 22 untextured polygon pass (S2).
 emit vert s22.vert         s22_vert
 emit frag s22.frag         s22_frag
+
+# Namco System 21 flat untextured polygon pass (T2).
+emit vert s21.vert         s21_vert
+emit frag s21.frag         s21_frag
+
+# Namco System 21 layer-0 C355 z-mix (T2b) — rides fullscreen.vert, no vertex shader of its own.
+emit frag s21_mix.frag     s21_mix_frag

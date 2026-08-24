@@ -11,9 +11,11 @@
 //
 // Included from libretro_m2_input.cpp inside its anonymous namespace, after the SOURCE_* constants.
 
+char const *const SETS_acedrive[] = { "acedrive", nullptr };
 char const *const SETS_airwlkrs[] = { "airwlkrs", nullptr };
 char const *const SETS_daytona[] = { "daytona", nullptr };
 char const *const SETS_desert[] = { "desert", nullptr };
+char const *const SETS_dirtdash[] = { "dirtdash", nullptr };
 char const *const SETS_doa[] = { "doa", nullptr };
 char const *const SETS_dynamcop[] = { "dynamcop", nullptr };
 char const *const SETS_gunblade[] = { "gunblade", nullptr };
@@ -25,6 +27,9 @@ char const *const SETS_overrev[] = { "overrev", nullptr };
 char const *const SETS_pltkids[] = { "pltkids", nullptr };
 char const *const SETS_rchase2[] = { "rchase2", nullptr };
 char const *const SETS_rchase2a[] = { "rchase2a", nullptr };
+char const *const SETS_ridgera[] = { "ridgerac", nullptr };
+char const *const SETS_ridgera2[] = { "ridgera2", nullptr };
+char const *const SETS_ridgeracf[] = { "ridgeracf", nullptr };
 char const *const SETS_schamp[] = { "schamp", nullptr };
 char const *const SETS_sgt24h[] = { "sgt24h", nullptr };
 char const *const SETS_skisuprg[] = { "skisuprg", nullptr };
@@ -32,6 +37,7 @@ char const *const SETS_srallyc[] = { "srallyc", nullptr };
 char const *const SETS_vcop[] = { "vcop", nullptr };
 char const *const SETS_vcop2[] = { "vcop2", nullptr };
 char const *const SETS_vf2[] = { "vf2", "hpyagu98", "fvipers", "lastbrnx", nullptr };
+char const *const SETS_victlap[] = { "victlap", nullptr };
 char const *const SETS_vstriker[] = { "vstriker", nullptr };
 char const *const SETS_zerogun[] = { "zerogun", nullptr };
 
@@ -81,6 +87,45 @@ constexpr game_layout GENERIC_LAYOUT =
 };
 
 constexpr game_layout GAME_LAYOUTS[] = {
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"acedrive",
+		SETS_acedrive,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			SOURCE_NONE,  /* BUTTON1 Dev Service Enter */
+			SOURCE_NONE,  /* BUTTON2 Dev Service Exit */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 View Change */
+			SOURCE_NONE,  /* BUTTON4 Motion-Stop */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y        BUTTON3 */ "View Change",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ "Dev Service Up",
+			/*  5 DOWN             */ "Dev Service Down",
+			/*  6 LEFT             */ "Dev Service Left",
+			/*  7 RIGHT            */ "Dev Service Right",
+			/*  8 A                */ nullptr,
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ "Brake Pedal",
+			/* 13 R2               */ "Gas Pedal",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Move / Steering Wheel",
+			/* 17 LSTICK_Y         */ "Move",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"airwlkrs",
@@ -201,6 +246,45 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Steering",
 			/* 17 LSTICK_Y         */ "Brake",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"dirtdash",
+		SETS_dirtdash,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			SOURCE_NONE,  /* BUTTON1 Button 1 */
+			SOURCE_NONE,  /* BUTTON2 Button 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 View Change */
+			SOURCE_NONE,  /* BUTTON4 Motion-Stop */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y        BUTTON3 */ "View Change",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ "Shift Down",
+			/*  5 DOWN             */ "Shift Up",
+			/*  6 LEFT             */ "Left",
+			/*  7 RIGHT            */ "Right",
+			/*  8 A                */ nullptr,
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ "Brake Pedal",
+			/* 13 R2               */ "Gas Pedal",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Move / Steering Wheel",
+			/* 17 LSTICK_Y         */ "Move",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -642,6 +726,123 @@ constexpr game_layout GAME_LAYOUTS[] = {
 	},
 	// verified: NOT YET MEASURED IN GAME
 	{
+		"ridgera",
+		SETS_ridgera,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			SOURCE_NONE,  /* BUTTON1 Button 1 */
+			SOURCE_NONE,  /* BUTTON2 Button 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Clutch Pedal */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y        BUTTON3 */ "Clutch Pedal",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ "Shift Down",
+			/*  5 DOWN             */ "Shift Up",
+			/*  6 LEFT             */ "Shift Left",
+			/*  7 RIGHT            */ "Shift Right",
+			/*  8 A                */ nullptr,
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ "Brake Pedal",
+			/* 13 R2               */ "Gas Pedal",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Move / Steering Wheel",
+			/* 17 LSTICK_Y         */ "Move",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"ridgera2",
+		SETS_ridgera2,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			SOURCE_NONE,  /* BUTTON1 Button 1 */
+			SOURCE_NONE,  /* BUTTON2 Button 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Clutch Pedal */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y        BUTTON3 */ "Clutch Pedal",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ "Shift Down",
+			/*  5 DOWN             */ "Shift Up",
+			/*  6 LEFT             */ "Shift Left",
+			/*  7 RIGHT            */ "Shift Right",
+			/*  8 A                */ nullptr,
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ "Brake Pedal",
+			/* 13 R2               */ "Gas Pedal",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Move / Steering Wheel",
+			/* 17 LSTICK_Y         */ "Move",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"ridgeracf",
+		SETS_ridgeracf,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Button 3 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Button 4 */
+			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON5 Button 5 */
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON6 Button 6 */
+			SOURCE_L2_AXIS,  /* BUTTON7 Button 7 */
+			SOURCE_R2_AXIS,  /* BUTTON8 Button 8 */
+			RETRO_DEVICE_ID_JOYPAD_R3,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Button 1",
+			/*  1 Y        BUTTON3 */ "Button 3",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Button 2",
+			/*  9 X        BUTTON4 */ "Button 4",
+			/* 10 L        BUTTON6 */ "Button 6",
+			/* 11 R        BUTTON5 */ "Button 5",
+			/* 12 L2       BUTTON7 */ "Button 7",
+			/* 13 R2       BUTTON8 */ "Button 8",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3       BUTTON9 */ "Button 9",
+			/* 16 LSTICK_X         */ nullptr,
+			/* 17 LSTICK_Y         */ nullptr,
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// verified: NOT YET MEASURED IN GAME
+	{
 		"schamp",
 		SETS_schamp,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
@@ -916,6 +1117,45 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"victlap",
+		SETS_victlap,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			SOURCE_NONE,  /* BUTTON1 Dev Service Enter */
+			SOURCE_NONE,  /* BUTTON2 Dev Service Exit */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 View Change */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Motion-Stop */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y        BUTTON3 */ "View Change",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ "Dev Service Up",
+			/*  5 DOWN             */ "Dev Service Down",
+			/*  6 LEFT             */ "Dev Service Left",
+			/*  7 RIGHT            */ "Dev Service Right",
+			/*  8 A                */ nullptr,
+			/*  9 X        BUTTON4 */ "Motion-Stop",
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ "Brake Pedal",
+			/* 13 R2               */ "Gas Pedal",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Move / Steering Wheel",
+			/* 17 LSTICK_Y         */ "Move",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// three buttons. The driver's bit order is not its button order; these are by button number
 	// verified: NOT YET MEASURED IN GAME
 	{
@@ -998,4 +1238,4 @@ constexpr game_layout GAME_LAYOUTS[] = {
 	}
 };
 
-static_assert(std::size(GAME_LAYOUTS) == 23, "regenerate input_layouts.ipp");
+static_assert(std::size(GAME_LAYOUTS) == 29, "regenerate input_layouts.ipp");

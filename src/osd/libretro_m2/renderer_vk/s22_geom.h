@@ -84,6 +84,17 @@ void geom_draw_over(uint32_t slot, VkCommandBuffer cmd, unsigned width, unsigned
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.
 void geom_end_run();
 
+// system22_texture_filter: false = point sample (hardware-accurate), true = bilinear on the textured 3D
+// poly tail (an enhancement — System 22 had no texture filter). A push-constant bit, so it applies on
+// the next drawn frame with nothing to rebuild. M2VK_S22_FILTER overrides the option at draw time.
+void set_option_filter(bool on);
+
+// s22_depth_buffer: false = painter's algorithm in draw order (hardware-accurate — System 22 sorts, it
+// has no depth buffer), true = per-pixel depth from interpolated 1/z, GREATER_OR_EQUAL, to resolve the
+// overlap errors a single per-poly sort key cannot (ridge racer's road). An enhancement, not accuracy;
+// reload-gated (baked into the pipeline). M2VK_S22_DEPTH overrides the option.
+void set_option_depth(bool on);
+
 } // namespace s22
 
 #endif // MAME_OSD_LIBRETRO_M2_RENDERER_VK_S22_GEOM_H

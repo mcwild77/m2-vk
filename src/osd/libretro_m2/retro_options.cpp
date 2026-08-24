@@ -80,12 +80,16 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		nullptr,
 		{
-			// The value IS the size, parsed by get_internal_size(). The list is shared between the two
-			// driver families; only which entry is native — and so the default and the "(Native)" label —
+			// The value IS the size, parsed by get_internal_size(). The list is shared between the driver
+			// families; only which entry is native — and so the default and the "(Native)" label —
 			// differs, and set_native_resolution() patches that in at startup (496x384 for Model 2,
-			// 640x480 for System 22). The default authored here is Model 2's. The aspect the frontend is
-			// told never changes — these are sample grids for one picture, not different shapes of picture.
+			// 640x480 for System 22, 496x480 for System 21). The default authored here is Model 2's, and
+			// each family's native size is authored with a plain label because the Model 2 path never
+			// calls set_native_resolution() and must see its own entry already marked. The aspect the
+			// frontend is told never changes — these are sample grids for one picture, not different
+			// shapes of picture.
 			{ "496x384",   "496x384 (Native)" },
+			{ "496x480",   "496x480" },
 			{ "640x480",   "640x480" },
 			{ "1024x768",  "1024x768" },
 			{ "1280x960",  "1280x960" },
@@ -149,6 +153,41 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 			{ nullptr, nullptr }
 		},
 		"stipple"
+	},
+	{
+		m2opt::KEY_S22_TEXTURE_FILTER,
+		"Texture Filtering (3D)",
+		nullptr,
+		"Smooths the textures on the 3D polygons with a bilinear blend. System 22 sampled its textures "
+		"one texel at a time, so distant and stretched surfaces show hard blocky steps; this softens "
+		"them. It is an enhancement, not accuracy — off matches the arcade. Vulkan only; System 22 "
+		"games only. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "off", "Off" },
+			{ "on",  "On" },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_S22_DEPTH_BUFFER,
+		"Depth Buffer (3D)",
+		nullptr,
+		"How overlapping 3D polygons are ordered. System 22 has no depth buffer — it sorts polygons and "
+		"paints them back to front, one depth per polygon, so two surfaces that cross through each other "
+		"(the road in Ridge Racer) fight over which is in front and flicker. On, the core keeps a real "
+		"per-pixel depth buffer so the crossing is resolved exactly. It is an enhancement, not accuracy — "
+		"off matches the arcade. Vulkan only; System 22 games only. Needs a content reload.",
+		nullptr,
+		nullptr,
+		{
+			{ "off", "Off" },
+			{ "on",  "On" },
+			{ nullptr, nullptr }
+		},
+		"off"
 	},
 	{
 		m2opt::KEY_STEERING_RESPONSE,
@@ -293,6 +332,11 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 
 constexpr unsigned OPTION_COUNT = (sizeof(DEFINITIONS) / sizeof(DEFINITIONS[0])) - 1;
 
+// Options hidden from the declared set by hide_option() (a family keeping its options off the other
+// family's menu). The get()/default_value() readers ignore this — hiding affects only what the frontend
+// is told about, not what a value resolves to — so a hidden option still reads its declared default.
+bool s_hidden[OPTION_COUNT] = {};
+
 
 //============================================================
 //  the three declaration forms
@@ -300,11 +344,19 @@ constexpr unsigned OPTION_COUNT = (sizeof(DEFINITIONS) / sizeof(DEFINITIONS[0]))
 
 bool declare_v2(retro_environment_t environ_cb)
 {
-	// The struct is non-const because a frontend is permitted to rewrite it in place when it
-	// localises the option set; ours is static storage, so handing it over is safe either way.
-	retro_core_options_v2 options{
-			nullptr,
-			const_cast<retro_core_option_v2_definition *>(DEFINITIONS) };
+	// A filtered copy so hidden options never reach the frontend. Static storage, so it stays valid after
+	// return; still non-const because a frontend is permitted to rewrite it in place when it localises the
+	// option set. Built once — set_native_resolution() and hide_option() have both run by declare() time.
+	static std::vector<retro_core_option_v2_definition> defs;
+	if (defs.empty())
+	{
+		defs.reserve(OPTION_COUNT + 1);
+		for (unsigned i = 0; i < OPTION_COUNT; i++)
+			if (!s_hidden[i])
+				defs.push_back(DEFINITIONS[i]);
+		defs.push_back(retro_core_option_v2_definition{});   // all-null terminator
+	}
+	retro_core_options_v2 options{ nullptr, defs.data() };
 	return environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2, &options);
 }
 
@@ -316,14 +368,19 @@ bool declare_v1(retro_environment_t environ_cb)
 	if (defs.empty())
 	{
 		defs.resize(OPTION_COUNT + 1);
+		unsigned j = 0;
 		for (unsigned i = 0; i < OPTION_COUNT; i++)
 		{
-			defs[i].key = DEFINITIONS[i].key;
-			defs[i].desc = DEFINITIONS[i].desc;
-			defs[i].info = DEFINITIONS[i].info;
-			std::memcpy(defs[i].values, DEFINITIONS[i].values, sizeof(defs[i].values));
-			defs[i].default_value = DEFINITIONS[i].default_value;
+			if (s_hidden[i])
+				continue;
+			defs[j].key = DEFINITIONS[i].key;
+			defs[j].desc = DEFINITIONS[i].desc;
+			defs[j].info = DEFINITIONS[i].info;
+			std::memcpy(defs[j].values, DEFINITIONS[i].values, sizeof(defs[j].values));
+			defs[j].default_value = DEFINITIONS[i].default_value;
+			j++;
 		}
+		defs.resize(j + 1);   // trim to visible + the value-initialised (all-null) terminator
 	}
 	return environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS, defs.data());
 }
@@ -337,10 +394,13 @@ bool declare_variables(retro_environment_t environ_cb)
 	static std::vector<retro_variable> vars;
 	if (vars.empty())
 	{
-		text.reserve(OPTION_COUNT);
+		text.reserve(OPTION_COUNT);   // reserved so a push_back never reallocs a live c_str() below
 		vars.resize(OPTION_COUNT + 1);
+		unsigned j = 0;
 		for (unsigned i = 0; i < OPTION_COUNT; i++)
 		{
+			if (s_hidden[i])
+				continue;
 			std::string line(DEFINITIONS[i].desc);
 			line += "; ";
 			line += DEFINITIONS[i].default_value;
@@ -353,9 +413,11 @@ bool declare_variables(retro_environment_t environ_cb)
 				}
 			}
 			text.push_back(std::move(line));
-			vars[i].key = DEFINITIONS[i].key;
-			vars[i].value = text.back().c_str();
+			vars[j].key = DEFINITIONS[i].key;
+			vars[j].value = text.back().c_str();
+			j++;
 		}
+		vars.resize(j + 1);   // trim to visible + the value-initialised (all-null) terminator
 	}
 	return environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, vars.data());
 }
@@ -387,6 +449,21 @@ char const *default_value(char const *key)
 } // anonymous namespace
 
 
+void m2opt::hide_option(char const *key)
+{
+	if (key == nullptr)
+		return;
+	for (unsigned i = 0; i < OPTION_COUNT; i++)
+	{
+		if (std::strcmp(DEFINITIONS[i].key, key) == 0)
+		{
+			s_hidden[i] = true;
+			return;
+		}
+	}
+}
+
+
 void m2opt::set_native_resolution(char const *native)
 {
 	if (native == nullptr)
@@ -414,10 +491,13 @@ void m2opt::set_native_resolution(char const *native)
 		{
 			char const *const val = def.values[v].value;
 			const bool is_native = (std::strcmp(val, native) == 0);
-			// Only 496x384 and 640x480 are ever native; give the native one the label, the other its
-			// plain size. Every larger entry keeps its plain label untouched.
+			// Only 496x384 (Model 2), 496x480 (System 21) and 640x480 (System 22) are ever native; give
+			// the native one the label, the others their plain size. Every larger entry keeps its plain
+			// label untouched.
 			if (std::strcmp(val, "496x384") == 0)
 				def.values[v].label = is_native ? "496x384 (Native)" : "496x384";
+			else if (std::strcmp(val, "496x480") == 0)
+				def.values[v].label = is_native ? "496x480 (Native)" : "496x480";
 			else if (std::strcmp(val, "640x480") == 0)
 				def.values[v].label = is_native ? "640x480 (Native)" : "640x480";
 			if (is_native)
@@ -532,6 +612,20 @@ unsigned m2opt::get_transparency(retro_environment_t environ_cb)
 	// Tested against the enhancement rather than against the default, so that anything unrecognised —
 	// a frontend's invention, a hand-written .opt file — lands on the accurate screen door.
 	return (get(environ_cb, KEY_TRANSPARENCY) == "blended") ? 1 : 0;
+}
+
+bool m2opt::get_s22_depth_buffer(retro_environment_t environ_cb)
+{
+	// "on" tested rather than not "off", so an unrecognised value lands on the accurate painter's
+	// picture — the same rule get_s22_texture_filter() uses for the same reason.
+	return get(environ_cb, KEY_S22_DEPTH_BUFFER) == "on";
+}
+
+bool m2opt::get_s22_texture_filter(retro_environment_t environ_cb)
+{
+	// "on" tested rather than not "off", so an unrecognised value lands on the accurate point-sampled
+	// picture — the same rule get_transparency() uses for the same reason.
+	return get(environ_cb, KEY_S22_TEXTURE_FILTER) == "on";
 }
 
 unsigned m2opt::get_steering_response(retro_environment_t environ_cb)

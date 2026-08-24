@@ -90,6 +90,18 @@ inline constexpr char const *KEY_FLAT_LUMA = "model2_flat_luma";
 // both-renderers rule, and an A/B or resolution-invariance run must leave it alone.
 inline constexpr char const *KEY_TRANSPARENCY = "model2_transparency";
 
+// System 22 only — bilinear filtering on the 3D texture tail. The hardware point-sampled its textures,
+// so this is an enhancement (off by default), and it is hidden from the Model 2 menu via hide_option()
+// (its renderer does not read it). Vulkan only. s22::set_option_filter() parks it; M2VK_S22_FILTER wins.
+inline constexpr char const *KEY_S22_TEXTURE_FILTER = "system22_texture_filter";
+
+// System 22 only — a per-pixel depth buffer (interpolated 1/z) in place of the painter's algorithm.
+// The hardware is a sorting rasteriser with no depth buffer, so this is an enhancement (off by default),
+// hidden from the Model 2 menu via hide_option(). It resolves the overlap errors a single per-poly sort
+// key leaves (ridge racer's road z-fighting). Vulkan only, and reload-gated — the depth state is baked
+// into the pipeline. s22::set_option_depth() parks it; M2VK_S22_DEPTH wins.
+inline constexpr char const *KEY_S22_DEPTH_BUFFER = "system22_depth_buffer";
+
 // The three steering options — shape the left stick's X axis on the 30 GAME entries that declare
 // an IPT_PADDLE. The machine is asked rather than a table consulted (m2vk_steer.h).
 // ⚠️ Unlike every rendering option, the default is NOT the untouched path — linear-onto-a-thumbstick
@@ -165,10 +177,24 @@ inline constexpr char const *STEERING_RESPONSE_VALUES[STEER_RESPONSE_COUNT] = {
 inline constexpr float STEERING_RESPONSE_GAMMA[STEER_RESPONSE_COUNT] = {
 	1.0f, 1.3f, 1.7f, 2.2f, 3.0f };
 
+// KEY_S22_TEXTURE_FILTER resolved to the bool s22::set_option_filter() takes. "on" tested rather than
+// not "off", so an unreadable value lands on the accurate (point-sampled) picture.
+bool get_s22_texture_filter(retro_environment_t environ_cb);
+
+// KEY_S22_DEPTH_BUFFER resolved to the bool s22::set_option_depth() takes. "on" tested rather than not
+// "off", so an unreadable value lands on the accurate (painter's) picture.
+bool get_s22_depth_buffer(retro_environment_t environ_cb);
+
+// Hide one option from every declared set, by key. Call before declare(). Used to keep a family's
+// options off the other family's menu (the object files are shared across subtargets, so this is a
+// runtime choice — see set_native_resolution()); a key that no entry matches is a silent no-op.
+void hide_option(char const *key);
+
 // Set which entry of the Internal Resolution option is the hardware's native size, before declare().
-// Model 2's is 496x384 (the authored default); System 22's is 640x480. Retargets the option's default
-// and moves the "(Native)" label onto the matching entry. `native` must be one of the option's value
-// strings ("<w>x<h>"); anything else is ignored, leaving the Model 2 default in place. The build's
+// Model 2's is 496x384 (the authored default); System 22's is 640x480; System 21's is 496x480.
+// Retargets the option's default and moves the "(Native)" label onto the matching entry. `native` must
+// be one of the option's value strings ("<w>x<h>"); anything else is ignored, leaving the Model 2
+// default in place. The build's
 // object files are shared across subtargets, so this cannot be a compile-time choice — retro_entry
 // detects the driver family (driver_list) at retro_set_environment() time and calls this first.
 void set_native_resolution(char const *native);

@@ -134,11 +134,50 @@ struct push_block
 	uint32_t fade_r, fade_g, fade_b;
 	uint32_t poly_flags;              // bit0 = poly_fade_enabled
 	uint32_t poly_r, poly_g, poly_b;
+	uint32_t tex_filter;              // 0 = point sample (hardware), 1 = bilinear on the 3D texture tail
+	float    depth_scale;             // 0 = painter's (z is the constant depth_bias, test off in the
+	float    depth_bias;              // pipeline); else z = ooz*depth_scale + depth_bias — see s22.vert
 };
 
-static_assert(sizeof(push_block) == 48, "s22 push block is twelve words");
+static_assert(sizeof(push_block) == 60, "s22 push block is fifteen words");
 
 constexpr uint32_t PFLAG_POLY_FADE = 1u;
+
+// system22_texture_filter, parked by retro_entry when the option changes. M2VK_S22_FILTER overrides it
+// in the standing direction (presence-or-value): the switch wins so a harness run can pin it either way.
+// Off is the hardware-accurate default; on is a pure enhancement (System 22 point-sampled its textures).
+bool s_option_filter = false;
+int  s_env_filter = -2;   // -2 = not yet read; -1 = no switch set; 0/1 = pinned
+
+bool filter_enabled()
+{
+	if (s_env_filter == -2)
+	{
+		char const *const env = std::getenv("M2VK_S22_FILTER");
+		s_env_filter = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_filter < 0) ? s_option_filter : (s_env_filter != 0);
+}
+
+// s22_depth_buffer, parked by retro_entry. M2VK_S22_DEPTH overrides it. Unlike the filter, this is a
+// pipeline choice (the depth-stencil state is baked in), so it is read once at build_pipeline() and is
+// reload-gated — a live menu change does not rebuild the pipeline. Off is the accurate default: System
+// 22 has no depth buffer, it is a sorting rasteriser, so this is an enhancement in the class of blended
+// transparency, resolving painter's-order overlap errors (ridge racer's road) at some risk to coplanar
+// decals. s_depth_pipeline latches what the pipeline was actually built with, so the draw path agrees.
+bool s_option_depth = false;
+int  s_env_depth = -2;   // -2 = not yet read; -1 = no switch set; 0/1 = pinned
+bool s_depth_pipeline = false;
+
+bool depth_enabled()
+{
+	if (s_env_depth == -2)
+	{
+		char const *const env = std::getenv("M2VK_S22_DEPTH");
+		s_env_depth = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_depth < 0) ? s_option_depth : (s_env_depth != 0);
+}
 
 struct mapped_buffer
 {
@@ -169,6 +208,12 @@ struct geom_slot
 	VkDescriptorSet descriptor = VK_NULL_HANDLE;
 	uint32_t        capacity = 0;          // quads the vertex/index buffers are sized for
 	uint32_t        index_count = 0;       // what this slot's recorded draw will submit
+
+	// The frame's 1/z range over the polygon vertices (sprites excluded — they carry no z), recorded by
+	// geom_upload and read by draw_batches to build the depth_scale/depth_bias remap. Only meaningful
+	// when the depth buffer is on; a frame with no polygons leaves max < min, which draw_batches treats
+	// as "no usable range" and falls back to painter's.
+	float           min_ooz = 1e30f, max_ooz = -1e30f;
 
 	// One draw per clip-window run; host-side, so it grows on its own. One entry for a game that never
 	// windows the 3D (ridgerac); SS22 letterbox games (tokyowar) alternate a couple of windows a frame.
@@ -485,14 +530,21 @@ bool build_pipeline()
 		multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-		// Painter's order: draw in record order, last writer wins. So the depth test is off — but the
-		// state is still supplied, because the ring's render pass carries a depth attachment (Model 2's)
-		// and a pipeline used with it must declare depth-stencil state even when it does nothing.
+		// Painter's order (the default): draw in record order, last writer wins, depth test off. The state
+		// is still supplied, because the ring's render pass carries a depth attachment (Model 2's) and a
+		// pipeline used with it must declare depth-stencil state even when it does nothing.
+		//
+		// s22_depth_buffer=on instead tests GREATER_OR_EQUAL and writes: the render pass clears depth to
+		// 0.0 and s22.vert maps nearest to 1.0, so the nearest fragment wins (GREATER), while a coplanar
+		// tie (equal z) falls to the LATER draw (OR_EQUAL) — which keeps the painter's ordering the
+		// hardware's per-poly sort key produced, and only the genuine interpenetration it could not
+		// express gets resolved per-pixel. Same clear value and format Model 2's geom pass already uses.
+		s_depth_pipeline = depth_enabled();
 		VkPipelineDepthStencilStateCreateInfo depth{};
 		depth.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-		depth.depthTestEnable = VK_FALSE;
-		depth.depthWriteEnable = VK_FALSE;
-		depth.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+		depth.depthTestEnable = s_depth_pipeline ? VK_TRUE : VK_FALSE;
+		depth.depthWriteEnable = s_depth_pipeline ? VK_TRUE : VK_FALSE;
+		depth.depthCompareOp = s_depth_pipeline ? VK_COMPARE_OP_GREATER_OR_EQUAL : VK_COMPARE_OP_ALWAYS;
 		depth.depthBoundsTestEnable = VK_FALSE;
 		depth.stencilTestEnable = VK_FALSE;
 
@@ -840,6 +892,8 @@ bool geom_upload(uint32_t slot_index)
 	uint32_t vcount = 0, icount = 0;
 	slot.batches.clear();
 	slot.over_batches.clear();
+	slot.min_ooz = 1e30f;
+	slot.max_ooz = -1e30f;
 
 	// Walk the interleaved draw order (the tree walk) so quads and sprites keep their relative depth: the
 	// painter's pass draws them in this exact sequence, last writer wins. One pipeline handles both; the
@@ -917,6 +971,8 @@ bool geom_upload(uint32_t slot_index)
 				v.voz = q.voz[i];
 				v.ooz = q.ooz[i];
 				v.iw = q.bri[i];
+				if (q.ooz[i] < slot.min_ooz) slot.min_ooz = q.ooz[i];   // depth-buffer remap range,
+				if (q.ooz[i] > slot.max_ooz) slot.max_ooz = q.ooz[i];   // polygons only (sprites have no z)
 				v.attr = attr;
 				v.bn = bn;
 				v.base = base;
@@ -1032,6 +1088,25 @@ static void draw_batches(VkCommandBuffer cmd, geom_slot &slot, std::vector<draw_
 	push.fade_g       = uint32_t(g.fade_g & 0xffff);
 	push.fade_b       = uint32_t(g.fade_b & 0xffff);
 	push.poly_flags   = g.poly_fade_enabled ? PFLAG_POLY_FADE : 0u;
+	push.tex_filter   = filter_enabled() ? 1u : 0u;
+
+	// The depth remap. Painter's (default, and any frame whose polygons span no 1/z range) is scale 0 /
+	// bias 0.5, which s22.vert turns into a constant z — byte-identical to the pre-depth-buffer path.
+	// With the depth buffer on and a real range, z = ooz*scale + bias maps [min_ooz, max_ooz] onto
+	// [0, 1] so nearest (largest 1/z) is 1.0, matching the GREATER_OR_EQUAL test. s_depth_pipeline (not
+	// depth_enabled()) gates it, so the constants always agree with the state the pipeline was built with.
+	float depth_scale = 0.0f, depth_bias = 0.5f;
+	if (s_depth_pipeline)
+	{
+		const float span = slot.max_ooz - slot.min_ooz;
+		if (span > 1e-9f)
+		{
+			depth_scale = 1.0f / span;
+			depth_bias  = -slot.min_ooz * depth_scale;
+		}
+	}
+	push.depth_scale  = depth_scale;
+	push.depth_bias   = depth_bias;
 	push.poly_r       = uint32_t(g.poly_r & 0xffff);
 	push.poly_g       = uint32_t(g.poly_g & 0xffff);
 	push.poly_b       = uint32_t(g.poly_b & 0xffff);
@@ -1135,6 +1210,21 @@ void geom_end_run()
 	s_quad_count = 0;
 	s_sprite_count = 0;
 	s_order_count = 0;
+}
+
+// system22_texture_filter, parked by retro_entry (in the load block and on every live change). Read at
+// the top of each draw via filter_enabled(), which lets M2VK_S22_FILTER override it. No pipeline to
+// rebuild — it is a push-constant bit — so the toggle takes effect on the next drawn frame.
+void set_option_filter(bool on)
+{
+	s_option_filter = on;
+}
+
+// s22_depth_buffer, parked by retro_entry at load. Read once at build_pipeline() (the depth-stencil
+// state is baked into the pipeline), so it is reload-gated; M2VK_S22_DEPTH overrides it.
+void set_option_depth(bool on)
+{
+	s_option_depth = on;
 }
 
 } // namespace s22

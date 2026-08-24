@@ -66,6 +66,67 @@
   },
   "rows": [
     {
+      "id": "acedrive",
+      "sets": [
+        "acedrive"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Dev Service Enter"
+        },
+        {
+          "source": "NONE",
+          "label": "Dev Service Exit"
+        },
+        {
+          "source": "Y",
+          "label": "View Change"
+        },
+        {
+          "source": "NONE",
+          "label": "Motion-Stop"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View Change",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Dev Service Up",
+        "DOWN": "Dev Service Down",
+        "LEFT": "Dev Service Left",
+        "RIGHT": "Dev Service Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
       "id": "airwlkrs",
       "sets": [
         "airwlkrs"
@@ -251,6 +312,67 @@
         "L3": "Service Coin",
         "LSTICK_X": "Steering",
         "LSTICK_Y": "Brake"
+      }
+    },
+    {
+      "id": "dirtdash",
+      "sets": [
+        "dirtdash"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "View Change"
+        },
+        {
+          "source": "NONE",
+          "label": "Motion-Stop"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View Change",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
       }
     },
     {
@@ -901,6 +1023,189 @@
       }
     },
     {
+      "id": "ridgera",
+      "sets": [
+        "ridgerac"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Clutch Pedal"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "Clutch Pedal",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Shift Left",
+        "RIGHT": "Shift Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "ridgera2",
+      "sets": [
+        "ridgera2"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Clutch Pedal"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "Clutch Pedal",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Shift Left",
+        "RIGHT": "Shift Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "ridgeracf",
+      "sets": [
+        "ridgeracf"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "R",
+          "label": "Button 5"
+        },
+        {
+          "source": "L",
+          "label": "Button 6"
+        },
+        {
+          "source": "L2_AXIS",
+          "label": "Button 7"
+        },
+        {
+          "source": "R2_AXIS",
+          "label": "Button 8"
+        },
+        {
+          "source": "R3",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "L": "Button 6",
+        "R": "Button 5",
+        "L2": "Button 7",
+        "R2": "Button 8",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "R3": "Button 9"
+      }
+    },
+    {
       "id": "schamp",
       "sets": [
         "schamp"
@@ -1314,6 +1619,68 @@
         "START": "Start",
         "L3": "Service Coin",
         "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "victlap",
+      "sets": [
+        "victlap"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Dev Service Enter"
+        },
+        {
+          "source": "NONE",
+          "label": "Dev Service Exit"
+        },
+        {
+          "source": "Y",
+          "label": "View Change"
+        },
+        {
+          "source": "X",
+          "label": "Motion-Stop"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View Change",
+        "X": "Motion-Stop",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Dev Service Up",
+        "DOWN": "Dev Service Down",
+        "LEFT": "Dev Service Left",
+        "RIGHT": "Dev Service Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
         "LSTICK_Y": "Move"
       }
     },

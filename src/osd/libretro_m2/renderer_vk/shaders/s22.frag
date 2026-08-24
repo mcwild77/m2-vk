@@ -43,6 +43,9 @@ layout(push_constant) uniform push_block
 	uint fade_r, fade_g, fade_b;
 	uint poly_flags;
 	uint poly_r, poly_g, poly_b;
+	uint tex_filter;   // 0 = point sample (hardware); 1 = bilinear on the 3D texture tail (enhancement)
+	float depth_scale; // s22.vert only (depth-buffer mode); present here so the shared layout matches
+	float depth_bias;  // s22.vert only
 } pc;
 
 const uint PFLAG_POLY_FADE = 1u;
@@ -99,6 +102,26 @@ ivec3 mame_blend(ivec3 a, ivec3 b, int f) { return (a * f + b * (256 - f)) >> 8;
 // rgbaint_t::scale_imm_and_clamp / scale_and_clamp: clamp((c * scale) >> 8, 0, 255).
 ivec3 mame_scale_imm(ivec3 c, int s)  { return clamp((c * s) >> 8, 0, 255); }
 ivec3 mame_scale(ivec3 c, ivec3 s)    { return clamp((c * s) >> 8, 0, 255); }
+
+// One texel of renderscanline_poly's fetch, factored so the point tap and the four bilinear taps share
+// one body. tx wraps to 12 bits; ty takes its low 12 bits and then the texturebank (v_bn), exactly as
+// the inline fetch did. Returns the RAW ttdata pen byte — what the alpha test compares against.
+uint texel_pen(int tx, int ty)
+{
+	tx &= 0xfff;
+	ty = (ty & 0xfff) | int(v_bn << 12u);
+	const int to = ((ty << 4) & 0xfff00) | (tx >> 4);
+	const uint tile  = ttmap_at(uint(to));
+	const uint attrb = ttattr_at(uint(to));
+	const uint inner = ayx_at((attrb << 8u) | uint(((ty << 4) & 0xf0) | (tx & 0xf)));
+	return ttdata_at((tile << 8u) | inner);
+}
+
+// The cmode pen resolve: raw pen -> palette RGB. pens_base/mask/shift are resolved once per poly.
+ivec3 pen_to_rgb(uint pen, uint pens_base, uint penmask, uint penshift)
+{
+	return unpack_rgb(palette[(pens_base + ((pen >> penshift) & penmask)) & PAL_MASK]);
+}
 
 void main()
 {
@@ -179,14 +202,8 @@ void main()
 	}
 	else
 	{
-		const int tx = int(v_uvw.x * ooz) & 0xfff;
-		const int ty = (int(v_uvw.y * ooz) & 0xfff) | int(v_bn << 12u);
-		const int to = ((ty << 4) & 0xfff00) | (tx >> 4);
-
-		const uint tile  = ttmap_at(uint(to));
-		const uint attrb = ttattr_at(uint(to));
-		const uint inner = ayx_at((attrb << 8u) | uint(((ty << 4) & 0xf0) | (tx & 0xf)));
-		pen = ttdata_at((tile << 8u) | inner);
+		const float fu = v_uvw.x * ooz;
+		const float fv = v_uvw.y * ooz;
 
 		// pens base / mask / shift from cmode, exactly as the scanline renderer resolves them once per poly.
 		uint pens_base = color << 8u;
@@ -205,7 +222,35 @@ void main()
 			penshift = 4u * ((~cmode) & 1u);
 		}
 
-		rgb = unpack_rgb(palette[(pens_base + ((pen >> penshift) & penmask)) & PAL_MASK]);
+		// The alpha test (below) is always on the point-sampled centre pen, so the cutout/alpha-pen shape
+		// is identical whether or not filtering is on. Only the COLOUR is filtered.
+		pen = texel_pen(int(fu), int(fv));
+
+		if (pc.tex_filter == 0u)
+		{
+			// Hardware: point sample. Bit-identical to the pre-filter path.
+			rgb = pen_to_rgb(pen, pens_base, penmask, penshift);
+		}
+		else
+		{
+			// Enhancement (System 22 had no texture filter): a 4-tap bilinear blend in RGB space, AFTER
+			// the palette lookup — the pens are indices, so the four neighbours must each resolve to a
+			// colour before they can be averaged. Texel centres sit at integer coords (the point tap rounds
+			// to nearest), so the sample point is fu-0.5 and its two bracketing texels are floor()/+1.
+			const float pu = fu - 0.5;
+			const float pv = fv - 0.5;
+			const int   u0 = int(floor(pu));
+			const int   v0 = int(floor(pv));
+			const float wx = pu - float(u0);
+			const float wy = pv - float(v0);
+
+			const vec3 c00 = vec3(pen_to_rgb(texel_pen(u0,     v0    ), pens_base, penmask, penshift));
+			const vec3 c10 = vec3(pen_to_rgb(texel_pen(u0 + 1, v0    ), pens_base, penmask, penshift));
+			const vec3 c01 = vec3(pen_to_rgb(texel_pen(u0,     v0 + 1), pens_base, penmask, penshift));
+			const vec3 c11 = vec3(pen_to_rgb(texel_pen(u0 + 1, v0 + 1), pens_base, penmask, penshift));
+
+			rgb = ivec3(round(mix(mix(c00, c10, wx), mix(c01, c11, wx), wy)));
+		}
 	}
 
 	const int shade = int(v_iw * ooz) << 2;

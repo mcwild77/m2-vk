@@ -40,6 +40,8 @@
 #include "renderer_vk/vk_geom.h"
 #include "renderer_vk/s22_geom.h"
 #include "s22_seam.h"
+#include "renderer_vk/s21_geom.h"
+#include "s21_seam.h"
 
 #include "m2vk_frame.h"
 #include "m2vk_reticle.h"
@@ -1126,6 +1128,7 @@ void forget_ring()
 	// The polygon pass's own handles belonged to the same device and go the same way.
 	m2vk::geom_forget();
 	s22::geom_forget();
+	s21::geom_forget();
 
 	// Zeroed rather than left stale: the frontend may still hold a pointer to a slot's handover.
 	for (frame_slot &slot : s_slots)
@@ -1246,6 +1249,7 @@ void destroy_ring()
 	dump_destroy();
 	m2vk::geom_destroy();
 	s22::geom_destroy();
+	s21::geom_destroy();
 	destroy_shared();
 
 	// The frame counts are the point of this line as much as the ring is: they are what says whether
@@ -1581,6 +1585,13 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 		return false;
 	}
 
+	// The System 21 pass, likewise — built alongside the ring, pipeline built lazily on first capture.
+	if (!s21::geom_build(iface, s_fns, s_render_pass, count))
+	{
+		destroy_ring();
+		return false;
+	}
+
 	// Set before the loop so that a slot which fails half-built is still destroyed by destroy_ring.
 	s_slot_count = count;
 	for (uint32_t i = 0; i < count; i++)
@@ -1806,7 +1817,7 @@ void draw_steerbar(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
 // passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0. `draw_3d` says
 // whether the polygon pass has anything to put between the two.
-bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool draw_3d, bool draw_3d_s22, bool dump)
+bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool draw_3d, bool draw_3d_s22, bool draw_3d_s21, bool dump)
 {
 	if (!check(s_fns.reset_command_pool(s_device, slot.pool, 0), "vkResetCommandPool"))
 		return false;
@@ -1917,6 +1928,19 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	// reads nor writes the depth attachment the Model 2 pass shares.
 	if (draw_3d_s22)
 		s22::geom_draw(index, slot.cmd, s_width, s_height, draw_width, draw_height);
+
+	// The System 21 untextured pass (T2), over the 2D background in place of the Model 2 / S22 3D — no
+	// two are ever live in one build. Unlike S22 this is depth-tested (S21 z-buffers in hardware); it
+	// shares the ring's depth attachment, cleared to 0.0, and writes it.
+	if (draw_3d_s21)
+		s21::geom_draw(index, slot.cmd, s_width, s_height);
+
+	// The System 21 layer-0 C355 z-mix (T2b), over the 3D and under the OVER overlay's unconditional
+	// high-priority band — the same ordering mix_layer0_sprites' own caller uses (screen_update draws it
+	// before the priority-3 sprites). Independent of draw_3d_s21: it self-guards on the driver having
+	// captured a mix buffer this frame (pri1==4 gameplay only), which geom_upload() tracks separately
+	// from the quad stream.
+	s21::geom_draw_mix(index, slot.cmd);
 
 	if (draw_over)
 	{
@@ -2132,6 +2156,13 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	const bool s22_sandwich = (layers == nullptr) && (s22_over != nullptr)
 			&& (unsigned(s22_over_w) == width) && (unsigned(s22_over_h) == height);
 
+	// The System 21 2D-over overlay: the C355 bands (high-priority, and flat layer-0) that sit above the
+	// GPU 3D. Same sandwich as System 22, over the same `pixels` UNDER background.
+	int s21_over_w = 0, s21_over_h = 0;
+	uint32_t const *const s21_over = s21::over_pixels(s21_over_w, s21_over_h);
+	const bool s21_sandwich = (layers == nullptr) && (s21_over != nullptr)
+			&& (unsigned(s21_over_w) == width) && (unsigned(s21_over_h) == height);
+
 	if (layers != nullptr)
 	{
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, layers->layer[m2vk::LAYER_UNDER].pixels.data(), bytes);
@@ -2142,6 +2173,8 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, pixels, bytes);
 		if (s22_sandwich)
 			std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, s22_over, bytes);
+		else if (s21_sandwich)
+			std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, s21_over, bytes);
 	}
 
 	// The polygon stream, turned into this slot's vertex, index and parameter buffers. Only when the
@@ -2160,14 +2193,19 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// Model 2 build (nothing ever captures), so this costs one predicate there.
 	const bool draw_3d_s22 = s22::geom_upload(index);
 
-	// A foreground pass runs when Model 2 captured both layers, or when the S22 core handed back an
+	// The System 21 untextured pass. Like S22 it rides the passthrough (layers null, background `pixels`),
+	// but it is depth-tested. geom_upload returns false in the Model 2 / namcos22 builds (nothing ever
+	// captures S21), so this costs one predicate there.
+	const bool draw_3d_s21 = s21::geom_upload(index);
+
+	// A foreground pass runs when Model 2 captured both layers, or when the S22 / S21 core handed back an
 	// overlay to sandwich its 3D between.
-	const bool draw_over = (layers != nullptr) || s22_sandwich;
+	const bool draw_over = (layers != nullptr) || s22_sandwich || s21_sandwich;
 
 	const bool dump = !s_dump_done && !s_dump_prefix.empty() && (s_dump_mapped != nullptr)
 			&& (s_frames == s_dump_frame);
 
-	if (!record_and_submit(slot, index, draw_over, draw_3d, draw_3d_s22, dump))
+	if (!record_and_submit(slot, index, draw_over, draw_3d, draw_3d_s22, draw_3d_s21, dump))
 	{
 		if (!s_reported_frame_error)
 		{
@@ -2248,6 +2286,7 @@ void present_end_run()
 	present_shutdown();
 	m2vk::geom_end_run();
 	s22::geom_end_run();
+	s21::geom_end_run();
 	s_frames = 0;
 
 	// The record's own serials restart with the run, so the watermarks that chase them have to as

@@ -168,9 +168,18 @@ inline bool active() { return detail::g_active; }
 
 // S2 GPU capture. set_gpu(true) turns the hardware path on: it attaches the record consumer (so
 // active() goes true) and, because the GPU now owns the 3D, hands sw_owns_3d() back false so the
-// driver stops calling render_triangle_fan. Called by the OSD once the renderer=vulkan decision is
-// made, for the namcos22 subtarget only — in the Model 2 build these are compiled but never called.
+// driver stops calling render_triangle_fan. set_gpu(false) is the reverse — capture off, and the
+// software rasteriser owns the 3D again (sw_owns_3d() true). Called by the OSD once the renderer=vulkan
+// decision is made, for the namcos22 subtarget only — in the Model 2 build these are compiled but never
+// called.
 void set_gpu(bool on);
+
+// M2VK_NO_3D: neither the GPU nor the software rasteriser draws the 3D — the background reference the
+// coverage/exact harness differences against. Unlike set_gpu(false), it hands sw_owns_3d() back FALSE
+// too, so the driver skips render_triangle_fan / render_polygon and the picture is just the 2D layers.
+// (Without this, set_gpu(false) leaves the software rasteriser drawing, so M2VK_NO_3D never suppressed
+// the System 22 3D.) Capture stays off, so the seam is inert.
+void set_no_3d();
 
 // Hands the consumer the texture system's pointers (above). Called by the driver from the frame
 // bracket; cheap enough to call every frame since it only stores pointers. Inert unless capturing.

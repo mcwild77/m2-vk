@@ -36,10 +36,12 @@
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 #include "s22_seam.h"
+#include "s21_seam.h"
 
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
 #include "renderer_vk/vk_geom.h"
+#include "renderer_vk/s22_geom.h"
 #include "renderer_vk/vk_present.h"
 
 #include "emu.h"
@@ -339,6 +341,29 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 	// leave Model 2's authored default in place otherwise, so a future third family is safe by default.
 	if (driver_list::find("ridgerac") >= 0)
 		m2opt::set_native_resolution("640x480");
+	else if (driver_list::find("starblad") >= 0)
+	{
+		// System 21 native is 496x480 (the polygonizer's framebuffer) — a listed value, so this retargets
+		// the default and the "(Native)" label onto it. Its menu wants none of the System 22-only options
+		// either — S21 is always z-buffered, has no texture filter.
+		m2opt::set_native_resolution("496x480");
+		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
+		m2opt::hide_option(m2opt::KEY_S22_DEPTH_BUFFER);
+		// And three Model 2 render options the S21 path never reads: it is always untextured (so Flat
+		// Shading has nothing to remove), has no per-poly luma hook (No Lighting), and hardcodes
+		// blendEnable=VK_FALSE (Transparency). Left visible they would be dead menu entries, so hide them
+		// for the same reason the S22-only options are hidden from Model 2 above.
+		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
+		m2opt::hide_option(m2opt::KEY_FLAT_LUMA);
+		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
+	}
+	else
+		// System 22-only options do not belong on the Model 2 menu (its renderer never reads them).
+		// Same family detection as above; a third family stays safe by keeping them hidden by default.
+		{
+			m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
+			m2opt::hide_option(m2opt::KEY_S22_DEPTH_BUFFER);
+		}
 
 	// Options are published here rather than in retro_init(): a frontend reads them before the
 	// core is initialised, so that it can show them and restore the user's values first.
@@ -645,7 +670,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// was set is still the right thing to have printed.
 	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_FLAT_LUMA", "M2VK_BLEND",
 			"M2VK_STEER_LINEAR", "M2VK_STEER_DEADZONE", "M2VK_STEER_GAMMA", "M2VK_STEER_RANGE",
-			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR" })
+			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR", "M2VK_S22_FILTER",
+			"M2VK_S22_DEPTH" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -686,6 +712,21 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 	m2vk::set_option_steerbar(steer_display);
 
+	// System 22's 3D texture filter — its own option, declared only on the S22 build (hidden on Model 2
+	// above). Parked in the S22 polygon pass; a harmless no-op on Model 2, whose seam never draws. The
+	// option is hidden there, so it always reads its "off" default, but the read is gated on family
+	// anyway so the S22-only log line stays off the Model 2 console.
+	if (driver_list::find("ridgerac") >= 0)
+	{
+		const bool s22_filter = m2opt::get_s22_texture_filter(s_environ_cb);
+		s22::set_option_filter(s22_filter);
+		const bool s22_depth = m2opt::get_s22_depth_buffer(s_environ_cb);
+		s22::set_option_depth(s22_depth);
+		s_log_cb(RETRO_LOG_INFO, "[system22] options: %s=%s %s=%s\n",
+				m2opt::KEY_S22_TEXTURE_FILTER, s22_filter ? "on" : "off",
+				m2opt::KEY_S22_DEPTH_BUFFER, s22_depth ? "on" : "off");
+	}
+
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
 	// composites them itself (m2vk_frame.h). On the software path the two hooks in screen_update()
 	// cost a predicate each and nothing more, which is what keeps renderer=software the reference.
@@ -708,16 +749,36 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// The System 22 GPU pass (S2) owns the 3D under the same condition the Model 2 hardware path does:
 	// a Vulkan context is up and neither M2VK_NO_3D nor M2VK_SW_3D has taken it back. set_gpu(true) both
 	// attaches the record consumer and stops the driver's render_triangle_fan, so software draws no 3D.
-	// In the Model 2 build this is a harmless flag write — no S22 seam site ever calls into it.
-	const bool s22_gpu = s_hw_render && !no_3d && (std::getenv("M2VK_SW_3D") == nullptr);
-	s22::set_gpu(s22_gpu);
+	// M2VK_NO_3D is the "neither draws" background reference: set_no_3d() also hands sw_owns_3d() back
+	// false, so — unlike set_gpu(false) — the software rasteriser is suppressed too and the picture is
+	// just the 2D layers (what the coverage/exact harness differences against). In the Model 2 build
+	// these are harmless flag writes — no S22 seam site ever calls into them.
+	if (no_3d)
+		s22::set_no_3d();
+	else
+		s22::set_gpu(s_hw_render && (std::getenv("M2VK_SW_3D") == nullptr));
+
+	// The System 21 GPU pass (T2) owns the 3D under the same condition, gated on its own family so a
+	// namcos22 / Model 2 build never turns S21 capture on (harmless if it did — no S21 seam fires — but
+	// kept safe-by-default). Only the namcos21 build compiles in starblad.
+	if (driver_list::find("starblad") >= 0)
+	{
+		if (no_3d)
+			s21::set_no_3d();
+		else
+			s21::set_gpu(s_hw_render && (std::getenv("M2VK_SW_3D") == nullptr));
+	}
 
 	// The content's own directory, plus a place for sets the frontend keeps alongside the core.
-	// The second entry is what makes a clone loadable when its parent set lives elsewhere.
+	// The second entry is what makes a clone loadable when its parent set lives elsewhere. Which
+	// leaf that is depends on the driver family compiled into this dylib (see the driver_list::find
+	// note in retro_set_environment above) — a System 22 build must not go looking in ".../model2".
+	const std::string family_dir = (driver_list::find("ridgerac") >= 0) ? "system22"
+			: (driver_list::find("starblad") >= 0) ? "system21" : "model2";
 	std::string rompath = rompath_from_path(path);
 	const std::string systemdir = frontend_directory(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY);
 	if (!systemdir.empty())
-		rompath += ";" + systemdir + "/model2";
+		rompath += ";" + systemdir + "/" + family_dir;
 
 	// MAME paces itself against a wall clock by default; here the frontend does the pacing, so
 	// throttling and frame-skipping have to be off or the two clocks fight.
@@ -759,7 +820,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	const std::string savedir = frontend_directory(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY);
 	if (!savedir.empty())
 	{
-		const std::string base = savedir + "/model2";
+		const std::string base = savedir + "/" + family_dir;
 		const std::pair<char const *, char const *> dirs[] = {
 			{ "-nvram_directory",    "nvram" },
 			{ "-cfg_directory",      "cfg" },
@@ -962,6 +1023,10 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
 		m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 		m2vk::set_option_steerbar(steer_display);
+
+		// System 22 texture filter applies live too — a push-constant bit read at the next draw.
+		if (driver_list::find("ridgerac") >= 0)
+			s22::set_option_filter(m2opt::get_s22_texture_filter(s_environ_cb));
 
 		char res_text[32];
 		if ((res_width == 0) || (res_height == 0))
