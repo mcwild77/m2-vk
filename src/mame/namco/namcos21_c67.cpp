@@ -486,7 +486,7 @@ void namcos21_c67_state::capture_over_sprites(screen_device &screen, const recta
 	// The high-priority band always sits over everything.
 	m_c355spr->draw(screen, m_mix_layer0_bitmap, cliprect, 3);
 
-	s21::capture_over(m_mix_layer0_bitmap, reinterpret_cast<uint32_t const *>(m_palette->palette()->entry_list_adjusted()), cliprect);
+	s21::capture_over(m_mix_layer0_bitmap, cliprect);
 }
 
 // T2b: the pri1==4 layer-0 sprites, which mix_layer0_sprites gates per pixel against the polygon
@@ -498,7 +498,7 @@ void namcos21_c67_state::capture_mix_sprites(screen_device &screen, const rectan
 	m_mix_layer0_bitmap.fill(0, cliprect);
 	m_c355spr->draw(screen, m_mix_layer0_bitmap, cliprect, 0);
 
-	s21::capture_mix(m_mix_layer0_bitmap, reinterpret_cast<uint32_t const *>(m_palette->palette()->entry_list_adjusted()), cliprect);
+	s21::capture_mix(m_mix_layer0_bitmap, cliprect);
 }
 #endif
 
@@ -558,12 +558,12 @@ u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 #ifdef S21VK
 	else
 	{
-		// The GPU owns the 3D, so the C355 bands that sit OVER the polygons go into a transparent overlay
-		// the renderer draws again after the GPU 3D — the same UNDER/OVER sandwich Model 2 / System 22 use.
-		// Band 1 (low-priority) is already in `bitmap` (the UNDER background); this captures the high-priority
-		// band, and — for pri1 in {0,2} — the flat layer-0 that draws over the 3D. pri1==4's layer-0 is
-		// z-mixed instead (T2b): captured separately below, gated on the GPU's own depth buffer rather than
-		// drawn unconditionally.
+		// The GPU owns the 3D and composites the whole S21 frame in PEN-index space (option B), so the
+		// C355 palette-shadow sprites in the OVER band can index the polygon-blend banks by the pen beneath
+		// them. `bitmap` here holds the 2D-under pens (backdrop + the low-priority band drawn above, before
+		// the 3D); snapshot them as the composite's background slice. The high-priority band, and — for pri1
+		// in {0,2} — the flat layer-0, go into the OVER overlay; pri1==4's layer-0 is z-mixed instead (T2b).
+		s21::capture_under(bitmap, cliprect);
 		capture_over_sprites(screen, cliprect, pri1);
 		if (pri1 == 4)
 			capture_mix_sprites(screen, cliprect);

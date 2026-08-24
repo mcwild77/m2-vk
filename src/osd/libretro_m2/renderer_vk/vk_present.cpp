@@ -1876,6 +1876,13 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	const uint32_t draw_width = ss ? (s_width * s_ss) : s_out_width;
 	const uint32_t draw_height = ss ? (s_height * s_ss) : s_out_height;
 
+	// The System 21 pen-space composite (option B) runs in its own private render pass, BEFORE the shared
+	// present pass begins: it lays the 2D-under pens, the 3D quads and the layer-0 mix into a pen
+	// attachment, which finish_draw (inside the present pass, below) then samples, applies the OVER band
+	// to, and resolves to RGB. A no-op in the model2 / namcos22 builds and in S21 software / NO_3D mode.
+	if (draw_3d_s21)
+		s21::pen_pass(slot.cmd, index, draw_width, draw_height);
+
 	VkRenderPassBeginInfo pass{};
 	pass.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	pass.renderPass = s_render_pass;
@@ -1905,10 +1912,21 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	// between them. This is why the frame is three draws in one pass rather than one draw of a shader
 	// that samples both layers — a depth-tested geometry pass has to sit in the middle, and it cannot
 	// if the background and the foreground are resolved in a single fragment.
-	s_fns.cmd_bind_pipeline(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
-	s_fns.cmd_bind_descriptor_sets(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
-			0, 1, &slot.layers[m2vk::LAYER_UNDER].descriptor, 0, nullptr);
-	s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
+	// The System 21 finish pass is the whole S21 background: it resolves the pen composite pen_pass built
+	// (2D-under + 3D + mix) with the OVER band applied in pen space. It stands in for the UNDER draw and
+	// the 3D/mix/OVER draws below, all of which happened in the pen pass. Everything else takes the normal
+	// UNDER background draw.
+	if (draw_3d_s21)
+	{
+		s21::finish_draw(slot.cmd, index, draw_width, draw_height);
+	}
+	else
+	{
+		s_fns.cmd_bind_pipeline(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
+		s_fns.cmd_bind_descriptor_sets(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
+				0, 1, &slot.layers[m2vk::LAYER_UNDER].descriptor, 0, nullptr);
+		s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
+	}
 
 	// The 3D. It is handed the VISIBLE extent and the attachment's separately: the polygon stream is in
 	// m_destmap pixels and the vertex shader turns those into NDC, so the scaling belongs to the
@@ -1929,18 +1947,7 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	if (draw_3d_s22)
 		s22::geom_draw(index, slot.cmd, s_width, s_height, draw_width, draw_height);
 
-	// The System 21 untextured pass (T2), over the 2D background in place of the Model 2 / S22 3D — no
-	// two are ever live in one build. Unlike S22 this is depth-tested (S21 z-buffers in hardware); it
-	// shares the ring's depth attachment, cleared to 0.0, and writes it.
-	if (draw_3d_s21)
-		s21::geom_draw(index, slot.cmd, s_width, s_height);
-
-	// The System 21 layer-0 C355 z-mix (T2b), over the 3D and under the OVER overlay's unconditional
-	// high-priority band — the same ordering mix_layer0_sprites' own caller uses (screen_update draws it
-	// before the priority-3 sprites). Independent of draw_3d_s21: it self-guards on the driver having
-	// captured a mix buffer this frame (pri1==4 gameplay only), which geom_upload() tracks separately
-	// from the quad stream.
-	s21::geom_draw_mix(index, slot.cmd);
+	// (System 21 is composited entirely in the pen pass + finish_draw above; nothing here.)
 
 	if (draw_over)
 	{
@@ -2156,12 +2163,9 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	const bool s22_sandwich = (layers == nullptr) && (s22_over != nullptr)
 			&& (unsigned(s22_over_w) == width) && (unsigned(s22_over_h) == height);
 
-	// The System 21 2D-over overlay: the C355 bands (high-priority, and flat layer-0) that sit above the
-	// GPU 3D. Same sandwich as System 22, over the same `pixels` UNDER background.
-	int s21_over_w = 0, s21_over_h = 0;
-	uint32_t const *const s21_over = s21::over_pixels(s21_over_w, s21_over_h);
-	const bool s21_sandwich = (layers == nullptr) && (s21_over != nullptr)
-			&& (unsigned(s21_over_w) == width) && (unsigned(s21_over_h) == height);
+	// System 21 composites its whole frame — 2D-under, 3D and the OVER band — in pen-index space on the
+	// GPU (option B, s21_geom.cpp), so it hands back no RGB overlay to sandwich; the UNDER staging below
+	// carries `pixels` only for the inert reticle/steering background, and finish_draw draws the picture.
 
 	if (layers != nullptr)
 	{
@@ -2173,8 +2177,6 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, pixels, bytes);
 		if (s22_sandwich)
 			std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, s22_over, bytes);
-		else if (s21_sandwich)
-			std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, s21_over, bytes);
 	}
 
 	// The polygon stream, turned into this slot's vertex, index and parameter buffers. Only when the
@@ -2193,14 +2195,15 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// Model 2 build (nothing ever captures), so this costs one predicate there.
 	const bool draw_3d_s22 = s22::geom_upload(index);
 
-	// The System 21 untextured pass. Like S22 it rides the passthrough (layers null, background `pixels`),
-	// but it is depth-tested. geom_upload returns false in the Model 2 / namcos22 builds (nothing ever
-	// captures S21), so this costs one predicate there.
+	// The System 21 pen-space composite. geom_upload returns true when the driver captured the 2D-under
+	// this frame — i.e. S21 owns the picture — in which case pen_pass + finish_draw draw the whole frame.
+	// Returns false in the Model 2 / namcos22 builds (nothing ever captures S21), so this costs one
+	// predicate there.
 	const bool draw_3d_s21 = s21::geom_upload(index);
 
-	// A foreground pass runs when Model 2 captured both layers, or when the S22 / S21 core handed back an
-	// overlay to sandwich its 3D between.
-	const bool draw_over = (layers != nullptr) || s22_sandwich || s21_sandwich;
+	// A foreground OVER pass runs when Model 2 captured both layers, or when the S22 core handed back an
+	// overlay to sandwich its 3D between. (S21's OVER band is applied in the finish pass, not here.)
+	const bool draw_over = (layers != nullptr) || s22_sandwich;
 
 	const bool dump = !s_dump_done && !s_dump_prefix.empty() && (s_dump_mapped != nullptr)
 			&& (s_frames == s_dump_frame);

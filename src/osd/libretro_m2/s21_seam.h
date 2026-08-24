@@ -112,30 +112,84 @@ void set_no_3d();
 void set_palette(uint32_t const *pens, uint32_t count);
 palette_ram const &get_palette();
 
+// The Winning Run OVER-band shadow override. Its GPU bitmap draws pen 0x00/0x01 opaque where the pen
+// beneath is the backdrop sentinel and a palette shadow elsewhere (namcos21.cpp bitmap_draw); the finish
+// pass can only tell the two apart with the composite pen it holds, so the driver hands it the sentinel
+// and the opaque base each frame it captures such an OVER band. enabled is reset to false in frame_begin,
+// so a C67 frame (which never calls this) resolves its OVER band with an unconditional shadow, unchanged.
+struct over_shadow_params
+{
+	uint32_t sentinel = 0;
+	uint32_t opaque_base = 0;
+	bool     enabled = false;
+};
+void set_over_shadow(uint32_t sentinel, uint32_t opaque_base);
+over_shadow_params get_over_shadow();
+
+// The 2D-UNDER pen buffer (s21_seam.cpp). Option B composites the whole S21 frame in pen-index space so
+// the C355 palette-shadow OVER sprites can index the polygon-blend banks (1/2) by the pen beneath them —
+// which an RGB composite has thrown away by the time the shadow is applied. This is the background slice:
+// the C355 low-priority band and the backdrop, exactly the pens MAME's screen_update has drawn into
+// `bitmap` before the 3D. The GPU lays it down first, the 3D and mix draw over it (depth-tested), and
+// s21_finish.frag resolves the composite to RGB once, after the OVER shadow. under_begin returns a
+// width*height buffer of pen indices to fill, under_end marks it readable, under_pixels returns it or
+// nullptr, under_forget drops it. Gated on gpu_owns_3d(), like over/mix.
+uint32_t       *under_begin(int width, int height);
+void            under_end();
+uint32_t const *under_pixels(int &width, int &height);
+void            under_forget();
+
+// Snapshots the 2D-under pen bitmap (backdrop + low-priority C355 band) as raw pen indices. Templated so
+// this header needs none of MAME's types — Bitmap is a bitmap_ind16, Rect a rectangle.
+template <typename Bitmap, typename Rect>
+inline void capture_under(Bitmap const &bm, Rect const &clip)
+{
+	const int w = clip.width();
+	const int h = clip.height();
+	uint32_t *dst = under_begin(w, h);
+	if (dst == nullptr)
+		return;
+
+	for (int y = 0; y < h; y++, dst += w)
+	{
+		auto const *const src = &bm.pix(clip.top() + y, clip.left());
+		for (int x = 0; x < w; x++)
+			dst[x] = uint32_t(src[x]);
+	}
+
+	under_end();
+}
+
 // The 2D-over overlay (s21_seam.cpp). When the GPU owns the 3D, the driver draws the C355 sprite bands
-// that sit OVER the polygons (high-priority, and — for pri1 in {0,2} — the flat layer-0) into a
-// transparent overlay instead of the UNDER bitmap, so the renderer draws them again after the GPU 3D.
-// Same UNDER/OVER sandwich Model 2 and System 22 use. over_begin returns a width*height buffer to fill
-// (0 = transparent), over_end marks it readable, over_pixels returns it to the frontend or nullptr if
-// none this frame, over_forget drops it. A no-op while the software rasteriser owns the 3D.
+// that sit OVER the polygons (high-priority, and — for pri1 in {0,2} — the flat layer-0) into a scratch
+// bitmap, which this captures as per-pixel PEN operations for s21_finish.frag to apply over the pen
+// composite. over_begin returns a width*height buffer to fill (0 = transparent), over_end marks it
+// readable, over_pixels returns it to the frontend or nullptr if none this frame, over_forget drops it.
+// A no-op while the software rasteriser owns the 3D.
 uint32_t       *over_begin(int width, int height);
 void            over_end();
 uint32_t const *over_pixels(int &width, int &height);
 void            over_forget();
 
-// Snapshots a palettized scratch bitmap (the C355 over-bands the driver has just drawn) into the
-// overlay: every non-zero pen becomes an opaque 0xffRRGGBB texel, pen 0 stays transparent. Templated so
-// this header needs none of MAME's types — Bitmap is a bitmap_ind16, Rect a rectangle. Keeps the pixel
-// loop out of the upstream driver, which is left with the sprite draws it alone can do (the golden rule).
-// The high byte is forced to 0xff so a text pixel that resolves to pure black is not read as transparent
-// by the overlay shader (which discards an all-zero texel).
+// Snapshots the C355 over-band scratch (drawn over a pen-0 fill) into the overlay as a per-pixel tag +
+// pen, in place of a resolved colour, so the finish pass can apply the palette-shadow banks against the
+// REAL scene pen rather than the constant pen 0 an RGB capture would have shadowed. The tags:
+//   0  transparent (the pen-0 fill was never touched).
+//   1  palette-shadow bank 1 — sprite_mix_callback wrote 0x4000|(dest&0x1fff) over the pen-0 fill, so a
+//      shadow of "nothing in the OVER band", i.e. of the 3D/2D composite beneath. The finish pass
+//      reapplies the bank against that composite pen; the pen carried here is unused.
+//   2  palette-shadow bank 2 — the 0x6000 case, likewise.
+//   3  opaque — a normal sprite pen, or a shadow that resolved over another OVER-band pixel on the CPU
+//      (dest was already non-zero, so the result no longer depends on the scene beneath). Carry the pen.
+// The pen-0 fill means a genuine sprite pixel that resolves to pen 0 reads as transparent, exactly as the
+// pre-option-B capture did — unchanged behaviour, so starblad/aircomb are not disturbed.
 template <typename Bitmap, typename Rect>
-inline void capture_over(Bitmap const &bm, uint32_t const *pens, Rect const &clip)
+inline void capture_over(Bitmap const &bm, Rect const &clip)
 {
 	const int w = clip.width();
 	const int h = clip.height();
 	uint32_t *dst = over_begin(w, h);
-	if ((dst == nullptr) || (pens == nullptr))
+	if (dst == nullptr)
 		return;
 
 	for (int y = 0; y < h; y++, dst += w)
@@ -143,20 +197,30 @@ inline void capture_over(Bitmap const &bm, uint32_t const *pens, Rect const &cli
 		auto const *const src = &bm.pix(clip.top() + y, clip.left());
 		for (int x = 0; x < w; x++)
 		{
-			auto const pen = src[x];
-			dst[x] = pen ? (0xff000000u | (uint32_t(pens[pen]) & 0x00ffffffu)) : 0u;
+			uint32_t const pen = src[x];
+			uint32_t tag;
+			if (pen == 0u)
+				tag = 0u;
+			else if (pen == 0x4000u)
+				tag = 1u;
+			else if (pen == 0x6000u)
+				tag = 2u;
+			else
+				tag = 3u;
+
+			dst[x] = tag ? ((tag << 24) | (pen & 0x00ffffffu)) : 0u;
 		}
 	}
 
 	over_end();
 }
 
-// The T2b layer-0 z-mix overlay (s21_seam.cpp). pri1==4 gameplay draws its layer-0 C355 sprites gated
+// The layer-0 z-mix overlay (s21_seam.cpp). pri1==4 gameplay draws its layer-0 C355 sprites gated
 // against the polygon z-buffer (namcos21_c67_state::mix_layer0_sprites); the CPU no longer has that
-// buffer once the GPU owns the 3D (T2a), so the driver captures the sprite pixels and a per-pixel
-// SHOW/gated/never tag instead, and the GPU pass (s21_geom.cpp geom_draw_mix) does the depth comparison
-// against its own real depth attachment. Same shape as over_begin/end/pixels/forget; a separate buffer
-// because the tag byte means something different from the over overlay's plain opaque/transparent alpha.
+// buffer once the GPU owns the 3D, so the driver captures the sprite pixels and a per-pixel
+// SHOW/gated/never tag instead, and the pen pass (s21_geom.cpp s21_pen_mix.frag) does the depth
+// comparison against its own real depth attachment. Same shape as over_begin/end/pixels/forget; a
+// separate buffer because the tag byte means something different from the over overlay's tags.
 uint32_t       *mix_begin(int width, int height);
 void            mix_end();
 uint32_t const *mix_pixels(int &width, int &height);
@@ -169,15 +233,15 @@ void            mix_forget();
 // mix_layer0_sprites' own branch: `pen & 0x5000` is the priority-bank-gated case (tag = 1 + bank, so the
 // GPU can recover the bank as tag-1), `pen < 0x1000` is the unconditional-show case (tag 255), and
 // anything else is never shown (tag 0) — exactly the third, implicit "leave dest alone" case the
-// software loop falls through to. The colour is the same pens[] lookup capture_over uses, packed with
-// the tag in the top byte in place of the fixed 0xff alpha.
+// software loop falls through to. Option B carries the pen INDEX in the low bits (not a resolved colour),
+// so the finish pass resolves it through the same CLUT as the rest of the composite.
 template <typename Bitmap, typename Rect>
-inline void capture_mix(Bitmap const &bm, uint32_t const *pens, Rect const &clip)
+inline void capture_mix(Bitmap const &bm, Rect const &clip)
 {
 	const int w = clip.width();
 	const int h = clip.height();
 	uint32_t *dst = mix_begin(w, h);
-	if ((dst == nullptr) || (pens == nullptr))
+	if (dst == nullptr)
 		return;
 
 	for (int y = 0; y < h; y++, dst += w)
@@ -185,7 +249,7 @@ inline void capture_mix(Bitmap const &bm, uint32_t const *pens, Rect const &clip
 		auto const *const src = &bm.pix(clip.top() + y, clip.left());
 		for (int x = 0; x < w; x++)
 		{
-			auto const pen = src[x];
+			uint32_t const pen = src[x];
 			uint32_t tag;
 			if (pen == 0)
 				tag = 0u;
@@ -196,7 +260,7 @@ inline void capture_mix(Bitmap const &bm, uint32_t const *pens, Rect const &clip
 			else
 				tag = 0u;
 
-			dst[x] = tag ? ((tag << 24) | (uint32_t(pens[pen]) & 0x00ffffffu)) : 0u;
+			dst[x] = tag ? ((tag << 24) | (pen & 0x00ffffffu)) : 0u;
 		}
 	}
 

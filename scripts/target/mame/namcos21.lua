@@ -5,19 +5,22 @@
 --
 --   namcos21.lua
 --
---   Namco System 21 subtarget: builds only the System 21 "C67" polygonizer
---   driver (Star Blade and siblings) and the devices it needs.  Use
+--   Namco System 21 subtarget: builds the System 21 "C67" polygonizer driver
+--   (Star Blade and siblings) AND the original Winning Run driver (namcos21.cpp:
+--   Winning Run / Suzuka GP / '91).  Both front-ends draw through the same
+--   namcos21_3d_device, so one seam covers the whole family.  Use
 --   make SUBTARGET=namcos21 to build.
 --
---   Everything below the header is the verbatim output of
+--   Everything in createProjects below is the verbatim output of
 --
 --       python3 scripts/build/makedep.py -r . sourcesproject -t namcos21 \
---           -l src/mame/mame.lst src/mame/namco/namcos21_c67.cpp
+--           -l src/mame/mame.lst src/mame/namco/namcos21_c67.cpp \
+--           src/mame/namco/namcos21.cpp
 --
---   Carries one HAND-ADDED line, the GEN_FIFO below: the shared libretro_m2
---   OSD's savestate module links generic_fifo_device_base unconditionally and
---   this driver has no GEN_FIFO of its own.  Regenerate the generator output
---   with the command above after an upstream merge and re-apply the marked line.
+--   Carries two HAND-ADDED pieces: the GEN_FIFO MACHINES line (see below) and
+--   the S21VK defines block that scopes the seam hooks to this subtarget.
+--   Regenerate the generator output with the command above after an upstream
+--   merge and re-apply both marked pieces.
 --
 ---------------------------------------------------------------------------
 
@@ -29,6 +32,7 @@ CPUS["M6805"] = true
 CPUS["M6809"] = true
 CPUS["TMS320C2X"] = true
 SOUNDS["C140"] = true
+SOUNDS["MB87077"] = true
 SOUNDS["YM2151"] = true
 
 -- HAND-ADDED: the shared libretro_m2 OSD's savestate module (m2vk_savestate.cpp)
@@ -69,6 +73,8 @@ function createProjects_mame_namcos21(_target, _subtarget)
     }
 
     files{
+        MAME_DIR .. "src/mame/namco/namco65.cpp",
+        MAME_DIR .. "src/mame/namco/namco65.h",
         MAME_DIR .. "src/mame/namco/namco68.cpp",
         MAME_DIR .. "src/mame/namco/namco68.h",
         MAME_DIR .. "src/mame/namco/namco_c139.cpp",
@@ -79,9 +85,12 @@ function createProjects_mame_namcos21(_target, _subtarget)
         MAME_DIR .. "src/mame/namco/namco_dsp.h",
         MAME_DIR .. "src/mame/namco/namcoio_gearbox.cpp",
         MAME_DIR .. "src/mame/namco/namcoio_gearbox.h",
+        MAME_DIR .. "src/mame/namco/namcos21.cpp",
         MAME_DIR .. "src/mame/namco/namcos21_3d.cpp",
         MAME_DIR .. "src/mame/namco/namcos21_3d.h",
         MAME_DIR .. "src/mame/namco/namcos21_c67.cpp",
+        MAME_DIR .. "src/mame/namco/namcos21_dsp.cpp",
+        MAME_DIR .. "src/mame/namco/namcos21_dsp.h",
         MAME_DIR .. "src/mame/namco/namcos21_dsp_c67.cpp",
         MAME_DIR .. "src/mame/namco/namcos21_dsp_c67.h",
         MAME_DIR .. "src/mame/shared/namco_c355spr.cpp",

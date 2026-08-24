@@ -90,9 +90,15 @@ emit frag poly.frag        poly_early_frag -DEARLY_Z=1
 emit vert s22.vert         s22_vert
 emit frag s22.frag         s22_frag
 
-# Namco System 21 flat untextured polygon pass (T2).
+# Namco System 21 flat untextured polygon pass (T2). s21.vert is shared by the pen-space geometry pass.
 emit vert s21.vert         s21_vert
-emit frag s21.frag         s21_frag
 
-# Namco System 21 layer-0 C355 z-mix (T2b) — rides fullscreen.vert, no vertex shader of its own.
-emit frag s21_mix.frag     s21_mix_frag
+# Namco System 21 pen-space composite (option B): the whole S21 frame is composited as palette pen
+# indices so the C355 palette-shadow OVER sprites can index the polygon-blend banks by the pen beneath
+# them, then resolved to RGB once in the finish pass. The three pen-writing passes render into a private
+# R16_UINT attachment; the finish pass runs in the shared present pass. under/mix/finish ride
+# fullscreen.vert; the geometry pass rides s21.vert.
+emit frag s21_pen_geom.frag  s21_pen_geom_frag
+emit frag s21_pen_under.frag s21_pen_under_frag
+emit frag s21_pen_mix.frag   s21_pen_mix_frag
+emit frag s21_finish.frag    s21_finish_frag

@@ -55,6 +55,9 @@ void recompute_active()
 // is stable, so re-storing it every frame costs two writes.
 palette_ram g_palette;
 
+// The Winning Run OVER-band shadow override (see set_over_shadow). Reset each frame_begin.
+over_shadow_params g_over_shadow;
+
 bool env_on(char const *name)
 {
 	char const *const v = std::getenv(name);
@@ -176,8 +179,13 @@ void frame_begin()
 
 	// A fresh frame has no overlay until the driver fills one at the end of screen_update. Cleared here so
 	// a frame that captures none presents the passthrough, not a stale overlay.
+	under_forget();
 	over_forget();
 	mix_forget();
+
+	// C67 frames never call set_over_shadow, so default it off each frame; Winning Run re-enables it in
+	// screen_update when it captures an OVER band.
+	g_over_shadow.enabled = false;
 }
 
 void frame_end()
@@ -224,6 +232,62 @@ void set_palette(uint32_t const *pens, uint32_t count)
 palette_ram const &get_palette()
 {
 	return g_palette;
+}
+
+// The Winning Run OVER-band shadow override. g_over_shadow is declared up with g_palette; reset each
+// frame_begin so a frame that does not set it (every C67 frame) resolves with an unconditional shadow.
+void set_over_shadow(uint32_t sentinel, uint32_t opaque_base)
+{
+	g_over_shadow.sentinel = sentinel;
+	g_over_shadow.opaque_base = opaque_base;
+	g_over_shadow.enabled = true;
+}
+
+over_shadow_params get_over_shadow()
+{
+	return g_over_shadow;
+}
+
+// The 2D-under pen buffer. File-scope so a build with no renderer still links; same threading guarantee
+// as g_over below (filled on the emulation thread, read on the frontend's while that thread is parked).
+namespace {
+std::vector<uint32_t> g_under;
+int  g_under_w = 0;
+int  g_under_h = 0;
+bool g_under_valid = false;
+}
+
+uint32_t *under_begin(int width, int height)
+{
+	g_under_valid = false;
+	// Gated on gpu_owns_3d(), like over_begin(): the driver's screen_update takes this same call site
+	// under M2VK_NO_3D too, and an under-pen buffer captured there would drive the finish pass over what
+	// is meant to be a pure two-layer background reference.
+	if (!gpu_owns_3d() || (width <= 0) || (height <= 0))
+		return nullptr;
+	g_under.resize(size_t(width) * size_t(height));
+	g_under_w = width;
+	g_under_h = height;
+	return g_under.data();
+}
+
+void under_end()
+{
+	g_under_valid = true;
+}
+
+uint32_t const *under_pixels(int &width, int &height)
+{
+	if (!g_under_valid)
+		return nullptr;
+	width = g_under_w;
+	height = g_under_h;
+	return g_under.data();
+}
+
+void under_forget()
+{
+	g_under_valid = false;
 }
 
 // The 2D-over overlay buffer. File-scope so a build with no renderer still links. The emulation thread

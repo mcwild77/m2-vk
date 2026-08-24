@@ -276,6 +276,10 @@ Filter Board
 #include "namcos21_3d.h"
 #include "namcos21_dsp.h"
 
+#ifdef S21VK
+#include "libretro_m2/s21_seam.h"
+#endif
+
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6805/m6805.h"
 #include "cpu/m6809/m6809.h"
@@ -357,6 +361,13 @@ private:
 
 	std::unique_ptr<u8[]> m_gpu_videoram;
 
+#ifdef S21VK
+	// Scratch for the option-B OVER band: bitmap_draw is rendered into this over a pen-0 fill so its
+	// palette-shadow pens (0x4000/0x6000) can be captured as tags and resolved in s21_finish.frag
+	// against the real scene pen. Not saved — pure per-frame scratch.
+	bitmap_ind16 m_s21_over_bitmap;
+#endif
+
 	u8 m_gpu_videoram_mask = 0;
 	u16 m_gpu_color = 0;
 	u16 m_gpu_register[0x10/2] = { };
@@ -407,6 +418,10 @@ void namcos21_state::video_start()
 {
 	m_gpu_videoram = make_unique_clear<u8[]>(0x80000);
 	save_pointer(NAME(m_gpu_videoram), 0x80000);
+
+#ifdef S21VK
+	m_screen->register_screen_bitmap(m_s21_over_bitmap);
+#endif
 
 	save_item(NAME(m_gpu_videoram_mask));
 	save_item(NAME(m_gpu_color));
@@ -541,6 +556,67 @@ u32 namcos21_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, c
 
 	// entries 0 and 1 unused parts controls priority mixing
 	const u16 pri = (m_palette->read16_ext(1) >> 8) & 7;
+
+#ifdef S21VK
+	// Hand the CLUT to the GPU pass each frame (the game writes palette RAM live). Read
+	// palette()->entry_list_adjusted() rather than pens(): this driver's screen is IND16, and MAME hands
+	// an IND16 screen a 1:1 identity pens() table — see the longer note in namcos21_c67.cpp screen_update.
+	s21::set_palette(reinterpret_cast<uint32_t const *>(m_palette->palette()->entry_list_adjusted()), m_palette->entries());
+
+	if (s21::gpu_owns_3d())
+	{
+		// Option B: the GPU owns the 3D and composites the whole frame in pen-index space, so the GPU
+		// bitmap layer's palette-shadow pens (0x4000/0x6000, cases 0x00/0x01 in bitmap_draw) can index the
+		// polygon-blend banks by the real pen beneath them. Winning Run's only 2D layer is that bitmap;
+		// `pri` decides whether it sits under or over the 3D, mirroring the software switch below exactly:
+		//   pri 5 (title):     2D under, 3D over  — bitmap_draw into `bitmap` (the under snapshot), no over band.
+		//   pri 0 (service):   no 3D             — bitmap_draw into the under snapshot; the polygonizer is idle
+		//                                           in the test menu, so the geom pass has no quads to draw.
+		//   pri 2 / default    3D under, 2D over  — (gameplay) under is just the backdrop; bitmap_draw goes into
+		//     (gameplay):                           the OVER overlay (over a pen-0 scratch), so its shadow pens
+		//                                           resolve against the real scene pen in s21_finish.frag.
+		// Over the untouched backdrop, bitmap_draw's 0x00/0x01 cases draw opaque (not a shadow), so no shadow
+		// tag leaks into the under snapshot for pri 5/0.
+		//
+		// Unlike the C67 driver, this one splits the frame with update_partial (a raster scroll effect), so
+		// screen_update fires several times per frame with a band cliprect. Draw each band into its
+		// persistent accumulator (MAME's `bitmap` for the under layers, m_s21_over_bitmap for the over band,
+		// cleared on the first band), but hand the seam the WHOLE frame once, on the last band — the seam's
+		// capture snapshots a full buffer, so a per-band capture would keep only the last band.
+		const bool two_d_under = (pri == 5) || (pri == 0);   // everything else (2 and default) is 2D-over
+		const rectangle &vis = screen.visible_area();
+		const bool first_band = (cliprect.top() <= vis.top());
+		const bool last_band = (cliprect.bottom() >= vis.bottom());
+
+		if (two_d_under)
+		{
+			bitmap_draw(bitmap, cliprect);
+		}
+		else
+		{
+			if (first_band)
+				m_s21_over_bitmap.fill(0, vis);
+			bitmap_draw(m_s21_over_bitmap, cliprect);
+		}
+
+		if (last_band)
+		{
+			s21::capture_under(bitmap, vis);
+			if (!two_d_under)
+			{
+				s21::capture_over(m_s21_over_bitmap, vis);
+				// bitmap_draw's pen 0x00/0x01 draw opaque where the pen beneath is the backdrop sentinel
+				// (base ^ 0x10ff) and a shadow elsewhere; the finish pass resolves that per pixel from the
+				// composite pen it holds. base = 0x1000 | (m_gpu_color << 8 & 0xf00).
+				const u16 base_hi = m_gpu_color << 8 & 0xf00;
+				s21::set_over_shadow((0x1000 | base_hi) ^ 0x10ff, base_hi);
+			}
+		}
+		return 0;
+	}
+	// Under M2VK_NO_3D (gpu_owns_3d() false, sw_owns_3d() false) and in software mode the switch below runs;
+	// with the 3D skipped it produces the correct 2D-only background reference.
+#endif
 
 	switch(pri)
 	{
