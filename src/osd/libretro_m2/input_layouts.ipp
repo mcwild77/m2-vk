@@ -13,6 +13,7 @@
 
 char const *const SETS_acedrive[] = { "acedrive", nullptr };
 char const *const SETS_airwlkrs[] = { "airwlkrs", nullptr };
+char const *const SETS_cybsled[] = { "cybsled", nullptr };
 char const *const SETS_daytona[] = { "daytona", nullptr };
 char const *const SETS_desert[] = { "desert", nullptr };
 char const *const SETS_dirtdash[] = { "dirtdash", nullptr };
@@ -34,11 +35,13 @@ char const *const SETS_schamp[] = { "schamp", nullptr };
 char const *const SETS_sgt24h[] = { "sgt24h", nullptr };
 char const *const SETS_skisuprg[] = { "skisuprg", nullptr };
 char const *const SETS_srallyc[] = { "srallyc", nullptr };
+char const *const SETS_starblad[] = { "starblad", nullptr };
 char const *const SETS_vcop[] = { "vcop", nullptr };
 char const *const SETS_vcop2[] = { "vcop2", nullptr };
 char const *const SETS_vf2[] = { "vf2", "hpyagu98", "fvipers", "lastbrnx", nullptr };
 char const *const SETS_victlap[] = { "victlap", nullptr };
 char const *const SETS_vstriker[] = { "vstriker", nullptr };
+char const *const SETS_winrun[] = { "winrun", "winrungp", nullptr };
 char const *const SETS_zerogun[] = { "zerogun", nullptr };
 
 // The fallback, and it is deliberately identical to the layout every set used before there were
@@ -161,6 +164,46 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 15 R3       BUTTON9 */ "Button 9",
 			/* 16 LSTICK_X         */ nullptr,
 			/* 17 LSTICK_Y         */ nullptr,
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// Cyber Sled — twin-stick tank; missile/gun/view on the face buttons, left stick aims.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"cybsled",
+		SETS_cybsled,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Missile */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Gun */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Viewport Change */
+			SOURCE_NONE,  /* BUTTON4 (unused) */
+			SOURCE_NONE,  /* BUTTON5 (unused) */
+			SOURCE_NONE,  /* BUTTON6 (unused) */
+			SOURCE_NONE,  /* BUTTON7 (unused) */
+			SOURCE_NONE,  /* BUTTON8 (unused) */
+			SOURCE_NONE,  /* BUTTON9 (unused) */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Missile",
+			/*  1 Y        BUTTON3 */ "Viewport Change",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Gun",
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Move / Aim",
+			/* 17 LSTICK_Y         */ "Move / Aim",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -997,6 +1040,46 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Star Blade — analog aim on the left stick, fire on B.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"starblad",
+		SETS_starblad,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Fire */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Button 3 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 (unused) */
+			SOURCE_NONE,  /* BUTTON6 (unused) */
+			SOURCE_NONE,  /* BUTTON7 (unused) */
+			SOURCE_NONE,  /* BUTTON8 (unused) */
+			SOURCE_NONE,  /* BUTTON9 (unused) */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Fire",
+			/*  1 Y        BUTTON3 */ "Button 3",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Button 2",
+			/*  9 X        BUTTON4 */ "Button 4",
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Aim",
+			/* 17 LSTICK_Y         */ "Aim",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// lightgun cabinet; on a port left as a pad the trigger is button 1 and aim is the left stick
 	// verified: NOT YET MEASURED IN GAME
 	{
@@ -1196,6 +1279,46 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Winning Run — wheel, gas/brake pedals, up/down gearshift on the d-pad.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"winrun",
+		SETS_winrun,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		{
+			SOURCE_NONE,  /* BUTTON1 (unused) */
+			SOURCE_NONE,  /* BUTTON2 (unused) */
+			SOURCE_NONE,  /* BUTTON3 (unused) */
+			SOURCE_NONE,  /* BUTTON4 (unused) */
+			SOURCE_NONE,  /* BUTTON5 (unused) */
+			SOURCE_NONE,  /* BUTTON6 (unused) */
+			SOURCE_NONE,  /* BUTTON7 (unused) */
+			SOURCE_NONE,  /* BUTTON8 (unused) */
+			SOURCE_NONE,  /* BUTTON9 (unused) */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y                */ nullptr,
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ "Shift Down",
+			/*  5 DOWN             */ "Shift Up",
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A                */ nullptr,
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ "Brake Pedal",
+			/* 13 R2               */ "Gas Pedal",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Steering Wheel",
+			/* 17 LSTICK_Y         */ nullptr,
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// two buttons only
 	// verified: NOT YET MEASURED IN GAME
 	{
@@ -1238,4 +1361,4 @@ constexpr game_layout GAME_LAYOUTS[] = {
 	}
 };
 
-static_assert(std::size(GAME_LAYOUTS) == 29, "regenerate input_layouts.ipp");
+static_assert(std::size(GAME_LAYOUTS) == 32, "regenerate input_layouts.ipp");

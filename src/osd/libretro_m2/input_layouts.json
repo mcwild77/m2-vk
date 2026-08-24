@@ -1804,6 +1804,179 @@
         "LSTICK_X": "Move",
         "LSTICK_Y": "Move"
       }
+    },
+    {
+      "id": "winrun",
+      "sets": [
+        "winrun",
+        "winrungp"
+      ],
+      "lightgun": false,
+      "note": "Winning Run — wheel, gas/brake pedals, up/down gearshift on the d-pad.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "SELECT": "Coin",
+        "START": "Start",
+        "R2": "Gas Pedal",
+        "L2": "Brake Pedal",
+        "LSTICK_X": "Steering Wheel",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "L3": "Service Coin"
+      }
+    },
+    {
+      "id": "starblad",
+      "sets": [
+        "starblad"
+      ],
+      "lightgun": false,
+      "note": "Star Blade — analog aim on the left stick, fire on B.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Fire"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "B": "Fire",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin"
+      }
+    },
+    {
+      "id": "cybsled",
+      "sets": [
+        "cybsled"
+      ],
+      "lightgun": false,
+      "note": "Cyber Sled — twin-stick tank; missile/gun/view on the face buttons, left stick aims.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Missile"
+        },
+        {
+          "source": "A",
+          "label": "Gun"
+        },
+        {
+          "source": "Y",
+          "label": "Viewport Change"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "B": "Missile",
+        "A": "Gun",
+        "Y": "Viewport Change",
+        "LSTICK_X": "Move / Aim",
+        "LSTICK_Y": "Move / Aim",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin"
+      }
     }
   ]
 }

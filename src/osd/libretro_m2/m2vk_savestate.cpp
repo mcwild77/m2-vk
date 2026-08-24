@@ -434,6 +434,14 @@ void diff_states(running_machine &machine, void const *lhs, void const *rhs, siz
 			// default.
 			if (differing <= diff_cap())
 				osd_printf_info("[model2] savestate diff:   %6zu/%-8zu bytes  %s\n", n, bytes, name);
+			// M2VK_SAVE_DIFF_HEX=1: name the differing byte OFFSETS within the entry, and both values.
+			// For a RAM entry that maps to a known address space this points at the exact variable/SFR;
+			// it is how starblad's C68 gap gets pinned. Off by default — one line per byte is a lot.
+			if (std::getenv("M2VK_SAVE_DIFF_HEX") != nullptr)
+				for (size_t b = 0; b < bytes; b++)
+					if (a[offset + b] != ref[offset + b])
+						osd_printf_info("[model2] savestate diff:     @+0x%zx  this=%02x ref=%02x\n",
+								b, unsigned(a[offset + b]), unsigned(ref[offset + b]));
 		}
 		offset += bytes;
 	}
