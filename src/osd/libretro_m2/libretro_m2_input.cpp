@@ -11,6 +11,7 @@
 // after emu.h, which it reads MAME's ioport / running_machine types out of and which only a .cpp may
 // include
 #include "m2vk_steer.h"
+#include "m2vk_twinstick.h"
 
 #include "util/strformat.h"
 
@@ -111,6 +112,13 @@ struct game_layout
 	// "GEAR 1" and vf2's listed one called "Punch". A port can still be SET to a gun on any set, as it
 	// always could; this only decides whether the gun's controls are given names.
 	bool               lightgun;
+
+	// Whether this is a SINGLE-pad twin-stick cabinet whose second tread is player 2's IPT_AD_STICK
+	// (cybsled). When set, m2vk_twinstick.h ORs pad 1's right stick onto the player>1 AD-stick default
+	// so one controller drives both treads. It is a per-game flag rather than a detector because a
+	// genuine two-player analog game (gunblade, rchase2) is indistinguishable at the ioport level —
+	// both declare a player-2 IPT_AD_STICK — and there the cross-bind would be wrong.
+	bool               twin_ad_stick;
 
 	unsigned           sources[libretro_m2_pad_device::NUMBERED_BUTTONS];
 	char const        *labels[LABEL_COUNT];   // nullptr = send no descriptor for that control
@@ -898,6 +906,11 @@ void libretro_m2_input::input_init(running_machine &machine)
 	game_layout const &row = layout_for(machine.system().name, machine.system().parent);
 	unsigned const *const layout = row.sources;
 	osd_printf_verbose("libretro_m2: input layout '%s'\n", row.id);
+
+	// Park the single-pad twin-stick flag for m2vk::twin_stick_frame(), which applies it once the
+	// port list exists (it is empty here — the same trap the steering/gun detectors resolve in
+	// update()). See m2vk_twinstick.h.
+	m2vk::twin_stick_enabled() = row.twin_ad_stick;
 
 	// Fixed set, no enumeration: the frontend always has as many RetroPads as we ask about, and
 	// the device index has to equal the player number for the START1/COIN1 defaults to line up.

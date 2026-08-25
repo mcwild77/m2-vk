@@ -1976,7 +1976,8 @@
         "SELECT": "Coin",
         "START": "Start",
         "L3": "Service Coin"
-      }
+      },
+      "twin_ad_stick": true
     }
   ]
 }

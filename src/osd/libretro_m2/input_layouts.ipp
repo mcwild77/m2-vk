@@ -54,6 +54,7 @@ constexpr game_layout GENERIC_LAYOUT =
 	"generic",
 	nullptr,
 	false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+	false,  // not a single-pad twin-stick cabinet
 	{
 		RETRO_DEVICE_ID_JOYPAD_B,
 		RETRO_DEVICE_ID_JOYPAD_A,
@@ -95,6 +96,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"acedrive",
 		SETS_acedrive,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			SOURCE_NONE,  /* BUTTON1 Dev Service Enter */
 			SOURCE_NONE,  /* BUTTON2 Dev Service Exit */
@@ -134,6 +136,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"airwlkrs",
 		SETS_airwlkrs,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -174,6 +177,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"cybsled",
 		SETS_cybsled,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Missile */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Gun */
@@ -216,6 +220,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"daytona",
 		SETS_daytona,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			SOURCE_NONE,  /* BUTTON1 GEAR N — GEAR N: the pad is out of buttons, and neutral is reachable by shifting down out of gear 1 */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
@@ -259,6 +264,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"desert",
 		SETS_desert,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Machine Gun */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Cannon */
@@ -298,6 +304,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"dirtdash",
 		SETS_dirtdash,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -338,6 +345,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"doa",
 		SETS_doa,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON1 Hold */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 Punch */
@@ -377,6 +385,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"dynamcop",
 		SETS_dynamcop,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 Kick */
@@ -417,6 +426,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"gunblade",
 		SETS_gunblade,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -456,6 +466,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"indy500",
 		SETS_indy500,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
@@ -495,6 +506,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"manxtt",
 		SETS_manxtt,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
@@ -534,6 +546,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"model2crx",
 		SETS_model2crx,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -574,6 +587,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"motoraid",
 		SETS_motoraid,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Kick */
@@ -613,6 +627,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"overrev",
 		SETS_overrev,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Shift Down */
@@ -653,6 +668,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"pltkids",
 		SETS_pltkids,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -693,6 +709,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"rchase2",
 		SETS_rchase2,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -733,6 +750,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"rchase2a",
 		SETS_rchase2a,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -772,6 +790,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"ridgera",
 		SETS_ridgera,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -811,6 +830,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"ridgera2",
 		SETS_ridgera2,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -850,6 +870,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"ridgeracf",
 		SETS_ridgeracf,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -889,6 +910,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"schamp",
 		SETS_schamp,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Kick */
@@ -928,6 +950,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"sgt24h",
 		SETS_sgt24h,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
@@ -967,6 +990,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"skisuprg",
 		SETS_skisuprg,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Select 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Select 2 */
@@ -1006,6 +1030,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"srallyc",
 		SETS_srallyc,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 GEAR N */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
@@ -1046,6 +1071,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"starblad",
 		SETS_starblad,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Fire */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -1086,6 +1112,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"vcop",
 		SETS_vcop,
 		true,
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Trigger */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1126,6 +1153,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"vcop2",
 		SETS_vcop2,
 		true,
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Trigger */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1166,6 +1194,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"vf2",
 		SETS_vf2,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Kick */
@@ -1205,6 +1234,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"victlap",
 		SETS_victlap,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			SOURCE_NONE,  /* BUTTON1 Dev Service Enter */
 			SOURCE_NONE,  /* BUTTON2 Dev Service Exit */
@@ -1245,6 +1275,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"vstriker",
 		SETS_vstriker,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Short Pass */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Long Pass */
@@ -1285,6 +1316,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"winrun",
 		SETS_winrun,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			SOURCE_NONE,  /* BUTTON1 (unused) */
 			SOURCE_NONE,  /* BUTTON2 (unused) */
@@ -1325,6 +1357,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"zerogun",
 		SETS_zerogun,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
