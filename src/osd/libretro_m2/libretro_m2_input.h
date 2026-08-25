@@ -146,6 +146,12 @@ public:
 		BUTTON_RIGHT,
 		BUTTON_L3,
 		BUTTON_R3,
+		// L1/R1. Unlike the numbered buttons these are NOT layout sources — no row feeds a numbered
+		// button from them by design (the shoulders are where the joystick-shifter racers put shift).
+		// They carry an item of their own so configure() can bind IPT_JOYSTICK_DOWN/UP to them on the
+		// joy_shifter cabinets; inert everywhere else.
+		BUTTON_L,
+		BUTTON_R,
 		BUTTON_COUNT
 	};
 
@@ -162,7 +168,8 @@ public:
 			input_module &module,
 			unsigned port,
 			unsigned diagnostic,
-			unsigned const *layout);
+			unsigned const *layout,
+			bool joy_shifter);
 
 	virtual void reset() override;
 	virtual void configure(osd::input_device &device) override;
@@ -183,6 +190,7 @@ private:
 
 	unsigned         m_diagnostic;
 	unsigned const  *m_layout;      // never null; see the constructor
+	bool             m_joy_shifter; // gear shift is on the joystick — bind it to L1/R1 in configure()
 	int32_t   m_axes[AXIS_COUNT];
 	int32_t   m_buttons[BUTTON_COUNT];
 

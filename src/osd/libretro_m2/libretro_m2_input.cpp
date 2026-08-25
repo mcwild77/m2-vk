@@ -120,6 +120,15 @@ struct game_layout
 	// both declare a player-2 IPT_AD_STICK — and there the cross-bind would be wrong.
 	bool               twin_ad_stick;
 
+	// Whether the gear shift is on the digital joystick (IPT_JOYSTICK_UP/DOWN) rather than a numbered
+	// button. The System 22/21 racers are wired that way, so add_directional_assignments() routes their
+	// shifter to the d-pad and left stick and the layout table — which maps only numbered buttons — has
+	// no way to reach it. When set, configure() ALSO binds IPT_JOYSTICK_DOWN to R1 and IPT_JOYSTICK_UP
+	// to L1 (additive: the d-pad still shifts). Detected from the sweep dumps by padmap-gen.py, never
+	// authored, exactly like which fields the paddle check reads. The Model 2 racers shift on IPT_BUTTON
+	// and are unaffected.
+	bool               joy_shifter;
+
 	unsigned           sources[libretro_m2_pad_device::NUMBERED_BUTTONS];
 	char const        *labels[LABEL_COUNT];   // nullptr = send no descriptor for that control
 };
@@ -207,7 +216,15 @@ constexpr fixed_button FIXED_BUTTONS[] = {
 	{ libretro_m2_pad_device::BUTTON_LEFT,   RETRO_DEVICE_ID_JOYPAD_LEFT,   ITEM_ID_HAT1LEFT },
 	{ libretro_m2_pad_device::BUTTON_RIGHT,  RETRO_DEVICE_ID_JOYPAD_RIGHT,  ITEM_ID_HAT1RIGHT },
 	{ libretro_m2_pad_device::BUTTON_L3,     RETRO_DEVICE_ID_JOYPAD_L3,     ITEM_ID_BUTTON10 },
-	{ libretro_m2_pad_device::BUTTON_R3,     RETRO_DEVICE_ID_JOYPAD_R3,     ITEM_ID_BUTTON11 } };
+	{ libretro_m2_pad_device::BUTTON_R3,     RETRO_DEVICE_ID_JOYPAD_R3,     ITEM_ID_BUTTON11 },
+	// L1/R1 as items of their own, for the racers whose gear shift is on the joystick: configure() binds
+	// IPT_JOYSTICK_DOWN/UP to them when the row's joy_shifter flag is set, and on every other set they are
+	// items with no assignment — inert. Distinct from L/R being a numbered-button *source*: a source feeds
+	// a BUTTON_n slot through read_source(), which can only carry an IPT_BUTTON, never a joystick
+	// direction. ITEM_ID_BUTTON13/14 are free — 1-9 are the numbered buttons, 10/11 the stick clicks, 12
+	// the diagnostic combo.
+	{ libretro_m2_pad_device::BUTTON_L,      RETRO_DEVICE_ID_JOYPAD_L,      ITEM_ID_BUTTON13 },
+	{ libretro_m2_pad_device::BUTTON_R,      RETRO_DEVICE_ID_JOYPAD_R,      ITEM_ID_BUTTON14 } };
 
 static_assert(std::size(FIXED_BUTTONS) + libretro_m2_pad_device::NUMBERED_BUTTONS
 				== libretro_m2_pad_device::BUTTON_COUNT,
@@ -267,10 +284,12 @@ libretro_m2_pad_device::libretro_m2_pad_device(
 		input_module &module,
 		unsigned port,
 		unsigned diagnostic,
-		unsigned const *layout)
+		unsigned const *layout,
+		bool joy_shifter)
 	: libretro_m2_device(std::move(name), std::move(id), module, port)
 	, m_diagnostic((diagnostic < m2opt::DIAG_COUNT) ? diagnostic : unsigned(m2opt::DIAG_NONE))
 	, m_layout((layout != nullptr) ? layout : GENERIC_LAYOUT.sources)
+	, m_joy_shifter(joy_shifter)
 {
 	reset();
 }
@@ -576,6 +595,20 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 			buttonitems[BUTTON_RIGHT],
 			buttonitems[BUTTON_UP],
 			buttonitems[BUTTON_DOWN]);
+
+	// The gear shift onto the shoulders, for the System 22/21 racers whose shift is on the joystick.
+	// add_directional_assignments() above has already put IPT_JOYSTICK_UP/DOWN on the left stick and the
+	// d-pad; these ADD to that — apply_device_defaults() ORs a device's assignments for one type together
+	// (ioport.cpp) — so shift ends up on L1/R1 as well without taking it off the d-pad. R1 is the upshift
+	// (IPT_JOYSTICK_DOWN, PORT_NAMEd "Shift Up") and L1 the downshift, the console-racer convention; the
+	// two are the game's own inverted names, followed rather than corrected. LEFT/RIGHT (Ridge's H-gate
+	// lane change) is deliberately left on the d-pad. Gated on the flag so the Model 2 racers, whose shift
+	// is a numbered IPT_BUTTON already on R/L, are untouched.
+	if (m_joy_shifter)
+	{
+		add_button_assignment(assignments, IPT_JOYSTICK_DOWN, { buttonitems[BUTTON_R] });
+		add_button_assignment(assignments, IPT_JOYSTICK_UP,   { buttonitems[BUTTON_L] });
+	}
 
 	// the secondary stick drives the third analogue axis; failing that, combine the triggers
 	if (!add_assignment(assignments, IPT_AD_STICK_Z, SEQ_TYPE_STANDARD, ITEM_CLASS_ABSOLUTE, ITEM_MODIFIER_NONE, { diraxis[1][1], diraxis[1][0] }))
@@ -922,7 +955,8 @@ void libretro_m2_input::input_init(running_machine &machine)
 				util::string_format("RETROPAD_%u", port + 1),
 				port,
 				m_diagnostic,
-				layout);
+				layout,
+				row.joy_shifter);
 	}
 
 	// The guns, on the same terms and for the same reason: created unconditionally, in port order so

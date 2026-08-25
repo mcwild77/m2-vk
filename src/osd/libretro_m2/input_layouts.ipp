@@ -76,6 +76,7 @@ constexpr game_layout GENERIC_LAYOUT =
 	nullptr,
 	false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 	false,  // not a single-pad twin-stick cabinet
+	false,  // gear shift, if any, is a numbered button (no joystick routing)
 	{
 		RETRO_DEVICE_ID_JOYPAD_B,
 		RETRO_DEVICE_ID_JOYPAD_A,
@@ -118,6 +119,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_acedrive,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		true,   // gear shift is IPT_JOYSTICK_UP/DOWN: route it onto L1/R1 too
 		{
 			SOURCE_NONE,  /* BUTTON1 Dev Service Enter */
 			SOURCE_NONE,  /* BUTTON2 Dev Service Exit */
@@ -140,8 +142,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  7 RIGHT            */ "Dev Service Right",
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L                */ "Shift Down",
+			/* 11 R                */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
 			/* 14 L3               */ "Service Coin",
@@ -159,6 +161,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_adillor,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Dev Service Enter */
 			SOURCE_NONE,  /* BUTTON2 Dev Service Exit */
@@ -201,6 +204,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_airco22,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Gun Trigger */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Missile Button */
@@ -244,6 +248,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_aircomb,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -284,6 +289,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_airwlkrs,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -327,6 +333,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_alpiner,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -368,6 +375,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_alpines,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -410,6 +418,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_aquajet,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -452,6 +461,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_bel,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Missile */
@@ -494,6 +504,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_cybrcomm,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Gun Trigger */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Missile Button */
@@ -535,6 +546,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_cybrcycc,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -576,6 +588,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_cybsled,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Missile */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Gun */
@@ -619,6 +632,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_daytona,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 GEAR N — GEAR N: the pad is out of buttons, and neutral is reachable by shifting down out of gear 1 */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
@@ -663,6 +677,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_desert,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Machine Gun */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Cannon */
@@ -703,6 +718,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_dirtdash,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		true,   // gear shift is IPT_JOYSTICK_UP/DOWN: route it onto L1/R1 too
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -725,8 +741,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  7 RIGHT            */ "Right",
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L                */ "Shift Down",
+			/* 11 R                */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
 			/* 14 L3               */ "Service Coin",
@@ -744,6 +760,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_doa,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON1 Hold */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 Punch */
@@ -787,6 +804,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_dynabb,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -827,6 +845,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_dynamcop,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 Kick */
@@ -868,6 +887,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_gunblade,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -910,6 +930,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_hotd,
 		true,
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Trigger */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -950,6 +971,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_indy500,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
@@ -990,6 +1012,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_manxtt,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
@@ -1030,6 +1053,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_model2crx,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -1071,6 +1095,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_motoraid,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Kick */
@@ -1111,6 +1136,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_overrev,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
@@ -1152,6 +1178,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_pltkids,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -1195,6 +1222,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_powsled,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Entry */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Call */
@@ -1236,6 +1264,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_propcycl,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1277,6 +1306,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_raverace,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		true,   // gear shift is IPT_JOYSTICK_UP/DOWN: route it onto L1/R1 too
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1299,8 +1329,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  7 RIGHT            */ "Shift Right",
 			/*  8 A                */ nullptr,
 			/*  9 X        BUTTON4 */ "View Change",
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L                */ "Shift Down",
+			/* 11 R                */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
 			/* 14 L3               */ "Service Coin",
@@ -1318,6 +1348,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_rchase2,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1359,6 +1390,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_rchase2a,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -1400,6 +1432,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_ridgera,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		true,   // gear shift is IPT_JOYSTICK_UP/DOWN: route it onto L1/R1 too
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1422,8 +1455,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  7 RIGHT            */ "Shift Right",
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L                */ "Shift Down",
+			/* 11 R                */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
 			/* 14 L3               */ "Service Coin",
@@ -1440,6 +1473,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_ridgera2,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		true,   // gear shift is IPT_JOYSTICK_UP/DOWN: route it onto L1/R1 too
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1462,8 +1496,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  7 RIGHT            */ "Shift Right",
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L                */ "Shift Down",
+			/* 11 R                */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
 			/* 14 L3               */ "Service Coin",
@@ -1482,6 +1516,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_ridgeracf,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1522,6 +1557,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_schamp,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Kick */
@@ -1564,6 +1600,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_segawski,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON1 Pitch Left */
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON2 Pitch Right */
@@ -1604,6 +1641,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_sgt24h,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
@@ -1644,6 +1682,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_skisuprg,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Select 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Select 2 */
@@ -1686,6 +1725,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_skytargt,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Machine Gun */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Missile */
@@ -1728,6 +1768,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_srallyc,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 GEAR N */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
@@ -1769,6 +1810,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_starblad,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Fire */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
@@ -1811,6 +1853,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_timecris,
 		true,
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Gun Trigger */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Foot Pedal */
@@ -1853,6 +1896,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_tokyowar,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1894,6 +1938,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_topskatr,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Jump Front */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Jump Tail */
@@ -1935,6 +1980,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_vcop,
 		true,
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Trigger */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -1976,6 +2022,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_vcop2,
 		true,
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Trigger */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -2017,6 +2064,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_vf2,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Punch */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Kick */
@@ -2057,6 +2105,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_victlap,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		true,   // gear shift is IPT_JOYSTICK_UP/DOWN: route it onto L1/R1 too
 		{
 			SOURCE_NONE,  /* BUTTON1 Dev Service Enter */
 			SOURCE_NONE,  /* BUTTON2 Dev Service Exit */
@@ -2079,8 +2128,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  7 RIGHT            */ "Dev Service Right",
 			/*  8 A                */ nullptr,
 			/*  9 X        BUTTON4 */ "Motion-Stop",
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L                */ "Shift Down",
+			/* 11 R                */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
 			/* 14 L3               */ "Service Coin",
@@ -2100,6 +2149,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_von,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON1 Left Shot */
 			SOURCE_L2_AXIS,  /* BUTTON2 Left Dash */
@@ -2141,6 +2191,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_vstriker,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Short Pass */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Long Pass */
@@ -2184,6 +2235,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_waverunr,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON1 View */
 			SOURCE_NONE,  /* BUTTON2 Button 2 */
@@ -2225,6 +2277,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_winrun,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		true,   // gear shift is IPT_JOYSTICK_UP/DOWN: route it onto L1/R1 too
 		{
 			SOURCE_NONE,  /* BUTTON1 (unused) */
 			SOURCE_NONE,  /* BUTTON2 (unused) */
@@ -2247,8 +2300,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  7 RIGHT            */ nullptr,
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L                */ "Shift Down",
+			/* 11 R                */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
 			/* 14 L3               */ "Service Coin",
@@ -2266,6 +2319,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		SETS_zerogun,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
 		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
 			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
