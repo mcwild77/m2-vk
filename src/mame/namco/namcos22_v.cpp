@@ -729,9 +729,13 @@ void namcos22_renderer::render_scene(screen_device &screen, bitmap_rgb32 &bitmap
 	{
 		gamma_lut = gr->base();
 	}
+	// The "textile" region (gfx(1), RAW layout so get_data(0) is the region base) is short on
+	// cybrcycc/alpinr2b/alpines (0xe/0xc/0xa00000), so hand over its real size — the upload must clamp to
+	// it, not read the full 0x1000000 the buffer sizes to.
+	memory_region *const tile = m_state.machine().root_device().memregion("textile");
 	s22::set_texture_ram(m_state.m_texture_tilemap, m_state.m_texture_tileattr.get(),
-			m_state.m_texture_tiledata, m_state.m_texture_ayx_to_pixel.get(), m_state.m_palette->pens(),
-			gamma_lut);
+			m_state.m_texture_tiledata, tile ? uint32_t(tile->bytes()) : 0u,
+			m_state.m_texture_ayx_to_pixel.get(), m_state.m_palette->pens(), gamma_lut);
 	// The sprite gfx (gfx(2), the "sprite" ROM region) — Super System 22 only; plain System 22 has no
 	// such region and no sprites, so this hands over null and the GPU sprite path never fires. Static and
 	// ROM-derived, so the OSD uploads it once. The region base is gfx(2)->get_data(0) for the RAW layout.

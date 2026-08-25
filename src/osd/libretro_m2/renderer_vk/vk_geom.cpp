@@ -330,6 +330,12 @@ bool     s_windows_ascending_seen = false;
 uint64_t s_early_polys = 0;
 uint64_t s_drawn_polys = 0;
 
+// The current frame's submitted polygon count, for the polygon-counter HUD. Latched in geom_upload once
+// the frame commits to drawing (a dupe re-draws last frame's list, so its count is right too); read by
+// geom_frame_polys(). An empty or dropped frame returns early without touching this, so the counter
+// holds the last real number rather than flashing 0.
+uint32_t s_frame_polys = 0;
+
 // Polygons the blended pass took, over the run. Reported for the same reason the early-Z share is: it
 // is the one number that says the option reached the geometry rather than merely being read, and a run
 // with the option on and zero here is a stream with no checkered polygons in it — which the feature
@@ -992,6 +998,9 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	else
 		s_seen_serial = record.geometry_serial;
 
+	// This frame commits to drawing from here; latch its polygon count for the HUD.
+	s_frame_polys = record.poly_count;
+
 	geom_slot &slot = s_slots[slot_index];
 	slot.index_count = 0;
 	slot.batches.clear();
@@ -1476,6 +1485,12 @@ void geom_draw(uint32_t slot_index, VkCommandBuffer cmd, unsigned width, unsigne
 	full.offset = { 0, 0 };
 	full.extent = { draw_width, draw_height };
 	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
+}
+
+// The current frame's submitted polygon count, for the polygon-counter HUD. See s_frame_polys.
+uint32_t geom_frame_polys()
+{
+	return s_frame_polys;
 }
 
 void set_option_blend(unsigned mode)

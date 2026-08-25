@@ -54,6 +54,7 @@
 #include "renderer_vk/shaders/passthrough_frag_spv.h"
 #include "renderer_vk/shaders/reticle_frag_spv.h"
 #include "renderer_vk/shaders/steerbar_frag_spv.h"
+#include "renderer_vk/shaders/counter_frag_spv.h"
 
 #include <algorithm>
 #include <array>
@@ -177,6 +178,7 @@ VkPipeline            s_pipeline_over = VK_NULL_HANDLE;   // discards pixel 0: t
 VkPipeline            s_pipeline_resolve = VK_NULL_HANDLE; // M2VK_SS only: the supersample resolve
 VkPipeline            s_pipeline_reticle = VK_NULL_HANDLE; // the lightgun crosshair, over everything
 VkPipeline            s_pipeline_steerbar = VK_NULL_HANDLE; // the steering read-out, over that
+VkPipeline            s_pipeline_counter = VK_NULL_HANDLE;  // the polygon counter, top-right, over all
 
 // Captured when the ring is built, so that teardown does not depend on the context's state having
 // survived — and so that the funcs table is one pointer chase away in the per-frame path.
@@ -300,6 +302,39 @@ struct steerbar_push
 };
 
 static_assert(sizeof(steerbar_push) == 60, "steerbar.frag's push block is 15 words");
+
+// counter.frag's push block. The three vec2 sit at offsets 0/8/16 (vec2 is 8-byte aligned) and the four
+// uints follow at 24/28/32/36, which is exactly the natural layout of this struct — no padding.
+struct counter_push
+{
+	float    ox, oy;    // box top-left, attachment pixels
+	float    cx, cy;    // one digit cell (w,h)
+	float    ix, iy;    // glyph inset within the cell
+	uint32_t count;     // number of digits
+	uint32_t digits;    // packed BCD, nibble 0 = leftmost digit
+	uint32_t fg;        // 0x00RRGGBB glyph
+	uint32_t bg;        // 0x00RRGGBB cell background
+};
+
+static_assert(sizeof(counter_push) == 40, "counter.frag's push block is 10 words");
+
+// poly_counter — a HUD read-out of the primitive count the active family submitted this frame. Off by
+// default (an overlay is pixels no fixture reference would have). M2VK_POLYCOUNT overrides the option in
+// the standing presence-or-value direction. The value is refreshed each frame in record_and_submit from
+// whichever family owns the 3D; a frame that drew no new 3D keeps the last count rather than flashing 0.
+bool     s_option_counter = false;
+int      s_env_counter = -2;   // -2 = not read; -1 = no switch; 0/1 = pinned
+uint32_t s_counter_value = 0;
+
+bool counter_on()
+{
+	if (s_env_counter == -2)
+	{
+		char const *const env = std::getenv("M2VK_POLYCOUNT");
+		s_env_counter = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_counter < 0) ? s_option_counter : (s_env_counter != 0);
+}
 
 // model2_internal_res's value, parked here by retro_load_game before the ring exists; 0x0 is "the
 // hardware's own". The environment switches override it — see set_option_resolution()'s comment in
@@ -895,7 +930,8 @@ bool build_pipeline()
 	VkPushConstantRange push{};
 	push.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	push.offset = 0;
-	push.size = uint32_t(std::max({ sizeof(resolve_push), sizeof(reticle_push), sizeof(steerbar_push) }));
+	push.size = uint32_t(std::max({ sizeof(resolve_push), sizeof(reticle_push), sizeof(steerbar_push),
+			sizeof(counter_push) }));
 
 	VkPipelineLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -914,6 +950,7 @@ bool build_pipeline()
 	VkShaderModule frag_resolve = VK_NULL_HANDLE;
 	VkShaderModule frag_reticle = VK_NULL_HANDLE;
 	VkShaderModule frag_steerbar = VK_NULL_HANDLE;
+	VkShaderModule frag_counter = VK_NULL_HANDLE;
 	auto const make_module = [](uint32_t const *code, size_t bytes, VkShaderModule &out)
 	{
 		VkShaderModuleCreateInfo info{};
@@ -928,7 +965,8 @@ bool build_pipeline()
 			&& make_module(OVERLAY_FRAG_SPV, sizeof(OVERLAY_FRAG_SPV), frag_over)
 			&& ((s_ss == 1) || make_module(DOWNSAMPLE_FRAG_SPV, sizeof(DOWNSAMPLE_FRAG_SPV), frag_resolve))
 			&& make_module(RETICLE_FRAG_SPV, sizeof(RETICLE_FRAG_SPV), frag_reticle)
-			&& make_module(STEERBAR_FRAG_SPV, sizeof(STEERBAR_FRAG_SPV), frag_steerbar);
+			&& make_module(STEERBAR_FRAG_SPV, sizeof(STEERBAR_FRAG_SPV), frag_steerbar)
+			&& make_module(COUNTER_FRAG_SPV, sizeof(COUNTER_FRAG_SPV), frag_counter);
 
 	if (ok)
 	{
@@ -1061,8 +1099,19 @@ bool build_pipeline()
 			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_steerbar),
 					"vkCreateGraphicsPipelines (steerbar)");
 		}
+
+		// Polygon counter, same terms. Built unconditionally like the steering bar so the option is free
+		// to toggle mid-run.
+		if (ok)
+		{
+			stages[1].module = frag_counter;
+			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline_counter),
+					"vkCreateGraphicsPipelines (counter)");
+		}
 	}
 
+	if (frag_counter != VK_NULL_HANDLE)
+		s_fns.destroy_shader_module(s_device, frag_counter, nullptr);
 	if (frag_steerbar != VK_NULL_HANDLE)
 		s_fns.destroy_shader_module(s_device, frag_steerbar, nullptr);
 
@@ -1087,6 +1136,8 @@ bool build_pipeline()
 
 void destroy_shared()
 {
+	if (s_pipeline_counter != VK_NULL_HANDLE)
+		s_fns.destroy_pipeline(s_device, s_pipeline_counter, nullptr);
 	if (s_pipeline_steerbar != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline_steerbar, nullptr);
 	if (s_pipeline_reticle != VK_NULL_HANDLE)
@@ -1109,6 +1160,7 @@ void destroy_shared()
 	if (s_render_pass != VK_NULL_HANDLE)
 		s_fns.destroy_render_pass(s_device, s_render_pass, nullptr);
 
+	s_pipeline_counter = VK_NULL_HANDLE;
 	s_pipeline_steerbar = VK_NULL_HANDLE;
 	s_pipeline_reticle = VK_NULL_HANDLE;
 	s_pipeline_resolve = VK_NULL_HANDLE;
@@ -1138,6 +1190,7 @@ void forget_ring()
 	s_dump_mapped = nullptr;
 	s_dump_buffer = VK_NULL_HANDLE;
 	s_dump_memory = VK_NULL_HANDLE;
+	s_pipeline_counter = VK_NULL_HANDLE;
 	s_pipeline_steerbar = VK_NULL_HANDLE;
 	s_pipeline_reticle = VK_NULL_HANDLE;
 	s_pipeline_resolve = VK_NULL_HANDLE;
@@ -1814,6 +1867,76 @@ void draw_steerbar(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
 }
 
+// The polygon counter: draws s_counter_value (the active family's primitive count this frame) as decimal
+// digits in a small box in the top-right, over everything. Same scissored-fullscreen-triangle trick as
+// the steering bar. Sized as a fraction of the attachment so it stays the same on-screen size at every
+// internal resolution. Binds `fallback_set` only to satisfy the shared layout — counter.frag reads no
+// sampler, exactly as steerbar.frag does not.
+void draw_counter(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height, VkDescriptorSet fallback_set)
+{
+	if (s_pipeline_counter == VK_NULL_HANDLE || !counter_on())
+		return;
+
+	// Format the count into decimal digits, most significant first, into an 8-digit field.
+	uint32_t v = (s_counter_value > 99999999u) ? 99999999u : s_counter_value;
+	uint8_t dec[8];
+	int n = 0;
+	if (v == 0)
+		dec[n++] = 0;
+	else
+	{
+		uint8_t tmp[8];
+		int m = 0;
+		while (v != 0) { tmp[m++] = uint8_t(v % 10u); v /= 10u; }
+		for (int i = m - 1; i >= 0; i--)
+			dec[n++] = tmp[i];
+	}
+	uint32_t packed = 0;                       // nibble 0 = leftmost digit
+	for (int i = 0; i < n; i++)
+		packed |= uint32_t(dec[i]) << (i * 4);
+
+	counter_push push{};
+	const float cell_h = float(draw_height) * 0.030f;
+	const float cell_w = cell_h * 0.62f;
+	const float margin = float(draw_height) * 0.018f;
+	const float box_w = cell_w * float(n);
+	push.cx = cell_w;
+	push.cy = cell_h;
+	push.ix = cell_w * 0.14f;
+	push.iy = cell_h * 0.12f;
+	push.count = uint32_t(n);
+	push.digits = packed;
+	push.fg = 0x35ff35u;                       // bright green digits
+	push.bg = 0x000000u;                       // on a black cell (opaque; the pipeline does not blend)
+	push.ox = float(draw_width) - box_w - margin;
+	push.oy = margin;
+	if (push.ox < 0.0f) push.ox = 0.0f;
+
+	const int32_t x0 = std::max(0, int32_t(push.ox));
+	const int32_t y0 = std::max(0, int32_t(push.oy));
+	const int32_t x1 = std::min(int32_t(draw_width), int32_t(push.ox + box_w) + 1);
+	const int32_t y1 = std::min(int32_t(draw_height), int32_t(push.oy + cell_h) + 1);
+	if ((x1 <= x0) || (y1 <= y0))
+		return;
+
+	s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_counter);
+	s_fns.cmd_bind_descriptor_sets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
+			0, 1, &fallback_set, 0, nullptr);
+
+	VkRect2D box{};
+	box.offset = { x0, y0 };
+	box.extent = { uint32_t(x1 - x0), uint32_t(y1 - y0) };
+	s_fns.cmd_set_scissor(cmd, 0, 1, &box);
+
+	s_fns.cmd_push_constants(cmd, s_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
+	s_fns.cmd_draw(cmd, 3, 1, 0, 0);
+
+	VkRect2D full{};
+	full.offset = { 0, 0 };
+	full.extent = { draw_width, draw_height };
+	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
+}
+
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
 // passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0. `draw_3d` says
 // whether the polygon pass has anything to put between the two.
@@ -1970,6 +2093,17 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 
 	// Steering bar over the reticle, inside the SS pass so it antialiases with everything else.
 	draw_steerbar(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
+
+	// Polygon counter, topmost. Refresh the value from whichever family owns the 3D this frame; a frame
+	// that drew no new 3D (draw flags all false, e.g. a dupe) keeps the previous count rather than showing
+	// a spurious 0.
+	if (draw_3d_s22)
+		s_counter_value = s22::geom_primitive_count();
+	else if (draw_3d_s21)
+		s_counter_value = s21::geom_primitive_count();
+	else if (draw_3d)
+		s_counter_value = m2vk::geom_frame_polys();
+	draw_counter(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
 
 	s_fns.cmd_end_render_pass(slot.cmd);
 
@@ -2317,6 +2451,13 @@ void set_option_resolution(unsigned width, unsigned height)
 
 	s_option_width = width;
 	s_option_height = height;
+}
+
+void set_option_counter(bool on)
+{
+	// Parked; draw_counter reads counter_on() each frame, so it applies on the next presented frame with
+	// nothing to rebuild. M2VK_POLYCOUNT overrides it there.
+	s_option_counter = on;
 }
 
 bool present_extent(unsigned &width, unsigned &height)

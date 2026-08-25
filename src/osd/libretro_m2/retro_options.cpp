@@ -190,6 +190,76 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		"off"
 	},
 	{
+		m2opt::KEY_POLY_COUNTER,
+		"Polygon Counter",
+		nullptr,
+		"Shows the number of 3D polygons the game is drawing each frame, as a small read-out in the "
+		"top-right corner. A curiosity — watch it climb as a scene fills with cars or scenery. It counts "
+		"what the hardware renderer is handed, so it only appears on the Vulkan renderer, not the software "
+		"one. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "off", "Off" },
+			{ "on",  "On" },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_S22_FOG,
+		"Fog (3D)",
+		nullptr,
+		"Whether System 22 draws its distance fog. The hardware fades far polygons toward a fog colour — "
+		"the haze over Ridge Racer's hills, the murk in the tunnels — and On reproduces it. Off removes "
+		"the fog entirely, so the whole scene draws at full clarity; unlike the other System 22 options "
+		"this is the reverse of accuracy, a look rather than a fix. Vulkan only; System 22 games only. "
+		"Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "on",  "On (accurate)" },
+			{ "off", "Off" },
+			{ nullptr, nullptr }
+		},
+		"on"
+	},
+	{
+		m2opt::KEY_S22_NO_TEXTURES,
+		"No Textures (3D)",
+		nullptr,
+		"Draws every 3D surface in plain white instead of its texture, lit by the hardware's own shading "
+		"so the picture becomes a clean greyscale view of the geometry — the polygons and how they are lit, "
+		"with none of the artwork. System 22 lights by brightness alone (there are no coloured lights), so "
+		"the result is a true greyscale. A diagnostic look the arcade could not produce; off matches the "
+		"arcade. Vulkan only; System 22 games only. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "off", "Off" },
+			{ "on",  "On" },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_S22_2D_OVERLAY,
+		"2D Overlay (HUD)",
+		nullptr,
+		"Whether the 2D HUD layer — the score, the lap counter, the on-screen text — is drawn over the 3D. "
+		"On is how the game looks; Off hides that layer, leaving a clean view of the 3D scene over its 2D "
+		"background, which is useful for screenshots. It does not touch the sky or the background artwork, "
+		"only the foreground HUD. Vulkan only; System 22 games only. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			{ "on",  "On" },
+			{ "off", "Off" },
+			{ nullptr, nullptr }
+		},
+		"on"
+	},
+	{
 		m2opt::KEY_STEERING_RESPONSE,
 		"Steering Response",
 		nullptr,
@@ -531,6 +601,16 @@ void m2opt::declare(retro_environment_t environ_cb)
 	declare_variables(environ_cb);
 }
 
+void m2opt::set_option_display(retro_environment_t environ_cb, char const *key, bool visible)
+{
+	if ((environ_cb == nullptr) || (key == nullptr))
+		return;
+	retro_core_option_display disp{};
+	disp.key = key;
+	disp.visible = visible;
+	environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &disp);
+}
+
 std::string m2opt::get(retro_environment_t environ_cb, char const *key)
 {
 	retro_variable var{ key, nullptr };
@@ -607,6 +687,11 @@ bool m2opt::get_steering_display(retro_environment_t environ_cb)
 	return get(environ_cb, KEY_STEERING_DISPLAY) == "on";
 }
 
+bool m2opt::get_poly_counter(retro_environment_t environ_cb)
+{
+	return get(environ_cb, KEY_POLY_COUNTER) == "on";
+}
+
 unsigned m2opt::get_transparency(retro_environment_t environ_cb)
 {
 	// Tested against the enhancement rather than against the default, so that anything unrecognised —
@@ -626,6 +711,25 @@ bool m2opt::get_s22_texture_filter(retro_environment_t environ_cb)
 	// "on" tested rather than not "off", so an unrecognised value lands on the accurate point-sampled
 	// picture — the same rule get_transparency() uses for the same reason.
 	return get(environ_cb, KEY_S22_TEXTURE_FILTER) == "on";
+}
+
+bool m2opt::get_s22_fog(retro_environment_t environ_cb)
+{
+	// Fog is the accurate default, so this one tests "off": an unreadable value leaves fog ON, the
+	// opposite of the enhancement options above.
+	return get(environ_cb, KEY_S22_FOG) != "off";
+}
+
+bool m2opt::get_s22_no_textures(retro_environment_t environ_cb)
+{
+	// "on" tested rather than not "off", so an unrecognised value lands on the accurate (textured) picture.
+	return get(environ_cb, KEY_S22_NO_TEXTURES) == "on";
+}
+
+bool m2opt::get_s22_2d_overlay(retro_environment_t environ_cb)
+{
+	// Drawing the HUD is the accurate default, so this tests "off": an unreadable value keeps the overlay.
+	return get(environ_cb, KEY_S22_2D_OVERLAY) != "off";
 }
 
 unsigned m2opt::get_steering_response(retro_environment_t environ_cb)

@@ -109,6 +109,9 @@ struct texture_ram
 	uint16_t const *ttmap = nullptr;    // tile numbers, 0x100000 entries
 	uint8_t  const *ttattr = nullptr;   // per-tile orientation, 0x100000 entries (unpacked nibbles)
 	uint8_t  const *ttdata = nullptr;   // 8bpp tile pixels, 256 bytes per tile, up to 0x1000000
+	uint32_t        ttdata_bytes = 0;   // the "textile" region's real size: cybrcycc/alpinr2b/alpines ship
+	                                    // a short region (0xe/0xc/0xa00000), so the upload must not read
+	                                    // the full 0x1000000 or it walks off the end (EXC_BAD_ACCESS).
 	uint8_t  const *ayx = nullptr;      // attr/y/x -> in-tile pixel offset, 0x1000 entries
 	uint32_t const *palette = nullptr;  // m_palette->pens(), 0x8000 entries of 0x00RRGGBB
 	uint8_t  const *gamma = nullptr;    // m_gamma_proms: rlut[0x100]|glut[0x100]|blut[0x100], the plain
@@ -184,7 +187,7 @@ void set_no_3d();
 // Hands the consumer the texture system's pointers (above). Called by the driver from the frame
 // bracket; cheap enough to call every frame since it only stores pointers. Inert unless capturing.
 void set_texture_ram(uint16_t const *ttmap, uint8_t const *ttattr, uint8_t const *ttdata,
-		uint8_t const *ayx, uint32_t const *palette, uint8_t const *gamma);
+		uint32_t ttdata_bytes, uint8_t const *ayx, uint32_t const *palette, uint8_t const *gamma);
 texture_ram const &get_texture_ram();
 
 // The sprite gfx region (gfx(2), the "sprite" ROM). Stored into the same texture_ram; a separate setter
@@ -209,6 +212,11 @@ uint32_t       *over_begin(int width, int height);
 void            over_end();
 uint32_t const *over_pixels(int &width, int &height);
 void            over_forget();
+
+// system22_2d_overlay ("2D Overlay"): true = draw the captured HUD/text layer back over the GPU 3D
+// (the accurate sandwich, default), false = suppress it so the 3D sits above only the 2D background.
+// Read by over_pixels(), which returns nullptr when off. M2VK_S22_HUD overrides the option.
+void set_option_hud(bool on);
 
 // True while MAME's own scanline rasteriser should still draw the 3D quads. Default true, so a build
 // that never turns the GPU path on (S0/S1, or the diagnostic tap alone) keeps drawing in software.

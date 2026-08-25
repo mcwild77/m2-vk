@@ -1137,6 +1137,13 @@ void finish_draw(VkCommandBuffer cmd, uint32_t slot_index, unsigned width, unsig
 	s_fns.cmd_draw(cmd, 3, 1, 0, 0);
 }
 
+// The recorded frame's quad count, for the polygon-counter HUD. Latched at record_begin, so after a
+// frame it is that frame's total; a frame that recorded nothing new keeps the previous count.
+uint32_t geom_primitive_count()
+{
+	return s_quad_count;
+}
+
 void geom_end_run()
 {
 	if (s_reported_first)

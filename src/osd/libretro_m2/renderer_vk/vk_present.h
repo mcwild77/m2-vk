@@ -81,6 +81,12 @@ void present_end_run();
 // built on it, so a remembered resolution must not be able to disturb an ab.sh or res.sh run.
 void set_option_resolution(unsigned width, unsigned height);
 
+// poly_counter: draw a small HUD read-out of the primitive count the 3D pass submitted this frame, in
+// the top-right corner. Off by default (an overlay is pixels no fixture reference has). Vulkan only —
+// it counts GPU-submitted primitives, so it has no meaning on the software renderer. M2VK_POLYCOUNT
+// overrides the option. Applies on the next presented frame; nothing to rebuild.
+void set_option_counter(bool on);
+
 // The extent of the image the frontend was last handed, which is NOT MAME's picture size once the
 // resolution option is above native. False before the first successful present_frame(), when there is
 // nothing to report and the caller should say nothing to the frontend either.

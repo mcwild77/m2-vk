@@ -95,6 +95,24 @@ void set_option_filter(bool on);
 // reload-gated (baked into the pipeline). M2VK_S22_DEPTH overrides the option.
 void set_option_depth(bool on);
 
+// system22_fog: true = draw the hardware fog/z-fog (accurate default), false = skip every fog blend so
+// the scene is unfogged. A push-constant flag bit, applies on the next drawn frame. M2VK_S22_FOG
+// overrides the option (0 = force fog off, 1 = force it on).
+void set_option_fog(bool on);
+
+// system22_no_textures: true = replace every polygon surface with white so the per-pixel shade renders
+// it as a greyscale lit view (geometry + lighting only). A push-constant flag bit. M2VK_S22_NOTEX
+// overrides the option.
+void set_option_no_textures(bool on);
+
+// model2_flat_luma / "No Lighting" on the S22 path: true = skip the per-pixel shade, drawing every
+// surface at full brightness. A push-constant flag bit. M2VK_FLAT_LUMA overrides the option (shared with
+// the Model 2 sink so the switch behaves the same on both families).
+void set_option_no_lighting(bool on);
+
+// The recorded scene's primitive count (quads + sprite tiles), for the polygon-counter HUD.
+uint32_t geom_primitive_count();
+
 } // namespace s22
 
 #endif // MAME_OSD_LIBRETRO_M2_RENDERER_VK_S22_GEOM_H

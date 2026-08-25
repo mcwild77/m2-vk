@@ -35,6 +35,7 @@
 #include "renderer_vk/shaders/s22_vert_spv.h"
 #include "renderer_vk/shaders/s22_frag_spv.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -142,6 +143,11 @@ struct push_block
 static_assert(sizeof(push_block) == 60, "s22 push block is fifteen words");
 
 constexpr uint32_t PFLAG_POLY_FADE = 1u;
+// The debug/enhancement view toggles, ORed into push.poly_flags per frame from the option statics below.
+// Must match the PFLAG_* constants in s22.frag.
+constexpr uint32_t PFLAG_NO_FOG   = 2u;
+constexpr uint32_t PFLAG_NO_TEX   = 4u;
+constexpr uint32_t PFLAG_NO_LIGHT = 8u;
 
 // system22_texture_filter, parked by retro_entry when the option changes. M2VK_S22_FILTER overrides it
 // in the standing direction (presence-or-value): the switch wins so a harness run can pin it either way.
@@ -177,6 +183,46 @@ bool depth_enabled()
 		s_env_depth = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
 	}
 	return (s_env_depth < 0) ? s_option_depth : (s_env_depth != 0);
+}
+
+// The three view toggles, each parked by retro_entry and each overridable by its M2VK_* switch in the
+// standing presence-or-value direction. All are push-constant flag bits read at draw time, so they apply
+// on the next frame with no pipeline rebuild. fog defaults ON (the accurate picture); the other two OFF.
+bool s_option_fog = true;
+int  s_env_fog = -2;   // -2 = not read; -1 = no switch; 0/1 = pinned
+bool fog_enabled()
+{
+	if (s_env_fog == -2)
+	{
+		char const *const env = std::getenv("M2VK_S22_FOG");
+		s_env_fog = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_fog < 0) ? s_option_fog : (s_env_fog != 0);
+}
+
+bool s_option_notex = false;
+int  s_env_notex = -2;
+bool no_textures_enabled()
+{
+	if (s_env_notex == -2)
+	{
+		char const *const env = std::getenv("M2VK_S22_NOTEX");
+		s_env_notex = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_notex < 0) ? s_option_notex : (s_env_notex != 0);
+}
+
+// "No Lighting" — shares M2VK_FLAT_LUMA with the Model 2 sink so the switch reads the same on both.
+bool s_option_nolight = false;
+int  s_env_nolight = -2;
+bool no_lighting_enabled()
+{
+	if (s_env_nolight == -2)
+	{
+		char const *const env = std::getenv("M2VK_FLAT_LUMA");
+		s_env_nolight = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_nolight < 0) ? s_option_nolight : (s_env_nolight != 0);
 }
 
 struct mapped_buffer
@@ -624,7 +670,14 @@ bool upload_static()
 		return false;
 	}
 
-	std::memcpy(s_ttdata.mapped, t.ttdata, size_t(TTDATA_BYTES));
+	// The "textile" region is short on cybrcycc/alpinr2b/alpines (0xe/0xc/0xa00000). The GPU buffer is
+	// always the full TTDATA_BYTES; copy only what the region actually holds and zero the tail, so a tile
+	// index that lands past real data fetches pen 0 rather than walking off the source (EXC_BAD_ACCESS).
+	const size_t ttdata_have = t.ttdata_bytes ? std::min<size_t>(t.ttdata_bytes, size_t(TTDATA_BYTES))
+			: size_t(TTDATA_BYTES);
+	std::memcpy(s_ttdata.mapped, t.ttdata, ttdata_have);
+	if (ttdata_have < size_t(TTDATA_BYTES))
+		std::memset(static_cast<uint8_t *>(s_ttdata.mapped) + ttdata_have, 0, size_t(TTDATA_BYTES) - ttdata_have);
 	std::memcpy(s_ttattr.mapped, t.ttattr, size_t(TTATTR_BYTES));
 	std::memcpy(s_ttmap.mapped, t.ttmap, size_t(TTMAP_BYTES));
 	std::memcpy(s_ayx.mapped, t.ayx, size_t(AYX_BYTES));
@@ -1035,6 +1088,26 @@ bool geom_upload(uint32_t slot_index)
 
 	slot.index_count = icount;
 
+	// M2VK_S22_BATCHDUMP=1 — one line per scissor batch: its clip window and index count, plus the
+	// frame's global 1/z range. Diagnostic only; costs nothing when unset.
+	if (char const *const bd = std::getenv("M2VK_S22_BATCHDUMP"); bd && *bd)
+	{
+		static uint64_t last = ~0ull;
+		if (s_serial != last)
+		{
+			last = s_serial;
+			vk_log(RETRO_LOG_INFO, "s22 batchdump serial=%llu ooz=[%g..%g] batches=%u over=%u\n",
+					(unsigned long long)s_serial, slot.min_ooz, slot.max_ooz,
+					unsigned(slot.batches.size()), unsigned(slot.over_batches.size()));
+			for (size_t bi = 0; bi < slot.batches.size(); bi++)
+			{
+				draw_batch const &b = slot.batches[bi];
+				vk_log(RETRO_LOG_INFO, "  batch %2zu clip=(%d,%d)-(%d,%d) idx=%u\n",
+						bi, int(b.left), int(b.top), int(b.right), int(b.bottom), unsigned(b.index_count));
+			}
+		}
+	}
+
 	// Stats and the once-per-run first line.
 	if (s_serial != s_drawn_serial)
 	{
@@ -1087,7 +1160,10 @@ static void draw_batches(VkCommandBuffer cmd, geom_slot &slot, std::vector<draw_
 	push.fade_r       = uint32_t(g.fade_r & 0xffff);
 	push.fade_g       = uint32_t(g.fade_g & 0xffff);
 	push.fade_b       = uint32_t(g.fade_b & 0xffff);
-	push.poly_flags   = g.poly_fade_enabled ? PFLAG_POLY_FADE : 0u;
+	push.poly_flags   = (g.poly_fade_enabled ? PFLAG_POLY_FADE : 0u)
+			| (fog_enabled()         ? 0u : PFLAG_NO_FOG)
+			| (no_textures_enabled() ? PFLAG_NO_TEX : 0u)
+			| (no_lighting_enabled() ? PFLAG_NO_LIGHT : 0u);
 	push.tex_filter   = filter_enabled() ? 1u : 0u;
 
 	// The depth remap. Painter's (default, and any frame whose polygons span no 1/z range) is scale 0 /
@@ -1225,6 +1301,32 @@ void set_option_filter(bool on)
 void set_option_depth(bool on)
 {
 	s_option_depth = on;
+}
+
+// system22_fog / system22_no_textures / No Lighting, parked by retro_entry (at load and on every live
+// change). Read at the top of each draw via the *_enabled() helpers, which let the M2VK_* switch
+// override; push-constant flag bits, so the toggle takes effect on the next drawn frame.
+void set_option_fog(bool on)
+{
+	s_option_fog = on;
+}
+
+void set_option_no_textures(bool on)
+{
+	s_option_notex = on;
+}
+
+void set_option_no_lighting(bool on)
+{
+	s_option_nolight = on;
+}
+
+// The primitive count of the most recently recorded scene — quads plus sprite tiles — for the polygon
+// counter HUD. Reset at record_begin and accumulated as the seam submits, so after a frame it is that
+// frame's total; a dupe frame that records nothing new leaves the last scene's count in place.
+uint32_t geom_primitive_count()
+{
+	return s_quad_count + s_sprite_count;
 }
 
 } // namespace s22

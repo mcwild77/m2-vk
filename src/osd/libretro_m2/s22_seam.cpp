@@ -250,11 +250,12 @@ void set_no_3d()
 namespace { texture_ram g_texram; }
 
 void set_texture_ram(uint16_t const *ttmap, uint8_t const *ttattr, uint8_t const *ttdata,
-		uint8_t const *ayx, uint32_t const *palette, uint8_t const *gamma)
+		uint32_t ttdata_bytes, uint8_t const *ayx, uint32_t const *palette, uint8_t const *gamma)
 {
 	g_texram.ttmap = ttmap;
 	g_texram.ttattr = ttattr;
 	g_texram.ttdata = ttdata;
+	g_texram.ttdata_bytes = ttdata_bytes;
 	g_texram.ayx = ayx;
 	g_texram.palette = palette;
 	g_texram.gamma = gamma;
@@ -296,6 +297,27 @@ std::vector<uint32_t> g_over;
 int  g_over_w = 0;
 int  g_over_h = 0;
 bool g_over_valid = false;
+
+// system22_2d_overlay ("2D Overlay") — whether the captured HUD/text layer is drawn back over the GPU
+// 3D. On by default (the accurate sandwich); off hides the 2D-over layer, leaving the 3D above the 2D
+// background. Parked by retro_entry; M2VK_S22_HUD overrides it (0 = force the overlay off). Read in
+// over_pixels() below, which returns nullptr when it is off, which makes the whole OVER draw fall away.
+bool g_option_hud = true;
+int  g_env_hud = -2;   // -2 = not read; -1 = no switch; 0/1 = pinned
+bool hud_enabled()
+{
+	if (g_env_hud == -2)
+	{
+		char const *const env = std::getenv("M2VK_S22_HUD");
+		g_env_hud = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (g_env_hud < 0) ? g_option_hud : (g_env_hud != 0);
+}
+}
+
+void set_option_hud(bool on)
+{
+	g_option_hud = on;
 }
 
 uint32_t *over_begin(int width, int height)
@@ -316,7 +338,7 @@ void over_end()
 
 uint32_t const *over_pixels(int &width, int &height)
 {
-	if (!g_over_valid)
+	if (!g_over_valid || !hud_enabled())
 		return nullptr;
 	width = g_over_w;
 	height = g_over_h;

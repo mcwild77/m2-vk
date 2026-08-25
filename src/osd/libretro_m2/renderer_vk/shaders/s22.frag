@@ -49,6 +49,11 @@ layout(push_constant) uniform push_block
 } pc;
 
 const uint PFLAG_POLY_FADE = 1u;
+// Debug/enhancement view toggles, ORed into poly_flags per frame by draw_batches() from the S22 core
+// options (see s22_geom.cpp). Global for the frame, unlike the per-poly flags in v_attr.
+const uint PFLAG_NO_FOG   = 2u;   // system22_fog=off: skip every fog/z-fog blend (poly and sprite)
+const uint PFLAG_NO_TEX   = 4u;   // system22_no_textures: force the surface white, so shade renders it greyscale
+const uint PFLAG_NO_LIGHT = 8u;   // model2_flat_luma (No Lighting): skip the per-pixel shade, full brightness
 
 // The tile system, byte- and halfword-packed into uint words: on little-endian hardware byte i of the
 // buffer is raw byte i, so the upload is a plain memcpy and the unpack lives here.
@@ -127,6 +132,12 @@ void main()
 {
 	const uint attr = v_attr;
 
+	// The frame-global debug toggles. no_fog is scene-wide (it also silences sprite fog below); no_tex
+	// and no_light are polygon-shading concepts and do not touch the sprite path.
+	const bool no_fog   = (pc.poly_flags & PFLAG_NO_FOG)   != 0u;
+	const bool no_tex   = (pc.poly_flags & PFLAG_NO_TEX)   != 0u;
+	const bool no_light = (pc.poly_flags & PFLAG_NO_LIGHT) != 0u;
+
 	// Sprite tiles (Super System 22): renderscanline_sprite's fetch — a screen-aligned affine textured
 	// quad, no perspective and no shade. u/v ride v_uvw.xy interpolated linearly (ooz = 1); the pens base
 	// is (color & 0x7f) << 8 like the poly path; the tile byte offset is v_bn; fog/fade/alpha ride sf0
@@ -155,7 +166,7 @@ void main()
 
 		// fog, then fade, then a per-pixel destination alpha blend — the order renderscanline_sprite uses.
 		const int fog = 255 - sfog;
-		if (fog != 255)
+		if (fog != 255 && !no_fog)
 			srgb = mame_blend(srgb, sfogcolor, fog);
 		const int fadef = 255 - sfade;
 		if (fadef != 255)
@@ -253,6 +264,13 @@ void main()
 		}
 	}
 
+	// system22_no_textures: replace the sampled/base colour with white so the shade below renders the
+	// surface as a pure greyscale lit view. The texel fetch above still ran, so the alpha-pen cutout and
+	// translucency test are unchanged — only the colour is whitewashed. On S22 shading is luma-only (no
+	// coloured lights), so white*shade is genuinely greyscale.
+	if (no_tex)
+		rgb = ivec3(255);
+
 	const int shade = int(v_iw * ooz) << 2;
 
 	float out_alpha = 1.0;
@@ -261,18 +279,22 @@ void main()
 	{
 		// plain System 22 (renderscanline_poly): fog BEFORE shade.
 		const int fog = 255 - fogfactor;
-		if (fog != 255)
+		if (fog != 255 && !no_fog)
 			rgb = mame_blend(rgb, fogcolor, fog);
-		if (shade_enabled)
+		if (shade_enabled && !no_light)
 			rgb = mame_scale_imm(rgb, shade);
 	}
 	else
 	{
 		// Super System 22 (renderscanline_poly_ss22): shade, fog, poly-fade, screen-fade, alpha.
-		if (shade_enabled)
+		if (shade_enabled && !no_light)
 			rgb = mame_scale_imm(rgb, shade);
 
-		if (zfog)
+		if (no_fog)
+		{
+			// system22_fog=off: skip both the per-z and direct fog blends.
+		}
+		else if (zfog)
 		{
 			// per-z fog: discard the low byte, clamp to 0..0x1fff, look up the czram table for this bank.
 			int cz = int(ooz) >> 8;

@@ -102,6 +102,29 @@ inline constexpr char const *KEY_S22_TEXTURE_FILTER = "system22_texture_filter";
 // into the pipeline. s22::set_option_depth() parks it; M2VK_S22_DEPTH wins.
 inline constexpr char const *KEY_S22_DEPTH_BUFFER = "system22_depth_buffer";
 
+// Draw a small HUD read-out of the 3D primitive count each frame, top-right. All three families; off by
+// default. Vulkan only — it counts GPU-submitted primitives, so it is inert on the software renderer.
+// m2vk::set_option_counter() parks it; M2VK_POLYCOUNT wins.
+inline constexpr char const *KEY_POLY_COUNTER = "model2_poly_counter";
+
+// System 22 only — draw the hardware fog (default on, the accurate picture) or skip every fog blend.
+// Unlike the two options above this is not an enhancement: fog is what the hardware does, so "on" is the
+// accurate default and "off" is the debug view. Hidden from the Model 2 and System 21 menus (their seams
+// do not read it). Vulkan only. s22::set_option_fog() parks it; M2VK_S22_FOG wins.
+inline constexpr char const *KEY_S22_FOG = "system22_fog";
+
+// System 22 only — replace every 3D surface with white so the per-pixel shade renders it greyscale
+// (geometry + lighting only, no artwork). A debug view, off by default; distinct from Model 2's Flat
+// Shading, which draws the polygon's own base colour. Hidden from the Model 2 and System 21 menus.
+// Vulkan only. s22::set_option_no_textures() parks it; M2VK_S22_NOTEX wins.
+inline constexpr char const *KEY_S22_NO_TEXTURES = "system22_no_textures";
+
+// System 22 only — whether the 2D HUD/text overlay is drawn back over the GPU 3D. On by default (the
+// accurate picture); off hides the score/HUD/text layer, leaving the 3D above the 2D background. A
+// look, not an accuracy fix. Hidden from the Model 2 and System 21 menus. Vulkan only.
+// s22::set_option_hud() parks it; M2VK_S22_HUD wins.
+inline constexpr char const *KEY_S22_2D_OVERLAY = "system22_2d_overlay";
+
 // The three steering options — shape the left stick's X axis on the 30 GAME entries that declare
 // an IPT_PADDLE. The machine is asked rather than a table consulted (m2vk_steer.h).
 // ⚠️ Unlike every rendering option, the default is NOT the untouched path — linear-onto-a-thumbstick
@@ -185,6 +208,18 @@ bool get_s22_texture_filter(retro_environment_t environ_cb);
 // "off", so an unreadable value lands on the accurate (painter's) picture.
 bool get_s22_depth_buffer(retro_environment_t environ_cb);
 
+// KEY_S22_FOG resolved to the bool s22::set_option_fog() takes: true = draw fog. Here "off" is tested
+// rather than "on", because fog is the accurate default — an unreadable value lands on fog ON.
+bool get_s22_fog(retro_environment_t environ_cb);
+
+// KEY_S22_NO_TEXTURES resolved to the bool s22::set_option_no_textures() takes. "on" tested rather than
+// not "off", so an unreadable value lands on the accurate (textured) picture.
+bool get_s22_no_textures(retro_environment_t environ_cb);
+
+// KEY_S22_2D_OVERLAY resolved to the bool s22::set_option_hud() takes: true = draw the overlay. "off"
+// tested rather than "on", because drawing the HUD is the accurate default — an unreadable value keeps it.
+bool get_s22_2d_overlay(retro_environment_t environ_cb);
+
 // Hide one option from every declared set, by key. Call before declare(). Used to keep a family's
 // options off the other family's menu (the object files are shared across subtargets, so this is a
 // runtime choice — see set_native_resolution()); a key that no entry matches is a silent no-op.
@@ -202,6 +237,14 @@ void set_native_resolution(char const *native);
 // Publish the option set to the frontend. Must be called from retro_set_environment(), which is
 // where a frontend expects to find out about options — it is called before retro_init().
 void declare(retro_environment_t environ_cb);
+
+// Show or hide one already-declared option in the frontend's menu at runtime, by key
+// (RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY). Unlike hide_option() — which filters the set BEFORE it is
+// declared, at retro_set_environment() time when only the driver family is known — this runs after a game
+// is loaded, so it can gate an option on something only the loaded machine knows (e.g. whether it has a
+// wheel). Visibility only: a hidden option still reads its declared value, so a harness pin is untouched.
+// A frontend that does not support the call ignores it; the option simply stays visible.
+void set_option_display(retro_environment_t environ_cb, char const *key, bool visible);
 
 // KEY_INTERNAL_RES resolved to a framebuffer size. The value strings are "<w>x<h>" and that IS the
 // parse — the value is the target size rather than a name for one, which is what lets a frontend or a
@@ -226,6 +269,10 @@ bool get_flat_luma(retro_environment_t environ_cb);
 
 // "on" tested rather than not "off": an unreadable value lands on the quiet answer.
 bool get_steering_display(retro_environment_t environ_cb);
+
+// KEY_POLY_COUNTER resolved to the bool m2vk::set_option_counter() takes. "on" tested, so an unreadable
+// value leaves the counter off.
+bool get_poly_counter(retro_environment_t environ_cb);
 
 // Anything unrecognised → accurate screen door.
 unsigned get_transparency(retro_environment_t environ_cb);

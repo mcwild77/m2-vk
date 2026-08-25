@@ -87,6 +87,9 @@ void finish_draw(VkCommandBuffer cmd, uint32_t slot, unsigned width, unsigned he
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.
 void geom_end_run();
 
+// The recorded frame's quad count, for the polygon-counter HUD.
+uint32_t geom_primitive_count();
+
 } // namespace s21
 
 #endif // MAME_OSD_LIBRETRO_M2_RENDERER_VK_S21_GEOM_H

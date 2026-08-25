@@ -136,6 +136,9 @@ void set_option_blend(unsigned mode);
 // The run is over. Resets the "reported once" latches so a second game reports its own numbers.
 void geom_end_run();
 
+// The current frame's submitted polygon count, for the polygon-counter HUD.
+uint32_t geom_frame_polys();
+
 } // namespace m2vk
 
 #endif // MAME_OSD_LIBRETRO_M2_RENDERER_VK_VK_GEOM_H

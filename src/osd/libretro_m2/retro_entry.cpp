@@ -114,6 +114,11 @@ constexpr int SHUTDOWN_WAIT_MS = 2000;
 // frames and can be destroyed mid-run.
 bool                                       s_hw_render = false;
 
+// Per-game option visibility (RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY) is applied once, the first frame
+// after the steering detector resolves — which needs a running machine, so it cannot be decided at
+// declare() time. Reset on unload so the next game re-decides. See the block in retro_run().
+bool                                       s_steer_display_applied = false;
+
 // Runs the whole MAME frontend. Everything after start_frontend() returns is teardown.
 void emu_thread_main(std::vector<std::string> args)
 {
@@ -340,15 +345,25 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 	// in exactly one family tells them apart before any game is loaded. Positive-detect System 22 and
 	// leave Model 2's authored default in place otherwise, so a future third family is safe by default.
 	if (driver_list::find("ridgerac") >= 0)
+	{
 		m2opt::set_native_resolution("640x480");
+		// System 22's menu carries No Lighting (model2_flat_luma, wired into the S22 shade tail) but not
+		// Model 2's Flat Shading — the S22 untextured look is its own option (system22_no_textures, a
+		// greyscale view) rather than the base-colour draw Flat Shading gives, so Flat Shading would be a
+		// dead entry here.
+		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
+	}
 	else if (driver_list::find("starblad") >= 0)
 	{
 		// System 21 native is 496x480 (the polygonizer's framebuffer) — a listed value, so this retargets
 		// the default and the "(Native)" label onto it. Its menu wants none of the System 22-only options
-		// either — S21 is always z-buffered, has no texture filter.
+		// either — S21 is always z-buffered, has no texture filter, no fog/untextured toggles.
 		m2opt::set_native_resolution("496x480");
 		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
 		m2opt::hide_option(m2opt::KEY_S22_DEPTH_BUFFER);
+		m2opt::hide_option(m2opt::KEY_S22_FOG);
+		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
+		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
 		// And three Model 2 render options the S21 path never reads: it is always untextured (so Flat
 		// Shading has nothing to remove), has no per-poly luma hook (No Lighting), and hardcodes
 		// blendEnable=VK_FALSE (Transparency). Left visible they would be dead menu entries, so hide them
@@ -363,6 +378,9 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 		{
 			m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
 			m2opt::hide_option(m2opt::KEY_S22_DEPTH_BUFFER);
+			m2opt::hide_option(m2opt::KEY_S22_FOG);
+			m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
+			m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
 		}
 
 	// Options are published here rather than in retro_init(): a frontend reads them before the
@@ -671,7 +689,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_FLAT_LUMA", "M2VK_BLEND",
 			"M2VK_STEER_LINEAR", "M2VK_STEER_DEADZONE", "M2VK_STEER_GAMMA", "M2VK_STEER_RANGE",
 			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR", "M2VK_S22_FILTER",
-			"M2VK_S22_DEPTH" })
+			"M2VK_S22_DEPTH", "M2VK_S22_FOG", "M2VK_S22_NOTEX", "M2VK_S22_HUD", "M2VK_POLYCOUNT" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -712,6 +730,10 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 	m2vk::set_option_steerbar(steer_display);
 
+	// Polygon counter — a HUD read-out, all three families. Vulkan-path only (it counts GPU primitives),
+	// a harmless no-op on the software renderer.
+	m2vk::set_option_counter(m2opt::get_poly_counter(s_environ_cb));
+
 	// System 22's 3D texture filter — its own option, declared only on the S22 build (hidden on Model 2
 	// above). Parked in the S22 polygon pass; a harmless no-op on Model 2, whose seam never draws. The
 	// option is hidden there, so it always reads its "off" default, but the read is gated on family
@@ -722,9 +744,22 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		s22::set_option_filter(s22_filter);
 		const bool s22_depth = m2opt::get_s22_depth_buffer(s_environ_cb);
 		s22::set_option_depth(s22_depth);
-		s_log_cb(RETRO_LOG_INFO, "[system22] options: %s=%s %s=%s\n",
+		const bool s22_fog = m2opt::get_s22_fog(s_environ_cb);
+		s22::set_option_fog(s22_fog);
+		const bool s22_notex = m2opt::get_s22_no_textures(s_environ_cb);
+		s22::set_option_no_textures(s22_notex);
+		// No Lighting is the shared model2_flat_luma option; on the S22 path it skips the shade tail. The
+		// value was read as `flat_luma` above.
+		s22::set_option_no_lighting(flat_luma);
+		const bool s22_overlay = m2opt::get_s22_2d_overlay(s_environ_cb);
+		s22::set_option_hud(s22_overlay);
+		s_log_cb(RETRO_LOG_INFO, "[system22] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s\n",
 				m2opt::KEY_S22_TEXTURE_FILTER, s22_filter ? "on" : "off",
-				m2opt::KEY_S22_DEPTH_BUFFER, s22_depth ? "on" : "off");
+				m2opt::KEY_S22_DEPTH_BUFFER, s22_depth ? "on" : "off",
+				m2opt::KEY_S22_FOG, s22_fog ? "on" : "off",
+				m2opt::KEY_S22_NO_TEXTURES, s22_notex ? "on" : "off",
+				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
+				m2opt::KEY_S22_2D_OVERLAY, s22_overlay ? "on" : "off");
 	}
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
@@ -934,6 +969,8 @@ RETRO_API void retro_unload_game(void)
 
 	s_running = false;
 	s_hw_render = false;
+	// Next game re-runs the steering-visibility decision (its wheel status may differ).
+	s_steer_display_applied = false;
 
 	// The frontend normally fires context_destroy before this; make the state safe whether or not it
 	// did, and stop a context_reset arriving for a machine that no longer exists.
@@ -972,6 +1009,26 @@ RETRO_API void retro_run(void)
 {
 	if (!s_running)
 		return;
+
+	// Per-game menu hygiene: the six steering options only mean anything on a machine with a wheel (one
+	// that declares IPT_PADDLE), so hide them everywhere else — the gun games (Time Crisis, Virtua Cop),
+	// the fighters (VF2), and everything on System 21. The steering EFFECT is already gated on the same
+	// detector; this hides the dead menu entries to match. It runs once, the first frame after the
+	// detector resolves (m2vk::steer_frame() sets .resolved on the first safe emulated frame), and shows
+	// or hides by .active so a reload from a wheel game to a gun game — and back — settles correctly.
+	// Visibility only: a hidden option still reads its declared default, so no harness pin is disturbed.
+	if (!s_steer_display_applied && m2vk::steer().resolved)
+	{
+		const bool wheel = m2vk::steer().active;
+		for (char const *const key : { m2opt::KEY_STEERING_RESPONSE, m2opt::KEY_STEERING_DEADZONE,
+				m2opt::KEY_STEERING_RANGE, m2opt::KEY_STEERING_DAMP_DRIVE, m2opt::KEY_STEERING_DAMP_RETURN,
+				m2opt::KEY_STEERING_DISPLAY })
+			m2opt::set_option_display(s_environ_cb, key, wheel);
+		s_steer_display_applied = true;
+		if (s_log_cb != nullptr)
+			s_log_cb(RETRO_LOG_INFO, "[model2] steering options %s (machine %s)\n",
+					wheel ? "shown" : "hidden", wheel ? "has a wheel" : "has no wheel");
+	}
 
 	// Four of the six options apply live; two cannot. The frontend clears the flag as this reads it,
 	// so this runs once per change rather than once per frame.
@@ -1023,10 +1080,18 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
 		m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 		m2vk::set_option_steerbar(steer_display);
+		m2vk::set_option_counter(m2opt::get_poly_counter(s_environ_cb));
 
-		// System 22 texture filter applies live too — a push-constant bit read at the next draw.
+		// System 22 texture filter, fog, no-textures and No Lighting all apply live — push-constant bits
+		// read at the next draw, nothing to rebuild.
 		if (driver_list::find("ridgerac") >= 0)
+		{
 			s22::set_option_filter(m2opt::get_s22_texture_filter(s_environ_cb));
+			s22::set_option_fog(m2opt::get_s22_fog(s_environ_cb));
+			s22::set_option_no_textures(m2opt::get_s22_no_textures(s_environ_cb));
+			s22::set_option_no_lighting(flat_luma);
+			s22::set_option_hud(m2opt::get_s22_2d_overlay(s_environ_cb));
+		}
 
 		char res_text[32];
 		if ((res_width == 0) || (res_height == 0))
