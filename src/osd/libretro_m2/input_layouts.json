@@ -193,7 +193,7 @@
     "daytona"
    ],
    "lightgun": false,
-   "note": "one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. The d-pad assignment is clockwise from Up and is the one arbitrary choice: the cabinet has VR1-4 left-to-right and a d-pad is not a row.",
+   "note": "one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. Gears sit on the face diamond by position \u2014 GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A). The d-pad carries VR1-4 clockwise from Up; the cabinet has them left-to-right and a d-pad is not a row.",
    "verified": "",
    "buttons": [
     {
@@ -206,15 +206,15 @@
      "label": "GEAR 1"
     },
     {
-     "source": "A",
+     "source": "Y",
      "label": "GEAR 2"
     },
     {
-     "source": "Y",
+     "source": "X",
      "label": "GEAR 3"
     },
     {
-     "source": "X",
+     "source": "A",
      "label": "GEAR 4"
     },
     {
@@ -236,15 +236,15 @@
    ],
    "labels": {
     "B": "GEAR 1",
-    "A": "GEAR 2",
-    "Y": "GEAR 3",
-    "X": "GEAR 4",
+    "Y": "GEAR 2",
+    "X": "GEAR 3",
+    "A": "GEAR 4",
     "L2": "Brake",
     "R2": "Accelerator",
     "UP": "VR1 (Red)",
+    "RIGHT": "VR2 (Blue)",
     "DOWN": "VR3 (Yellow)",
     "LEFT": "VR4 (Green)",
-    "RIGHT": "VR2 (Blue)",
     "SELECT": "Coin",
     "START": "Start",
     "L3": "Service Coin",
@@ -801,7 +801,7 @@
      "label": "Shift Up"
     },
     {
-     "source": "A",
+     "source": "L",
      "label": "Shift Down"
     },
     {
@@ -834,10 +834,10 @@
     }
    ],
    "labels": {
-    "A": "Shift Down",
+    "R": "Shift Up",
+    "L": "Shift Down",
     "Y": "View 1",
     "X": "View 2",
-    "R": "Shift Up",
     "L2": "Brake Pedal",
     "R2": "Gas Pedal",
     "SELECT": "Coin",
@@ -1397,7 +1397,7 @@
     "srallyc"
    ],
    "lightgun": false,
-   "note": "",
+   "note": "gears on the face diamond by position \u2014 GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A); GEAR N / hand brake on R, VR on L.",
    "verified": "",
    "buttons": [
     {
@@ -1409,15 +1409,15 @@
      "label": "GEAR 1"
     },
     {
-     "source": "A",
+     "source": "Y",
      "label": "GEAR 2"
     },
     {
-     "source": "Y",
+     "source": "X",
      "label": "GEAR 3"
     },
     {
-     "source": "X",
+     "source": "A",
      "label": "GEAR 4"
     },
     {
@@ -1439,9 +1439,9 @@
    ],
    "labels": {
     "B": "GEAR 1",
-    "A": "GEAR 2",
-    "Y": "GEAR 3",
-    "X": "GEAR 4",
+    "Y": "GEAR 2",
+    "X": "GEAR 3",
+    "A": "GEAR 4",
     "L": "VR",
     "R": "Hand Brake / GEAR N",
     "L2": "Brake Pedal",
@@ -2607,6 +2607,574 @@
     "L2": "Backward Pedal",
     "R2": "Forward Pedal",
     "LSTICK_X": "Move / Steering Wheel"
+   }
+  },
+  {
+   "id": "skytargt",
+   "sets": [
+    "skytargt"
+   ],
+   "lightgun": false,
+   "note": "Sky Target \u2014 flight shooter; machine gun and missile on the face buttons, view change on X, aim on the left stick.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Machine Gun"
+    },
+    {
+     "source": "A",
+     "label": "Missile"
+    },
+    {
+     "source": "X",
+     "label": "View Change"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 4"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "B": "Machine Gun",
+    "A": "Missile",
+    "X": "View Change",
+    "LSTICK_X": "Aim",
+    "LSTICK_Y": "Aim"
+   }
+  },
+  {
+   "id": "topskatr",
+   "sets": [
+    "topskatr"
+   ],
+   "lightgun": false,
+   "note": "Top Skater \u2014 skateboard cabinet; jumps on the face buttons, board slide on the left stick.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Jump Front"
+    },
+    {
+     "source": "A",
+     "label": "Jump Tail"
+    },
+    {
+     "source": "Y",
+     "label": "Select Left"
+    },
+    {
+     "source": "X",
+     "label": "Select Right"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "B": "Jump Front",
+    "A": "Jump Tail",
+    "Y": "Select Left",
+    "X": "Select Right",
+    "LSTICK_X": "Slide"
+   }
+  },
+  {
+   "id": "bel",
+   "sets": [
+    "bel"
+   ],
+   "lightgun": false,
+   "note": "two-player simultaneous cabinet; aim on the left stick, fire on B, missile on A. MAME leaves button 1 unnamed. Player 2 uses its own pad.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Button 1"
+    },
+    {
+     "source": "A",
+     "label": "Missile"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 3"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 4"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "B": "Button 1",
+    "A": "Missile",
+    "LSTICK_X": "Aim",
+    "LSTICK_Y": "Aim"
+   }
+  },
+  {
+   "id": "segawski",
+   "sets": [
+    "segawski"
+   ],
+   "lightgun": false,
+   "note": "Sega Water Ski \u2014 slide on the left stick; Pitch Left/Right on the shoulders (natural L/R), Set on B, Select Up/Down on Y/X. No single clear primary action \u2014 outlier.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "L",
+     "label": "Pitch Left"
+    },
+    {
+     "source": "R",
+     "label": "Pitch Right"
+    },
+    {
+     "source": "Y",
+     "label": "Select Up"
+    },
+    {
+     "source": "B",
+     "label": "Set"
+    },
+    {
+     "source": "X",
+     "label": "Select Down"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "L": "Pitch Left",
+    "R": "Pitch Right",
+    "Y": "Select Up",
+    "B": "Set",
+    "X": "Select Down",
+    "LSTICK_X": "Slide"
+   }
+  },
+  {
+   "id": "aircomb",
+   "sets": [
+    "aircomb"
+   ],
+   "lightgun": false,
+   "note": "Air Combat (System 21) \u2014 flight stick on the left stick, throttle (AD_STICK_Z) on the right stick X (as airco22). MAME names none of the six buttons; placed by number (btn1\u2192B, btn2\u2192A \u2026). By airco22's shape btn1 is likely Gun and btn2 Missile \u2014 needs a hand-check.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Button 1"
+    },
+    {
+     "source": "A",
+     "label": "Button 2"
+    },
+    {
+     "source": "Y",
+     "label": "Button 3"
+    },
+    {
+     "source": "X",
+     "label": "Button 4"
+    },
+    {
+     "source": "R",
+     "label": "Button 5"
+    },
+    {
+     "source": "L",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "B": "Button 1",
+    "A": "Button 2",
+    "Y": "Button 3",
+    "X": "Button 4",
+    "R": "Button 5",
+    "L": "Button 6",
+    "LSTICK_X": "Aim",
+    "LSTICK_Y": "Aim",
+    "RSTICK_X": "Throttle"
+   }
+  },
+  {
+   "id": "waverunr",
+   "sets": [
+    "waverunr"
+   ],
+   "lightgun": false,
+   "note": "Wave Runner \u2014 jet-ski racer; handlebar steering on the left stick, View on X. Throttle is an analog lever (AD_STICK_Y), not a pedal, so it routes to the left-stick Y and cannot honour accelerator-on-R2. Only one button on the cabinet.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "X",
+     "label": "View"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 2"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 3"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 4"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "X": "View",
+    "LSTICK_X": "Handle Bar",
+    "LSTICK_Y": "Throttle"
+   }
+  },
+  {
+   "id": "von",
+   "sets": [
+    "von"
+   ],
+   "lightgun": false,
+   "note": "Cyber Troopers Virtual-On \u2014 twin DIGITAL sticks (both analog sticks drive them). Left/Right Shot on the shoulders, Left/Right Dash on the triggers (no pedals on this set, so the trigger axes are free). Symmetric twin-stick, so the single action/secondary rule doesn't apply \u2014 outlier.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "L",
+     "label": "Left Shot"
+    },
+    {
+     "source": "L2_AXIS",
+     "label": "Left Dash"
+    },
+    {
+     "source": "R",
+     "label": "Right Shot"
+    },
+    {
+     "source": "R2_AXIS",
+     "label": "Right Dash"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "L": "Left Shot",
+    "L2": "Left Dash",
+    "R": "Right Shot",
+    "R2": "Right Dash"
+   }
+  },
+  {
+   "id": "hotd",
+   "sets": [
+    "hotd"
+   ],
+   "lightgun": true,
+   "note": "The House of the Dead \u2014 lightgun cabinet, same shape as vcop. On a pad the trigger is button 1 and aim is the left stick. Two players; player 2 uses its own gun/pad.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Trigger"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 2"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 3"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 4"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "B": "Trigger",
+    "LSTICK_X": "Aim X",
+    "LSTICK_Y": "Aim Y"
+   }
+  },
+  {
+   "id": "dynabb",
+   "sets": [
+    "dynabb"
+   ],
+   "lightgun": false,
+   "note": "Dynamite Baseball \u2014 digital stick for movement, two buttons on B/A, and the analog Bat Swing pedal (IPT_PEDAL), which lands on R2 as every pedal does. Two-player; player 2 uses its own pad. MAME leaves the two buttons unnamed.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Button 1"
+    },
+    {
+     "source": "A",
+     "label": "Button 2"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 3"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 4"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "B": "Button 1",
+    "A": "Button 2",
+    "R2": "Bat Swing"
+   }
+  },
+  {
+   "id": "powsled",
+   "sets": [
+    "powsled"
+   ],
+   "lightgun": false,
+   "note": "Power Sled \u2014 networked sled racer (two-player master/slave cabinet; the network is not emulated). Gas/brake pedals land on R2/L2 as every driving game's do. The four buttons are the cabinet's network/entry controls, not gameplay actions: Entry on B, Call on A, the two Cancel buttons on Y/X. No steering axis is declared.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Entry"
+    },
+    {
+     "source": "A",
+     "label": "Call"
+    },
+    {
+     "source": "Y",
+     "label": "Cancel Network Check"
+    },
+    {
+     "source": "X",
+     "label": "Cancel Error"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 5"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 6"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 7"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 8"
+    },
+    {
+     "source": "NONE",
+     "label": "Button 9"
+    }
+   ],
+   "labels": {
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "B": "Entry",
+    "A": "Call",
+    "Y": "Cancel Network Check",
+    "X": "Cancel Error",
+    "R2": "Accelerator",
+    "L2": "Brake"
    }
   }
  ]

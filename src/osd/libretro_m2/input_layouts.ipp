@@ -14,10 +14,12 @@
 char const *const SETS_acedrive[] = { "acedrive", nullptr };
 char const *const SETS_adillor[] = { "adillor", nullptr };
 char const *const SETS_airco22[] = { "airco22b", nullptr };
+char const *const SETS_aircomb[] = { "aircomb", nullptr };
 char const *const SETS_airwlkrs[] = { "airwlkrs", nullptr };
 char const *const SETS_alpiner[] = { "alpinerd", "alpinr2b", nullptr };
 char const *const SETS_alpines[] = { "alpines", nullptr };
 char const *const SETS_aquajet[] = { "aquajet", nullptr };
+char const *const SETS_bel[] = { "bel", nullptr };
 char const *const SETS_cybrcomm[] = { "cybrcomm", nullptr };
 char const *const SETS_cybrcycc[] = { "cybrcycc", nullptr };
 char const *const SETS_cybsled[] = { "cybsled", nullptr };
@@ -25,14 +27,17 @@ char const *const SETS_daytona[] = { "daytona", nullptr };
 char const *const SETS_desert[] = { "desert", nullptr };
 char const *const SETS_dirtdash[] = { "dirtdash", nullptr };
 char const *const SETS_doa[] = { "doa", nullptr };
+char const *const SETS_dynabb[] = { "dynabb", nullptr };
 char const *const SETS_dynamcop[] = { "dynamcop", nullptr };
 char const *const SETS_gunblade[] = { "gunblade", nullptr };
+char const *const SETS_hotd[] = { "hotd", nullptr };
 char const *const SETS_indy500[] = { "indy500", "stcc", nullptr };
 char const *const SETS_manxtt[] = { "manxtt", nullptr };
 char const *const SETS_model2crx[] = { "rascot2", nullptr };
 char const *const SETS_motoraid[] = { "motoraid", nullptr };
 char const *const SETS_overrev[] = { "overrev", nullptr };
 char const *const SETS_pltkids[] = { "pltkids", nullptr };
+char const *const SETS_powsled[] = { "powsled", nullptr };
 char const *const SETS_propcycl[] = { "propcycl", nullptr };
 char const *const SETS_raverace[] = { "raverace", nullptr };
 char const *const SETS_rchase2[] = { "rchase2", nullptr };
@@ -41,17 +46,22 @@ char const *const SETS_ridgera[] = { "ridgerac", "ridgerac3m", nullptr };
 char const *const SETS_ridgera2[] = { "ridgera2", nullptr };
 char const *const SETS_ridgeracf[] = { "ridgeracf", nullptr };
 char const *const SETS_schamp[] = { "schamp", nullptr };
+char const *const SETS_segawski[] = { "segawski", nullptr };
 char const *const SETS_sgt24h[] = { "sgt24h", nullptr };
 char const *const SETS_skisuprg[] = { "skisuprg", nullptr };
+char const *const SETS_skytargt[] = { "skytargt", nullptr };
 char const *const SETS_srallyc[] = { "srallyc", nullptr };
 char const *const SETS_starblad[] = { "starblad", nullptr };
 char const *const SETS_timecris[] = { "timecris", nullptr };
 char const *const SETS_tokyowar[] = { "tokyowar", nullptr };
+char const *const SETS_topskatr[] = { "topskatr", nullptr };
 char const *const SETS_vcop[] = { "vcop", nullptr };
 char const *const SETS_vcop2[] = { "vcop2", nullptr };
 char const *const SETS_vf2[] = { "vf2", "hpyagu98", "fvipers", "lastbrnx", nullptr };
 char const *const SETS_victlap[] = { "victlap", nullptr };
+char const *const SETS_von[] = { "von", nullptr };
 char const *const SETS_vstriker[] = { "vstriker", nullptr };
+char const *const SETS_waverunr[] = { "waverunr", nullptr };
 char const *const SETS_winrun[] = { "winrun", "winrungp", nullptr };
 char const *const SETS_zerogun[] = { "zerogun", nullptr };
 
@@ -225,6 +235,49 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Air Combat (System 21) — flight stick on the left stick, throttle (AD_STICK_Z) on the right stick X (as
+	// airco22). MAME names none of the six buttons; placed by number (btn1→B, btn2→A …). By airco22's shape btn1
+	// is likely Gun and btn2 Missile — needs a hand-check.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"aircomb",
+		SETS_aircomb,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Button 3 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Button 4 */
+			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON5 Button 5 */
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Button 1",
+			/*  1 Y        BUTTON3 */ "Button 3",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Button 2",
+			/*  9 X        BUTTON4 */ "Button 4",
+			/* 10 L        BUTTON6 */ "Button 6",
+			/* 11 R        BUTTON5 */ "Button 5",
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Aim",
+			/* 17 LSTICK_Y         */ "Aim",
+			/* 18 RSTICK_X         */ "Throttle",
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"airwlkrs",
@@ -391,6 +444,48 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// two-player simultaneous cabinet; aim on the left stick, fire on B, missile on A. MAME leaves button 1
+	// unnamed. Player 2 uses its own pad.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"bel",
+		SETS_bel,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Missile */
+			SOURCE_NONE,  /* BUTTON3 Button 3 */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Button 1",
+			/*  1 Y                */ nullptr,
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Missile",
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Aim",
+			/* 17 LSTICK_Y         */ "Aim",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// Cyber Commando — twin-stick mech cabinet, same shape as Cyber Sled (System 21); trigger/missile/view are
 	// placed on both physical sticks so either hand fires.
 	// verified: NOT YET MEASURED IN GAME
@@ -515,9 +610,9 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
-	// one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. The d-pad assignment is
-	// clockwise from Up and is the one arbitrary choice: the cabinet has VR1-4 left-to-right and a d-pad is not a
-	// row.
+	// one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. Gears sit on the face
+	// diamond by position — GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A). The d-pad carries VR1-4
+	// clockwise from Up; the cabinet has them left-to-right and a d-pad is not a row.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"daytona",
@@ -527,9 +622,9 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		{
 			SOURCE_NONE,  /* BUTTON1 GEAR N — GEAR N: the pad is out of buttons, and neutral is reachable by shifting down out of gear 1 */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON3 GEAR 2 */
-			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON4 GEAR 3 */
-			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON5 GEAR 4 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 GEAR 2 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 GEAR 3 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON5 GEAR 4 */
 			RETRO_DEVICE_ID_JOYPAD_UP,  /* BUTTON6 VR1 (Red) */
 			RETRO_DEVICE_ID_JOYPAD_RIGHT,  /* BUTTON7 VR2 (Blue) */
 			RETRO_DEVICE_ID_JOYPAD_DOWN,  /* BUTTON8 VR3 (Yellow) */
@@ -537,15 +632,15 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		},
 		{
 			/*  0 B        BUTTON2 */ "GEAR 1",
-			/*  1 Y        BUTTON4 */ "GEAR 3",
+			/*  1 Y        BUTTON3 */ "GEAR 2",
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
 			/*  4 UP       BUTTON6 */ "VR1 (Red)",
 			/*  5 DOWN     BUTTON8 */ "VR3 (Yellow)",
 			/*  6 LEFT     BUTTON9 */ "VR4 (Green)",
 			/*  7 RIGHT    BUTTON7 */ "VR2 (Blue)",
-			/*  8 A        BUTTON3 */ "GEAR 2",
-			/*  9 X        BUTTON5 */ "GEAR 4",
+			/*  8 A        BUTTON5 */ "GEAR 4",
+			/*  9 X        BUTTON4 */ "GEAR 3",
 			/* 10 L                */ nullptr,
 			/* 11 R                */ nullptr,
 			/* 12 L2               */ "Brake",
@@ -683,6 +778,49 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Dynamite Baseball — digital stick for movement, two buttons on B/A, and the analog Bat Swing pedal
+	// (IPT_PEDAL), which lands on R2 as every pedal does. Two-player; player 2 uses its own pad. MAME leaves the
+	// two buttons unnamed.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"dynabb",
+		SETS_dynabb,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
+			SOURCE_NONE,  /* BUTTON3 Button 3 */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Button 1",
+			/*  1 Y                */ nullptr,
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Button 2",
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ "Bat Swing",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ nullptr,
+			/* 17 LSTICK_Y         */ nullptr,
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"dynamcop",
@@ -760,6 +898,48 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Stick X",
 			/* 17 LSTICK_Y         */ "Stick Y",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// The House of the Dead — lightgun cabinet, same shape as vcop. On a pad the trigger is button 1 and aim is
+	// the left stick. Two players; player 2 uses its own gun/pad.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"hotd",
+		SETS_hotd,
+		true,
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Trigger */
+			SOURCE_NONE,  /* BUTTON2 Button 2 */
+			SOURCE_NONE,  /* BUTTON3 Button 3 */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Trigger",
+			/*  1 Y                */ nullptr,
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A                */ nullptr,
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Aim X",
+			/* 17 LSTICK_Y         */ "Aim Y",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -933,7 +1113,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		false,  // not a single-pad twin-stick cabinet
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 Shift Up */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Shift Down */
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON2 Shift Down */
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 View 1 */
 			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 View 2 */
 			SOURCE_NONE,  /* BUTTON5 Button 5 */
@@ -951,9 +1131,9 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  5 DOWN             */ nullptr,
 			/*  6 LEFT             */ nullptr,
 			/*  7 RIGHT            */ nullptr,
-			/*  8 A        BUTTON2 */ "Shift Down",
+			/*  8 A                */ nullptr,
 			/*  9 X        BUTTON4 */ "View 2",
-			/* 10 L                */ nullptr,
+			/* 10 L        BUTTON2 */ "Shift Down",
 			/* 11 R        BUTTON1 */ "Shift Up",
 			/* 12 L2               */ "Brake Pedal",
 			/* 13 R2               */ "Gas Pedal",
@@ -1002,6 +1182,49 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Move",
 			/* 17 LSTICK_Y         */ "Move",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// Power Sled — networked sled racer (two-player master/slave cabinet; the network is not emulated). Gas/brake
+	// pedals land on R2/L2 as every driving game's do. The four buttons are the cabinet's network/entry controls,
+	// not gameplay actions: Entry on B, Call on A, the two Cancel buttons on Y/X. No steering axis is declared.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"powsled",
+		SETS_powsled,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Entry */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Call */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Cancel Network Check */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Cancel Error */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Entry",
+			/*  1 Y        BUTTON3 */ "Cancel Network Check",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Call",
+			/*  9 X        BUTTON4 */ "Cancel Error",
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ "Brake",
+			/* 13 R2               */ "Accelerator",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ nullptr,
+			/* 17 LSTICK_Y         */ nullptr,
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -1333,6 +1556,48 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Sega Water Ski — slide on the left stick; Pitch Left/Right on the shoulders (natural L/R), Set on B, Select
+	// Up/Down on Y/X. No single clear primary action — outlier.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"segawski",
+		SETS_segawski,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON1 Pitch Left */
+			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON2 Pitch Right */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Select Up */
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON4 Set */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON5 Select Down */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON4 */ "Set",
+			/*  1 Y        BUTTON3 */ "Select Up",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A                */ nullptr,
+			/*  9 X        BUTTON5 */ "Select Down",
+			/* 10 L        BUTTON1 */ "Pitch Left",
+			/* 11 R        BUTTON2 */ "Pitch Right",
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Slide",
+			/* 17 LSTICK_Y         */ nullptr,
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"sgt24h",
@@ -1413,6 +1678,50 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Sky Target — flight shooter; machine gun and missile on the face buttons, view change on X, aim on the left
+	// stick.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"skytargt",
+		SETS_skytargt,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Machine Gun */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Missile */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON3 View Change */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Machine Gun",
+			/*  1 Y                */ nullptr,
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Missile",
+			/*  9 X        BUTTON3 */ "View Change",
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Aim",
+			/* 17 LSTICK_Y         */ "Aim",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// gears on the face diamond by position — GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A); GEAR N / hand
+	// brake on R, VR on L.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"srallyc",
@@ -1422,9 +1731,9 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		{
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 GEAR N */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON3 GEAR 2 */
-			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON4 GEAR 3 */
-			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON5 GEAR 4 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 GEAR 2 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 GEAR 3 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON5 GEAR 4 */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON6 VR */
 			SOURCE_NONE,  /* BUTTON7 Button 7 */
 			SOURCE_NONE,  /* BUTTON8 Button 8 */
@@ -1432,15 +1741,15 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		},
 		{
 			/*  0 B        BUTTON2 */ "GEAR 1",
-			/*  1 Y        BUTTON4 */ "GEAR 3",
+			/*  1 Y        BUTTON3 */ "GEAR 2",
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
 			/*  4 UP               */ nullptr,
 			/*  5 DOWN             */ nullptr,
 			/*  6 LEFT             */ nullptr,
 			/*  7 RIGHT            */ nullptr,
-			/*  8 A        BUTTON3 */ "GEAR 2",
-			/*  9 X        BUTTON5 */ "GEAR 4",
+			/*  8 A        BUTTON5 */ "GEAR 4",
+			/*  9 X        BUTTON4 */ "GEAR 3",
 			/* 10 L        BUTTON6 */ "VR",
 			/* 11 R        BUTTON1 */ "Hand Brake / GEAR N",
 			/* 12 L2               */ "Brake Pedal",
@@ -1573,6 +1882,47 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Move / Steering Wheel",
+			/* 17 LSTICK_Y         */ nullptr,
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// Top Skater — skateboard cabinet; jumps on the face buttons, board slide on the left stick.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"topskatr",
+		SETS_topskatr,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Jump Front */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Jump Tail */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Select Left */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Select Right */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Jump Front",
+			/*  1 Y        BUTTON3 */ "Select Left",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Jump Tail",
+			/*  9 X        BUTTON4 */ "Select Right",
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Slide",
 			/* 17 LSTICK_Y         */ nullptr,
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
@@ -1741,6 +2091,49 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Cyber Troopers Virtual-On — twin DIGITAL sticks (both analog sticks drive them). Left/Right Shot on the
+	// shoulders, Left/Right Dash on the triggers (no pedals on this set, so the trigger axes are free). Symmetric
+	// twin-stick, so the single action/secondary rule doesn't apply — outlier.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"von",
+		SETS_von,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON1 Left Shot */
+			SOURCE_L2_AXIS,  /* BUTTON2 Left Dash */
+			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON3 Right Shot */
+			SOURCE_R2_AXIS,  /* BUTTON4 Right Dash */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y                */ nullptr,
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A                */ nullptr,
+			/*  9 X                */ nullptr,
+			/* 10 L        BUTTON1 */ "Left Shot",
+			/* 11 R        BUTTON3 */ "Right Shot",
+			/* 12 L2       BUTTON2 */ "Left Dash",
+			/* 13 R2       BUTTON4 */ "Right Dash",
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ nullptr,
+			/* 17 LSTICK_Y         */ nullptr,
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// three buttons. The driver's bit order is not its button order; these are by button number
 	// verified: NOT YET MEASURED IN GAME
 	{
@@ -1778,6 +2171,49 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Move",
 			/* 17 LSTICK_Y         */ "Move",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// Wave Runner — jet-ski racer; handlebar steering on the left stick, View on X. Throttle is an analog lever
+	// (AD_STICK_Y), not a pedal, so it routes to the left-stick Y and cannot honour accelerator-on-R2. Only one
+	// button on the cabinet.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"waverunr",
+		SETS_waverunr,
+		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
+		false,  // not a single-pad twin-stick cabinet
+		{
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON1 View */
+			SOURCE_NONE,  /* BUTTON2 Button 2 */
+			SOURCE_NONE,  /* BUTTON3 Button 3 */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B                */ nullptr,
+			/*  1 Y                */ nullptr,
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A                */ nullptr,
+			/*  9 X        BUTTON1 */ "View",
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Handle Bar",
+			/* 17 LSTICK_Y         */ "Throttle",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -1866,4 +2302,4 @@ constexpr game_layout GAME_LAYOUTS[] = {
 	}
 };
 
-static_assert(std::size(GAME_LAYOUTS) == 43, "regenerate input_layouts.ipp");
+static_assert(std::size(GAME_LAYOUTS) == 53, "regenerate input_layouts.ipp");
