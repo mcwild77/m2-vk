@@ -165,24 +165,20 @@ bool filter_enabled()
 	return (s_env_filter < 0) ? s_option_filter : (s_env_filter != 0);
 }
 
-// s22_depth_buffer, parked by retro_entry. M2VK_S22_DEPTH overrides it. Unlike the filter, this is a
-// pipeline choice (the depth-stencil state is baked in), so it is read once at build_pipeline() and is
-// reload-gated — a live menu change does not rebuild the pipeline. Off is the accurate default: System
-// 22 has no depth buffer, it is a sorting rasteriser, so this is an enhancement in the class of blended
-// transparency, resolving painter's-order overlap errors (ridge racer's road) at some risk to coplanar
-// decals. s_depth_pipeline latches what the pipeline was actually built with, so the draw path agrees.
-bool s_option_depth = false;
-int  s_env_depth = -2;   // -2 = not yet read; -1 = no switch set; 0/1 = pinned
+// s22_depth_buffer — SHELVED / DORMANT. The per-pixel depth experiment (a real GREATER_OR_EQUAL depth
+// buffer replacing System 22's painter's sort) corrupted ground textures and UVs and broke the layered
+// UI — insets, the rear-view mirror, direct 2D primitives — and was never accurate to the hardware
+// (System 22 is a sorting rasteriser, not a z-buffer). The menu option was removed before release and
+// depth_enabled() is FORCED OFF here, so build_pipeline() never builds the depth pipeline, the no-depth
+// companion is never built, and the draw path is the untouched painter's algorithm. The code below
+// (s_pipeline_nodepth, the batch split on draw_batch::nodepth, the ooz remap) stays in place, dormant,
+// so it can be revisited. Do not re-enable without solving the corruption. See devnotes/zfighting.md.
+bool s_option_depth = false;   // still parked by retro_entry; ignored while depth_enabled() is forced off
 bool s_depth_pipeline = false;
 
 bool depth_enabled()
 {
-	if (s_env_depth == -2)
-	{
-		char const *const env = std::getenv("M2VK_S22_DEPTH");
-		s_env_depth = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
-	}
-	return (s_env_depth < 0) ? s_option_depth : (s_env_depth != 0);
+	return false;   // SHELVED: option removed, code dormant — see the note above and devnotes/zfighting.md
 }
 
 // The three view toggles, each parked by retro_entry and each overridable by its M2VK_* switch in the
@@ -241,6 +237,17 @@ struct draw_batch
 	int16_t  left, top, right, bottom;   // inclusive, m_cliprect as MAME spelled it
 	uint32_t first_index;
 	uint32_t index_count;
+
+	// A "no-depth" batch is direct (pre-projected 2D) quads and sprite tiles: the hardware composites
+	// them purely by list order, never z-testing them against the 3D scene. With the depth buffer on
+	// they draw through a second pipeline that neither tests nor writes depth, so a direct backing (a
+	// rear-view mirror's black fill, a HUD panel) drawn before the 3D behind it does not reject that 3D,
+	// and one drawn after sits on top — either way by draw order. Solid 3D polygons are depth batches.
+	bool     nodepth = false;
+
+	// The batch's own 1/z range over its solid-3D vertices, for the M2VK_S22_BATCHDUMP diagnostic. The
+	// depth remap itself is frame-wide (geom_slot::min/max_ooz), not per batch.
+	float    min_ooz = 1e30f, max_ooz = -1e30f;
 };
 
 struct geom_slot
@@ -255,10 +262,10 @@ struct geom_slot
 	uint32_t        capacity = 0;          // quads the vertex/index buffers are sized for
 	uint32_t        index_count = 0;       // what this slot's recorded draw will submit
 
-	// The frame's 1/z range over the polygon vertices (sprites excluded — they carry no z), recorded by
-	// geom_upload and read by draw_batches to build the depth_scale/depth_bias remap. Only meaningful
-	// when the depth buffer is on; a frame with no polygons leaves max < min, which draw_batches treats
-	// as "no usable range" and falls back to painter's.
+	// The frame's 1/z range over the SOLID-3D vertices (direct 2D quads and sprites excluded — they carry
+	// no meaningful z and take the no-depth pipeline), recorded by geom_upload and read by draw_batches to
+	// build the depth_scale/depth_bias remap. Only meaningful when the depth buffer is on; a frame with no
+	// such polygons leaves max < min, which draw_batches treats as "no usable range" and falls to painter's.
 	float           min_ooz = 1e30f, max_ooz = -1e30f;
 
 	// One draw per clip-window run; host-side, so it grows on its own. One entry for a game that never
@@ -311,6 +318,8 @@ bool s_static_uploaded = false;
 
 VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
 VkPipeline            s_pipeline = VK_NULL_HANDLE;
+VkPipeline            s_pipeline_nodepth = VK_NULL_HANDLE;   // direct/sprite: no depth test or write,
+                                                            // built only when the depth buffer is on
 VkDescriptorSetLayout s_set_layout = VK_NULL_HANDLE;
 VkDescriptorPool      s_descriptor_pool = VK_NULL_HANDLE;
 bool s_ready = false;
@@ -641,6 +650,21 @@ bool build_pipeline()
 
 		ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &info, nullptr, &s_pipeline),
 				"vkCreateGraphicsPipelines (s22)");
+
+		// The no-depth companion, built only when the depth buffer is on: identical but for a depth state
+		// that neither tests nor writes, so direct 2D quads and sprites composite by draw order alone. In
+		// painter's mode the main pipeline is already this, so no companion is needed.
+		if (ok && s_depth_pipeline)
+		{
+			VkPipelineDepthStencilStateCreateInfo nodepth = depth;
+			nodepth.depthTestEnable = VK_FALSE;
+			nodepth.depthWriteEnable = VK_FALSE;
+			nodepth.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+			VkGraphicsPipelineCreateInfo ninfo = info;
+			ninfo.pDepthStencilState = &nodepth;
+			ok = check(s_fns.create_graphics_pipelines(s_device, VK_NULL_HANDLE, 1, &ninfo, nullptr, &s_pipeline_nodepth),
+					"vkCreateGraphicsPipelines (s22 no-depth)");
+		}
 	}
 
 	if (frag != VK_NULL_HANDLE)
@@ -809,6 +833,7 @@ bool geom_build(const retro_hw_render_interface_vulkan &iface, const vk_funcs &f
 	s_failed = false;
 	s_static_uploaded = false;
 	s_pipeline = VK_NULL_HANDLE;
+	s_pipeline_nodepth = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
 	s_set_layout = VK_NULL_HANDLE;
 	s_descriptor_pool = VK_NULL_HANDLE;
@@ -845,6 +870,8 @@ void geom_destroy()
 
 	if (s_pipeline != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline(s_device, s_pipeline, nullptr);
+	if (s_pipeline_nodepth != VK_NULL_HANDLE)
+		s_fns.destroy_pipeline(s_device, s_pipeline_nodepth, nullptr);
 	if (s_pipeline_layout != VK_NULL_HANDLE)
 		s_fns.destroy_pipeline_layout(s_device, s_pipeline_layout, nullptr);
 	if (s_descriptor_pool != VK_NULL_HANDLE)
@@ -853,6 +880,7 @@ void geom_destroy()
 		s_fns.destroy_descriptor_set_layout(s_device, s_set_layout, nullptr);
 
 	s_pipeline = VK_NULL_HANDLE;
+	s_pipeline_nodepth = VK_NULL_HANDLE;
 	s_pipeline_layout = VK_NULL_HANDLE;
 	s_descriptor_pool = VK_NULL_HANDLE;
 	s_set_layout = VK_NULL_HANDLE;
@@ -957,6 +985,7 @@ bool geom_upload(uint32_t slot_index)
 
 		int16_t rcl, rct, rcr, rcb;
 		int prioverchar;
+		bool item_nodepth;   // direct 2D quad or sprite: composited by order, never depth-tested
 		uint32_t nq = 0;   // quad vertex count; 0 marks a sprite tile below
 		if (it.kind == ITEM_QUAD)
 		{
@@ -968,12 +997,14 @@ bool geom_upload(uint32_t slot_index)
 				nq = MAX_QUAD_VERTS;
 			rcl = q.clip_l; rct = q.clip_t; rcr = q.clip_r; rcb = q.clip_b;
 			prioverchar = q.prioverchar;
+			item_nodepth = q.direct;
 		}
 		else
 		{
 			sprite_tile const &s = s_sprites[it.index];
 			rcl = s.clip_l; rct = s.clip_t; rcr = s.clip_r; rcb = s.clip_b;
 			prioverchar = s.prioverchar;
+			item_nodepth = true;
 		}
 
 		// The item's clip window, or full-screen under the attribution switch.
@@ -982,13 +1013,17 @@ bool geom_upload(uint32_t slot_index)
 		const int16_t cr = no_scissor() ? int16_t(639) : rcr;
 		const int16_t cb = no_scissor() ? int16_t(479) : rcb;
 
-		// Start a new run whenever the clip window changes; the walk is in draw order, so a run is a
-		// maximal span of consecutive items (quad or sprite) that share a scissor. geom_draw sets it once.
+		// Start a new run whenever the clip window OR the depth mode changes; the walk is in draw order,
+		// so a run is a maximal span of consecutive items that share a scissor and a pipeline (depth vs
+		// no-depth). geom_draw binds the matching pipeline per batch.
 		if (slot.batches.empty()
 				|| (slot.batches.back().left != cl) || (slot.batches.back().top != ct)
-				|| (slot.batches.back().right != cr) || (slot.batches.back().bottom != cb))
+				|| (slot.batches.back().right != cr) || (slot.batches.back().bottom != cb)
+				|| (slot.batches.back().nodepth != item_nodepth))
 		{
-			slot.batches.push_back(draw_batch{ cl, ct, cr, cb, icount, 0 });
+			draw_batch nb{ cl, ct, cr, cb, icount, 0 };
+			nb.nodepth = item_nodepth;
+			slot.batches.push_back(nb);
 		}
 
 		const uint32_t item_first = icount;
@@ -1024,8 +1059,14 @@ bool geom_upload(uint32_t slot_index)
 				v.voz = q.voz[i];
 				v.ooz = q.ooz[i];
 				v.iw = q.bri[i];
-				if (q.ooz[i] < slot.min_ooz) slot.min_ooz = q.ooz[i];   // depth-buffer remap range,
-				if (q.ooz[i] > slot.max_ooz) slot.max_ooz = q.ooz[i];   // polygons only (sprites have no z)
+				if (!item_nodepth)                                      // depth-remap range, solid 3D only
+				{                                                       // (direct 2D carries a sentinel z);
+					draw_batch &cb2 = slot.batches.back();              // per batch for a scissored inset,
+					if (q.ooz[i] < cb2.min_ooz) cb2.min_ooz = q.ooz[i]; // per frame for the main scene
+					if (q.ooz[i] > cb2.max_ooz) cb2.max_ooz = q.ooz[i];
+					if (q.ooz[i] < slot.min_ooz) slot.min_ooz = q.ooz[i];
+					if (q.ooz[i] > slot.max_ooz) slot.max_ooz = q.ooz[i];
+				}
 				v.attr = attr;
 				v.bn = bn;
 				v.base = base;
@@ -1096,14 +1137,15 @@ bool geom_upload(uint32_t slot_index)
 		if (s_serial != last)
 		{
 			last = s_serial;
-			vk_log(RETRO_LOG_INFO, "s22 batchdump serial=%llu ooz=[%g..%g] batches=%u over=%u\n",
-					(unsigned long long)s_serial, slot.min_ooz, slot.max_ooz,
+			vk_log(RETRO_LOG_INFO, "s22 batchdump serial=%llu batches=%u over=%u\n",
+					(unsigned long long)s_serial,
 					unsigned(slot.batches.size()), unsigned(slot.over_batches.size()));
 			for (size_t bi = 0; bi < slot.batches.size(); bi++)
 			{
 				draw_batch const &b = slot.batches[bi];
-				vk_log(RETRO_LOG_INFO, "  batch %2zu clip=(%d,%d)-(%d,%d) idx=%u\n",
-						bi, int(b.left), int(b.top), int(b.right), int(b.bottom), unsigned(b.index_count));
+				vk_log(RETRO_LOG_INFO, "  batch %2zu clip=(%d,%d)-(%d,%d) idx=%u ooz=[%g..%g] %s\n",
+						bi, int(b.left), int(b.top), int(b.right), int(b.bottom), unsigned(b.index_count),
+						b.min_ooz, b.max_ooz, b.nodepth ? "NODEPTH" : "depth");
 			}
 		}
 	}
@@ -1166,35 +1208,36 @@ static void draw_batches(VkCommandBuffer cmd, geom_slot &slot, std::vector<draw_
 			| (no_lighting_enabled() ? PFLAG_NO_LIGHT : 0u);
 	push.tex_filter   = filter_enabled() ? 1u : 0u;
 
-	// The depth remap. Painter's (default, and any frame whose polygons span no 1/z range) is scale 0 /
-	// bias 0.5, which s22.vert turns into a constant z — byte-identical to the pre-depth-buffer path.
-	// With the depth buffer on and a real range, z = ooz*scale + bias maps [min_ooz, max_ooz] onto
-	// [0, 1] so nearest (largest 1/z) is 1.0, matching the GREATER_OR_EQUAL test. s_depth_pipeline (not
-	// depth_enabled()) gates it, so the constants always agree with the state the pipeline was built with.
-	float depth_scale = 0.0f, depth_bias = 0.5f;
+	// The depth remap: painter's (scale 0 / bias 0.5, a constant z) for the depth-off pipeline and for a
+	// frame that spans no 1/z range; else z = ooz*scale + bias mapping the frame-wide [min, max] onto
+	// [0, 1] so nearest (largest 1/z) is 1.0, matching GREATER_OR_EQUAL. Solid-3D batches all share it.
+	push.depth_scale  = 0.0f;
+	push.depth_bias   = 0.5f;
 	if (s_depth_pipeline)
 	{
 		const float span = slot.max_ooz - slot.min_ooz;
 		if (span > 1e-9f)
 		{
-			depth_scale = 1.0f / span;
-			depth_bias  = -slot.min_ooz * depth_scale;
+			push.depth_scale = 1.0f / span;
+			push.depth_bias  = -slot.min_ooz / span;
 		}
 	}
-	push.depth_scale  = depth_scale;
-	push.depth_bias   = depth_bias;
 	push.poly_r       = uint32_t(g.poly_r & 0xffff);
 	push.poly_g       = uint32_t(g.poly_g & 0xffff);
 	push.poly_b       = uint32_t(g.poly_b & 0xffff);
 
 	const VkDeviceSize offset = 0;
-	s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
 	s_fns.cmd_bind_descriptor_sets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
 			0, 1, &slot.descriptor, 0, nullptr);
 	s_fns.cmd_push_constants(cmd, s_pipeline_layout,
 			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
 	s_fns.cmd_bind_vertex_buffers(cmd, 0, 1, &slot.vertices.buffer, &offset);
 	s_fns.cmd_bind_index_buffer(cmd, slot.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	// The pipeline is bound per batch below: solid 3D through s_pipeline (depth on/off per the option),
+	// direct 2D quads and sprites through s_pipeline_nodepth when the depth buffer is on. In painter's
+	// mode there is no companion, so everything binds s_pipeline. -1 forces the first bind.
+	int bound = -1;
 
 	// One draw per clip-window run, each with its own scissor. The rectangle is inclusive in bitmap
 	// pixels; the caller passes width/height as the visible extent MAME clipped against (640x480), so an
@@ -1232,6 +1275,16 @@ static void draw_batches(VkCommandBuffer cmd, geom_slot &slot, std::vector<draw_
 			s_fns.cmd_set_scissor(cmd, 0, 1, &rect);
 			set_to = rect;
 			scissor_set = true;
+		}
+
+		// Bind the pipeline this batch needs: the no-depth companion for a direct/sprite batch when the
+		// depth buffer is on, the main pipeline otherwise.
+		const int want = (s_depth_pipeline && b.nodepth) ? 1 : 0;
+		if (want != bound)
+		{
+			s_fns.cmd_bind_pipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+					want ? s_pipeline_nodepth : s_pipeline);
+			bound = want;
 		}
 
 		s_fns.cmd_draw_indexed(cmd, b.index_count, 1, b.first_index, 0, 0);

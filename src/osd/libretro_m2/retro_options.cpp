@@ -171,24 +171,10 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		},
 		"off"
 	},
-	{
-		m2opt::KEY_S22_DEPTH_BUFFER,
-		"Depth Buffer (3D)",
-		nullptr,
-		"How overlapping 3D polygons are ordered. System 22 has no depth buffer — it sorts polygons and "
-		"paints them back to front, one depth per polygon, so two surfaces that cross through each other "
-		"(the road in Ridge Racer) fight over which is in front and flicker. On, the core keeps a real "
-		"per-pixel depth buffer so the crossing is resolved exactly. It is an enhancement, not accuracy — "
-		"off matches the arcade. Vulkan only; System 22 games only. Needs a content reload.",
-		nullptr,
-		nullptr,
-		{
-			{ "off", "Off" },
-			{ "on",  "On" },
-			{ nullptr, nullptr }
-		},
-		"off"
-	},
+	// NOTE: the "Depth Buffer (3D)" option (KEY_S22_DEPTH_BUFFER) was removed before release — the
+	// per-pixel depth experiment corrupted textures/UVs on the ground and broke the layered UI, so it is
+	// not shippable. The renderer code is still present but dormant (s22::depth_enabled() is forced off);
+	// see devnotes/zfighting.md. Do not re-add this menu entry without fixing the underlying issues.
 	{
 		m2opt::KEY_POLY_COUNTER,
 		"Polygon Counter",

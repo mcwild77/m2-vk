@@ -1931,15 +1931,15 @@
     "cybsled"
    ],
    "lightgun": false,
-   "note": "Cyber Sled \u2014 twin-stick tank; missile/gun/view on the face buttons, left stick aims.",
+   "note": "Cyber Sled \u2014 twin-stick tank; left stick aims. Main gun on R2, missile on L2 for a pad player.",
    "verified": "",
    "buttons": [
     {
-     "source": "B",
+     "source": "L2",
      "label": "Missile"
     },
     {
-     "source": "A",
+     "source": "R2",
      "label": "Gun"
     },
     {
@@ -1972,8 +1972,8 @@
     }
    ],
    "labels": {
-    "B": "Missile",
-    "A": "Gun",
+    "L2": "Missile",
+    "R2": "Gun",
     "Y": "Viewport Change",
     "LSTICK_X": "Move / Aim",
     "LSTICK_Y": "Move / Aim",
@@ -2271,15 +2271,15 @@
    ],
    "lightgun": false,
    "twin_ad_stick": true,
-   "note": "Cyber Commando \u2014 twin-stick mech cabinet, same shape as Cyber Sled (System 21); trigger/missile/view are placed on both physical sticks so either hand fires.",
+   "note": "Cyber Commando \u2014 twin-stick mech cabinet, same shape as Cyber Sled (System 21); trigger/missile/view are placed on both physical sticks so either hand fires. Main gun on R2, missile on L2 for a pad player.",
    "verified": "",
    "buttons": [
     {
-     "source": "B",
+     "source": "R2",
      "label": "Gun Trigger"
     },
     {
-     "source": "A",
+     "source": "L2",
      "label": "Missile Button"
     },
     {
@@ -2315,8 +2315,8 @@
     "SELECT": "Coin",
     "START": "Start",
     "L3": "Service Coin",
-    "B": "Gun Trigger",
-    "A": "Missile Button",
+    "R2": "Gun Trigger",
+    "L2": "Missile Button",
     "Y": "View Change",
     "LSTICK_X": "Move / Aim",
     "LSTICK_Y": "Move / Aim",

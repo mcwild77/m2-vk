@@ -360,7 +360,6 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 		// either — S21 is always z-buffered, has no texture filter, no fog/untextured toggles.
 		m2opt::set_native_resolution("496x480");
 		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
-		m2opt::hide_option(m2opt::KEY_S22_DEPTH_BUFFER);
 		m2opt::hide_option(m2opt::KEY_S22_FOG);
 		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
 		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
@@ -377,7 +376,6 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 		// Same family detection as above; a third family stays safe by keeping them hidden by default.
 		{
 			m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
-			m2opt::hide_option(m2opt::KEY_S22_DEPTH_BUFFER);
 			m2opt::hide_option(m2opt::KEY_S22_FOG);
 			m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
 			m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
@@ -742,8 +740,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	{
 		const bool s22_filter = m2opt::get_s22_texture_filter(s_environ_cb);
 		s22::set_option_filter(s22_filter);
-		const bool s22_depth = m2opt::get_s22_depth_buffer(s_environ_cb);
-		s22::set_option_depth(s22_depth);
+		// The Depth Buffer option was removed before release (shelved; see devnotes/zfighting.md). The
+		// renderer code is dormant — s22::depth_enabled() is forced off — so nothing parks it here.
 		const bool s22_fog = m2opt::get_s22_fog(s_environ_cb);
 		s22::set_option_fog(s22_fog);
 		const bool s22_notex = m2opt::get_s22_no_textures(s_environ_cb);
@@ -753,9 +751,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		s22::set_option_no_lighting(flat_luma);
 		const bool s22_overlay = m2opt::get_s22_2d_overlay(s_environ_cb);
 		s22::set_option_hud(s22_overlay);
-		s_log_cb(RETRO_LOG_INFO, "[system22] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s\n",
+		s_log_cb(RETRO_LOG_INFO, "[system22] options: %s=%s %s=%s %s=%s %s=%s %s=%s\n",
 				m2opt::KEY_S22_TEXTURE_FILTER, s22_filter ? "on" : "off",
-				m2opt::KEY_S22_DEPTH_BUFFER, s22_depth ? "on" : "off",
 				m2opt::KEY_S22_FOG, s22_fog ? "on" : "off",
 				m2opt::KEY_S22_NO_TEXTURES, s22_notex ? "on" : "off",
 				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",

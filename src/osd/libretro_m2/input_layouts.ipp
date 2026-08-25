@@ -497,7 +497,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		},
 	},
 	// Cyber Commando — twin-stick mech cabinet, same shape as Cyber Sled (System 21); trigger/missile/view are
-	// placed on both physical sticks so either hand fires.
+	// placed on both physical sticks so either hand fires. Main gun on R2, missile on L2 for a pad player.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"cybrcomm",
@@ -506,8 +506,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
 		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
-			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Gun Trigger */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Missile Button */
+			RETRO_DEVICE_ID_JOYPAD_R2,  /* BUTTON1 Gun Trigger */
+			RETRO_DEVICE_ID_JOYPAD_L2,  /* BUTTON2 Missile Button */
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 View Change */
 			SOURCE_NONE,  /* BUTTON4 Button 4 */
 			SOURCE_NONE,  /* BUTTON5 Button 5 */
@@ -517,7 +517,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			SOURCE_NONE,  /* BUTTON9 Button 9 */
 		},
 		{
-			/*  0 B        BUTTON1 */ "Gun Trigger",
+			/*  0 B                */ nullptr,
 			/*  1 Y        BUTTON3 */ "View Change",
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
@@ -525,12 +525,12 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  5 DOWN             */ nullptr,
 			/*  6 LEFT             */ nullptr,
 			/*  7 RIGHT            */ nullptr,
-			/*  8 A        BUTTON2 */ "Missile Button",
+			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
 			/* 10 L                */ nullptr,
 			/* 11 R                */ nullptr,
-			/* 12 L2               */ nullptr,
-			/* 13 R2               */ nullptr,
+			/* 12 L2       BUTTON2 */ "Missile Button",
+			/* 13 R2       BUTTON1 */ "Gun Trigger",
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Move / Aim",
@@ -581,7 +581,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
-	// Cyber Sled — twin-stick tank; missile/gun/view on the face buttons, left stick aims.
+	// Cyber Sled — twin-stick tank; left stick aims. Main gun on R2, missile on L2 for a pad player.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"cybsled",
@@ -590,8 +590,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
 		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
-			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Missile */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Gun */
+			RETRO_DEVICE_ID_JOYPAD_L2,  /* BUTTON1 Missile */
+			RETRO_DEVICE_ID_JOYPAD_R2,  /* BUTTON2 Gun */
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Viewport Change */
 			SOURCE_NONE,  /* BUTTON4 (unused) */
 			SOURCE_NONE,  /* BUTTON5 (unused) */
@@ -601,7 +601,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			SOURCE_NONE,  /* BUTTON9 (unused) */
 		},
 		{
-			/*  0 B        BUTTON1 */ "Missile",
+			/*  0 B                */ nullptr,
 			/*  1 Y        BUTTON3 */ "Viewport Change",
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
@@ -609,12 +609,12 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  5 DOWN             */ nullptr,
 			/*  6 LEFT             */ nullptr,
 			/*  7 RIGHT            */ nullptr,
-			/*  8 A        BUTTON2 */ "Gun",
+			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
 			/* 10 L                */ nullptr,
 			/* 11 R                */ nullptr,
-			/* 12 L2               */ nullptr,
-			/* 13 R2               */ nullptr,
+			/* 12 L2       BUTTON1 */ "Missile",
+			/* 13 R2       BUTTON2 */ "Gun",
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Move / Aim",
