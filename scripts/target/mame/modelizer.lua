@@ -1,0 +1,295 @@
+-- license:BSD-3-Clause
+-- copyright-holders:MAMEdev Team
+
+---------------------------------------------------------------------------
+--
+--   modelizer.lua
+--
+--   Modelizer subtarget: one core carrying all three hardware-accelerated
+--   families -- Sega Model 2, Namco (Super) System 22, Namco System 21 --
+--   behind the shared Vulkan seam.  Use make SUBTARGET=modelizer to build.
+--
+--   This is the UNION of the three per-family subtarget scripts
+--   (model2.lua + namcos22.lua + namcos21.lua).  Each family keeps its OWN
+--   driver project and its own scoping define (M2VK / S22VK / S21VK), so the
+--   _v.cpp seam hooks stay scoped exactly as they are in the split builds --
+--   merging the three into one project would force all three defines onto
+--   every driver source.  The three projects link together into one binary.
+--
+--   The driver LIST (which GAME()s register in driver_list) comes from the
+--   sibling src/mame/modelizer.flt, not from here; this file only says which
+--   source files compile and how.  Runtime family detection keys off the
+--   loaded driver's source file (retro_entry.cpp family_of()), so all three
+--   flagships being present in one table is fine.
+--
+--   Regenerate the three per-family scripts with makedep.py after an upstream
+--   merge (see their headers) and re-fold the changes here; keep the marked
+--   HAND-ADDED blocks.
+--
+--   ONE de-duplication vs a literal concatenation: namco/namco_dsp.cpp is in
+--   both the namcos22 and namcos21 file lists.  Compiling it into both driver
+--   libraries would define namco_dsp twice (a duplicate device registration).
+--   It is compiled once, in mame_namcos22; mame_namcos21's references resolve
+--   from that library at the final link.
+--
+---------------------------------------------------------------------------
+
+-- Union of the three families' global feature flags (BUSES/CPUS/MACHINES/SOUNDS/VIDEOS).
+-- Setting a flag true more than once is harmless; the union is de-duplicated here for readability.
+BUSES["HEATHZENITH_H19"] = true
+BUSES["RS232"] = true
+BUSES["SUNKBD"] = true
+
+CPUS["I960"] = true
+CPUS["IE15"] = true
+CPUS["M6800"] = true
+CPUS["M680X0"] = true
+CPUS["MB86233"] = true
+CPUS["MB86235"] = true
+CPUS["ADSP2106X"] = true
+CPUS["Z80"] = true
+CPUS["M37710"] = true          -- namcos22
+CPUS["TMS320C2X"] = true       -- namcos22 + namcos21
+CPUS["M6502"] = true           -- namcos21
+CPUS["M6805"] = true           -- namcos21
+CPUS["M6809"] = true           -- namcos21
+
+MACHINES["6821PIA"] = true
+MACHINES["ACIA6850"] = true
+MACHINES["CXD1095"] = true
+MACHINES["EEPROMDEV"] = true
+MACHINES["GEN_FIFO"] = true    -- native to model2; also satisfies the m2vk_savestate gen_fifo trailer
+MACHINES["I8251"] = true
+MACHINES["IE15"] = true
+MACHINES["INPUT_MERGER"] = true
+MACHINES["INS8250"] = true
+MACHINES["MB3773"] = true
+MACHINES["MB8421"] = true
+MACHINES["MM5740"] = true
+MACHINES["MSM6253"] = true
+MACHINES["PCF8573"] = true
+MACHINES["SWTPC8212"] = true
+MACHINES["VOTRAXTNT"] = true
+MACHINES["Z80CTC"] = true
+MACHINES["Z80DAISY"] = true
+MACHINES["Z80PIO"] = true
+MACHINES["Z80SIO"] = true
+
+SOUNDS["AY8910"] = true
+SOUNDS["BEEP"] = true
+SOUNDS["MPEG_AUDIO"] = true
+SOUNDS["MULTIPCM"] = true
+SOUNDS["SCSP"] = true
+SOUNDS["VOTRAX_SC01"] = true
+SOUNDS["VOTRAX_SC01A"] = true
+SOUNDS["YM2203"] = true
+SOUNDS["YM2608"] = true
+SOUNDS["YM2610"] = true
+SOUNDS["YM2612"] = true
+SOUNDS["C352"] = true          -- namcos22
+SOUNDS["MB87077"] = true       -- namcos22 + namcos21
+SOUNDS["C140"] = true          -- namcos21
+SOUNDS["YM2151"] = true        -- namcos21
+
+VIDEOS["HD44780"] = true
+VIDEOS["MC6845"] = true
+
+
+function createProjects_mame_modelizer(_target, _subtarget)
+
+    --=====================================================================
+    --  Sega Model 2  (from model2.lua)
+    --=====================================================================
+    project ("mame_model2")
+    targetsubdir(_target .."_" .. _subtarget)
+    kind (LIBTYPE)
+    uuid (os.uuid("drv-mame-model2"))
+    addprojectflags()
+
+    -- HAND-ADDED: scopes the hardware-renderer hooks in model2_v.cpp to this
+    -- driver project, so no other driver source sees them.
+    defines {
+        "M2VK",
+    }
+
+    includedirs {
+        MAME_DIR .. "src/osd",
+        MAME_DIR .. "src/emu",
+        MAME_DIR .. "src/devices",
+        MAME_DIR .. "src/mame/shared",
+        MAME_DIR .. "src/lib",
+        MAME_DIR .. "src/lib/util",
+        MAME_DIR .. "src/lib/netlist",
+        MAME_DIR .. "3rdparty",
+        GEN_DIR  .. "mame/layout",
+        ext_includedir("asio"),
+        ext_includedir("flac"),
+        ext_includedir("glm"),
+        ext_includedir("jpeg"),
+        ext_includedir("rapidjson"),
+        ext_includedir("zlib"),
+    }
+
+    files{
+        MAME_DIR .. "src/mame/sega/315-5838_317-0229_comp.cpp",
+        MAME_DIR .. "src/mame/sega/315-5838_317-0229_comp.h",
+        MAME_DIR .. "src/mame/sega/315-5881_crypt.cpp",
+        MAME_DIR .. "src/mame/sega/315-5881_crypt.h",
+        MAME_DIR .. "src/mame/sega/315_5296.cpp",
+        MAME_DIR .. "src/mame/sega/315_5296.h",
+        MAME_DIR .. "src/mame/sega/315_5338a.cpp",
+        MAME_DIR .. "src/mame/sega/315_5338a.h",
+        MAME_DIR .. "src/mame/sega/315_5649.cpp",
+        MAME_DIR .. "src/mame/sega/315_5649.h",
+        MAME_DIR .. "src/mame/sega/dsb2.cpp",
+        MAME_DIR .. "src/mame/sega/dsb2.h",
+        MAME_DIR .. "src/mame/sega/dsbz80.cpp",
+        MAME_DIR .. "src/mame/sega/dsbz80.h",
+        MAME_DIR .. "src/mame/sega/m2comm.cpp",
+        MAME_DIR .. "src/mame/sega/m2comm.h",
+        MAME_DIR .. "src/mame/sega/model1io.cpp",
+        MAME_DIR .. "src/mame/sega/model1io.h",
+        MAME_DIR .. "src/mame/sega/model1io2.cpp",
+        MAME_DIR .. "src/mame/sega/model1io2.h",
+        MAME_DIR .. "src/mame/sega/model2.cpp",
+        MAME_DIR .. "src/mame/sega/model2.h",
+        MAME_DIR .. "src/mame/sega/model2_m.cpp",
+        MAME_DIR .. "src/mame/sega/model2_v.cpp",
+        MAME_DIR .. "src/mame/sega/model2rd.ipp",
+        MAME_DIR .. "src/mame/sega/segabill.cpp",
+        MAME_DIR .. "src/mame/sega/segabill.h",
+        MAME_DIR .. "src/mame/sega/segaic24.cpp",
+        MAME_DIR .. "src/mame/sega/segaic24.h",
+        MAME_DIR .. "src/mame/shared/segam1audio.cpp",
+        MAME_DIR .. "src/mame/shared/segam1audio.h",
+    }
+
+    -- HAND-ADDED: the seam in model2_v.cpp calls into the sink in
+    -- src/osd/libretro_m2, which the libretro OSD compiles and owns.  Any other
+    -- OSD does not, so compile it here instead and the plain SUBTARGET=... binary
+    -- still links (and still carries the polygon tap).  Only ever one of the two,
+    -- or the symbols are defined twice.
+    if _OPTIONS["osd"] ~= "libretro_m2" then
+        files {
+            MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.h",
+            MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.cpp",
+            MAME_DIR .. "src/osd/libretro_m2/m2vk_polytap.h",
+            MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.h",
+            MAME_DIR .. "src/osd/libretro_m2/m2vk_frame.cpp",
+        }
+    end
+
+    --=====================================================================
+    --  Namco (Super) System 22  (from namcos22.lua)
+    --=====================================================================
+    project ("mame_namcos22")
+    targetsubdir(_target .."_" .. _subtarget)
+    kind (LIBTYPE)
+    uuid (os.uuid("drv-mame-namcos22"))
+    addprojectflags()
+
+    -- HAND-ADDED: scopes the S1 seam hooks in namcos22_v.cpp to this driver project.
+    defines {
+        "S22VK",
+    }
+
+    includedirs {
+        MAME_DIR .. "src/osd",
+        MAME_DIR .. "src/emu",
+        MAME_DIR .. "src/devices",
+        MAME_DIR .. "src/mame/shared",
+        MAME_DIR .. "src/lib",
+        MAME_DIR .. "src/lib/util",
+        MAME_DIR .. "src/lib/netlist",
+        MAME_DIR .. "3rdparty",
+        GEN_DIR  .. "mame/layout",
+        ext_includedir("asio"),
+        ext_includedir("flac"),
+        ext_includedir("glm"),
+        ext_includedir("jpeg"),
+        ext_includedir("rapidjson"),
+        ext_includedir("zlib"),
+    }
+
+    files{
+        MAME_DIR .. "src/mame/namco/namco_dsp.cpp",   -- compiled here, shared with mame_namcos21
+        MAME_DIR .. "src/mame/namco/namco_dsp.h",
+        MAME_DIR .. "src/mame/namco/namcomcu.cpp",
+        MAME_DIR .. "src/mame/namco/namcomcu.h",
+        MAME_DIR .. "src/mame/namco/namcos22.cpp",
+        MAME_DIR .. "src/mame/namco/namcos22.h",
+        MAME_DIR .. "src/mame/namco/namcos22_v.cpp",
+    }
+
+    -- The S22 seam/sink/GPU pass (s22_seam.cpp / renderer_vk/s22_geom.cpp) live in the shared libretro_m2
+    -- OSD, not here; retro_entry.cpp and vk_present.cpp reference the s22:: symbols and resolve against
+    -- the OSD in every build.  Inert unless a namcos22 driver arms capture.
+
+    --=====================================================================
+    --  Namco System 21  (from namcos21.lua)
+    --=====================================================================
+    project ("mame_namcos21")
+    targetsubdir(_target .."_" .. _subtarget)
+    kind (LIBTYPE)
+    uuid (os.uuid("drv-mame-namcos21"))
+    addprojectflags()
+
+    -- HAND-ADDED: scopes the T1 seam hooks in namcos21_3d.cpp to this driver project.
+    defines {
+        "S21VK",
+    }
+
+    includedirs {
+        MAME_DIR .. "src/osd",
+        MAME_DIR .. "src/emu",
+        MAME_DIR .. "src/devices",
+        MAME_DIR .. "src/mame/shared",
+        MAME_DIR .. "src/lib",
+        MAME_DIR .. "src/lib/util",
+        MAME_DIR .. "src/lib/netlist",
+        MAME_DIR .. "3rdparty",
+        GEN_DIR  .. "mame/layout",
+        ext_includedir("asio"),
+        ext_includedir("flac"),
+        ext_includedir("glm"),
+        ext_includedir("jpeg"),
+        ext_includedir("rapidjson"),
+        ext_includedir("zlib"),
+    }
+
+    files{
+        MAME_DIR .. "src/mame/namco/namco65.cpp",
+        MAME_DIR .. "src/mame/namco/namco65.h",
+        MAME_DIR .. "src/mame/namco/namco68.cpp",
+        MAME_DIR .. "src/mame/namco/namco68.h",
+        MAME_DIR .. "src/mame/namco/namco_c139.cpp",
+        MAME_DIR .. "src/mame/namco/namco_c139.h",
+        MAME_DIR .. "src/mame/namco/namco_c148.cpp",
+        MAME_DIR .. "src/mame/namco/namco_c148.h",
+        -- namco_dsp.cpp/.h intentionally omitted: compiled once in mame_namcos22 (see header).
+        MAME_DIR .. "src/mame/namco/namcoio_gearbox.cpp",
+        MAME_DIR .. "src/mame/namco/namcoio_gearbox.h",
+        MAME_DIR .. "src/mame/namco/namcos21.cpp",
+        MAME_DIR .. "src/mame/namco/namcos21_3d.cpp",
+        MAME_DIR .. "src/mame/namco/namcos21_3d.h",
+        MAME_DIR .. "src/mame/namco/namcos21_c67.cpp",
+        MAME_DIR .. "src/mame/namco/namcos21_dsp.cpp",
+        MAME_DIR .. "src/mame/namco/namcos21_dsp.h",
+        MAME_DIR .. "src/mame/namco/namcos21_dsp_c67.cpp",
+        MAME_DIR .. "src/mame/namco/namcos21_dsp_c67.h",
+        MAME_DIR .. "src/mame/shared/namco_c355spr.cpp",
+        MAME_DIR .. "src/mame/shared/namco_c355spr.h",
+    }
+
+    -- The T2 seam/GPU pass (s21_seam.cpp / renderer_vk/s21_geom.cpp) live in the shared libretro_m2 OSD,
+    -- not here; retro_entry.cpp and vk_present.cpp reference the s21:: symbols and resolve against the OSD
+    -- in every build.  Inert unless a namcos21 driver arms capture.
+end
+
+function linkProjects_mame_modelizer(_target, _subtarget)
+    links {
+        "mame_model2",
+        "mame_namcos22",
+        "mame_namcos21",
+    }
+end

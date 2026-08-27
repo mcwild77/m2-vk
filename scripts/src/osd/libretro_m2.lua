@@ -171,7 +171,10 @@ function maintargetosdoptions(_target, _subtarget)
 		-- "libmain.so", which is a collision waiting to happen inside a frontend's process.
 		linkoptions {
 			"-shared",
-			"-Wl,-soname,model2_libretro_android.so",
+			-- Derived from the subtarget so it tracks the dylib basename (model2_libretro_android.so,
+			-- modelizer_libretro_android.so, ...); the two must agree or the frontend's loader dedupe
+			-- and .info matching break.
+			"-Wl,-soname," .. _subtarget .. "_libretro_android.so",
 			-- The NDK's clang links libc++_shared.so by default, which would make the core
 			-- undlopenable in any frontend whose APK does not happen to ship that library --
 			-- a runtime failure on the phone, discovered late, with nothing in the build to

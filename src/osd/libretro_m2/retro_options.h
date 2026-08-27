@@ -246,6 +246,19 @@ void set_native_resolution(char const *native);
 // where a frontend expects to find out about options — it is called before retro_init().
 void declare(retro_environment_t environ_cb);
 
+// Un-hide every option (s_hidden -> all false), so a fresh per-family gating pass starts from the full
+// union. Paired with hide_option()+set_native_resolution() at load time in the merged (Modelizer) core:
+// set_environment() cannot know the family before a set is chosen, so it declares the full union and the
+// gating is (re-)applied here once family_of(system) is known.
+void clear_hidden();
+
+// Re-publish the option set after the gating has changed (clear_hidden() + hide_option() +
+// set_native_resolution()). declare() caches the built definition table on first call; this rebuilds it
+// and re-issues SET_CORE_OPTIONS, so the frontend's menu (visible subset, the Internal Resolution default
+// and its "(Native)" label) matches the loaded family. A frontend that ignores a second declaration keeps
+// the first; the render is unaffected either way (values read from DEFINITIONS[], not from the menu).
+void redeclare(retro_environment_t environ_cb);
+
 // Show or hide one already-declared option in the frontend's menu at runtime, by key
 // (RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY). Unlike hide_option() — which filters the set BEFORE it is
 // declared, at retro_set_environment() time when only the driver family is known — this runs after a game

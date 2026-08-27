@@ -437,6 +437,11 @@ constexpr unsigned OPTION_COUNT = (sizeof(DEFINITIONS) / sizeof(DEFINITIONS[0]))
 // is told about, not what a value resolves to — so a hidden option still reads its declared default.
 bool s_hidden[OPTION_COUNT] = {};
 
+// Set by redeclare() so the three declare_*() forms rebuild their cached definition table instead of
+// keeping the first-call copy. The merged core re-gates the menu at load time (clear_hidden() +
+// hide_option() + set_native_resolution()), and the frontend needs the updated set.
+bool s_defs_dirty = false;
+
 
 //============================================================
 //  the three declaration forms
@@ -448,8 +453,9 @@ bool declare_v2(retro_environment_t environ_cb)
 	// return; still non-const because a frontend is permitted to rewrite it in place when it localises the
 	// option set. Built once — set_native_resolution() and hide_option() have both run by declare() time.
 	static std::vector<retro_core_option_v2_definition> defs;
-	if (defs.empty())
+	if (defs.empty() || s_defs_dirty)
 	{
+		defs.clear();
 		defs.reserve(OPTION_COUNT + 1);
 		for (unsigned i = 0; i < OPTION_COUNT; i++)
 			if (!s_hidden[i])
@@ -465,8 +471,9 @@ bool declare_v2(retro_environment_t environ_cb)
 bool declare_v1(retro_environment_t environ_cb)
 {
 	static std::vector<retro_core_option_definition> defs;
-	if (defs.empty())
+	if (defs.empty() || s_defs_dirty)
 	{
+		defs.clear();
 		defs.resize(OPTION_COUNT + 1);
 		unsigned j = 0;
 		for (unsigned i = 0; i < OPTION_COUNT; i++)
@@ -492,8 +499,10 @@ bool declare_variables(retro_environment_t environ_cb)
 {
 	static std::vector<std::string> text;
 	static std::vector<retro_variable> vars;
-	if (vars.empty())
+	if (vars.empty() || s_defs_dirty)
 	{
+		text.clear();
+		vars.clear();
 		text.reserve(OPTION_COUNT);   // reserved so a push_back never reallocs a live c_str() below
 		vars.resize(OPTION_COUNT + 1);
 		unsigned j = 0;
@@ -629,6 +638,21 @@ void m2opt::declare(retro_environment_t environ_cb)
 	if ((version >= 1) && declare_v1(environ_cb))
 		return;
 	declare_variables(environ_cb);
+}
+
+void m2opt::clear_hidden()
+{
+	for (unsigned i = 0; i < OPTION_COUNT; i++)
+		s_hidden[i] = false;
+}
+
+void m2opt::redeclare(retro_environment_t environ_cb)
+{
+	if (environ_cb == nullptr)
+		return;
+	s_defs_dirty = true;    // force the declare_*() forms to rebuild their cached table
+	declare(environ_cb);
+	s_defs_dirty = false;
 }
 
 void m2opt::set_option_display(retro_environment_t environ_cb, char const *key, bool visible)

@@ -361,6 +361,57 @@ family family_of(const std::string &system)
 	return family::model2;
 }
 
+// Gate the option set to one family: point Internal Resolution at that family's native size and hide the
+// options the other families own. Called at LOAD time (from retro_load_game, once family_of(system) is
+// known), because retro_set_environment declares the full union before any set is chosen — in the merged
+// core all three flagships are present there, so it cannot pick a family. The caller does
+//   clear_hidden(); apply_family_cascade(fam); redeclare(cb);
+// so each load starts from the full set and the frontend's menu is re-published for the loaded family.
+// This is the same hide_option()/set_native_resolution() cascade that used to live in
+// retro_set_environment, keyed on the family rather than on which flagship is compiled in.
+void apply_family_cascade(family fam)
+{
+	if (fam == family::system22)
+	{
+		m2opt::set_native_resolution("640x480");
+		// System 22's menu carries No Lighting (model2_flat_luma, wired into the S22 shade tail) but not
+		// Model 2's Flat Shading — the S22 untextured look is its own option (system22_no_textures, a
+		// greyscale view) rather than the base-colour draw Flat Shading gives, so Flat Shading would be a
+		// dead entry here.
+		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
+	}
+	else if (fam == family::system21)
+	{
+		// System 21 native is 496x480 (the polygonizer's framebuffer) — a listed value, so this retargets
+		// the default and the "(Native)" label onto it. Its menu wants none of the System 22-only options
+		// either — S21 is always z-buffered, has no texture filter, no fog/untextured toggles.
+		m2opt::set_native_resolution("496x480");
+		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
+		m2opt::hide_option(m2opt::KEY_S22_FOG);
+		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
+		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
+		// And three Model 2 render options the S21 path never reads: it is always untextured (so Flat
+		// Shading has nothing to remove), has no per-poly luma hook (No Lighting), and hardcodes
+		// blendEnable=VK_FALSE (Transparency). Left visible they would be dead menu entries, so hide them
+		// for the same reason the S22-only options are hidden from Model 2 below.
+		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
+		m2opt::hide_option(m2opt::KEY_FLAT_LUMA);
+		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
+	}
+	else
+	{
+		// Model 2: keep its authored 496x384 native (set_native_resolution not needed — clear of the other
+		// families' retargeting is done by the caller's clear path plus set_native_resolution resetting the
+		// default itself, but be explicit so a load after an S22/S21 set restores it).
+		m2opt::set_native_resolution("496x384");
+		// System 22-only options do not belong on the Model 2 menu (its renderer never reads them).
+		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
+		m2opt::hide_option(m2opt::KEY_S22_FOG);
+		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
+		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
+	}
+}
+
 } // anonymous namespace
 
 
@@ -379,60 +430,17 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 	bool no_content = false;
 	cb(RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &no_content);
 
-	// The Internal Resolution option's native size is the hardware's, which differs by driver family:
-	// 496x384 for Model 2, 640x480 for System 22. The OSD's object files are shared across subtargets,
-	// so the family cannot be a compile-time constant — but each subtarget's dylib compiles in only its
-	// own driver table (the driver_list::find() note below at line ~555), so a flagship name that exists
-	// in exactly one family tells them apart before any game is loaded. Positive-detect System 22 and
-	// leave Model 2's authored default in place otherwise, so a future third family is safe by default.
-	//
-	// ⚠️ This is the ONE family decision still keyed on table contents rather than family_of() — because
-	// it runs at declare() time, before any set is loaded, so there is no running driver to key off. It is
-	// correct only while each subtarget compiles in one family; the Modelizer merge (M1) makes all three
-	// flagships present here, so this menu-gating block moves to load time then (the SET_CORE_OPTIONS_DISPLAY
-	// pattern already used for the steering/analog detectors). Left as-is for M0: it changes no rendered
-	// pixel — option values and the native-res default are read from the live DEFINITIONS[] at load, not
-	// from what the menu was told — so three-core digests and menus are unchanged.
-	if (driver_list::find("ridgerac") >= 0)
-	{
-		m2opt::set_native_resolution("640x480");
-		// System 22's menu carries No Lighting (model2_flat_luma, wired into the S22 shade tail) but not
-		// Model 2's Flat Shading — the S22 untextured look is its own option (system22_no_textures, a
-		// greyscale view) rather than the base-colour draw Flat Shading gives, so Flat Shading would be a
-		// dead entry here.
-		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
-	}
-	else if (driver_list::find("starblad") >= 0)
-	{
-		// System 21 native is 496x480 (the polygonizer's framebuffer) — a listed value, so this retargets
-		// the default and the "(Native)" label onto it. Its menu wants none of the System 22-only options
-		// either — S21 is always z-buffered, has no texture filter, no fog/untextured toggles.
-		m2opt::set_native_resolution("496x480");
-		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
-		m2opt::hide_option(m2opt::KEY_S22_FOG);
-		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
-		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
-		// And three Model 2 render options the S21 path never reads: it is always untextured (so Flat
-		// Shading has nothing to remove), has no per-poly luma hook (No Lighting), and hardcodes
-		// blendEnable=VK_FALSE (Transparency). Left visible they would be dead menu entries, so hide them
-		// for the same reason the S22-only options are hidden from Model 2 above.
-		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
-		m2opt::hide_option(m2opt::KEY_FLAT_LUMA);
-		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
-	}
-	else
-		// System 22-only options do not belong on the Model 2 menu (its renderer never reads them).
-		// Same family detection as above; a third family stays safe by keeping them hidden by default.
-		{
-			m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
-			m2opt::hide_option(m2opt::KEY_S22_FOG);
-			m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
-			m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
-		}
-
-	// Options are published here rather than in retro_init(): a frontend reads them before the
-	// core is initialised, so that it can show them and restore the user's values first.
-	m2opt::declare(cb);
+	// Options are NOT declared here. In the merged core all three families' drivers are in the table, so
+	// retro_set_environment — which runs before any set is chosen — cannot know which family's menu to
+	// publish or what the Internal Resolution native size is (496x384 Model 2, 640x480 System 22, 496x480
+	// System 21). Declaring a family-neutral guess here would be the value a frontend caches: a frontend
+	// keeps the FIRST declaration's values, so a later redeclare() would not move the resolution the
+	// renderer reads (measured — this exact bug rendered System 22 at Model 2's 496x384). So the one
+	// declaration is deferred to retro_load_game, where family_of(system) is known: clear_hidden() +
+	// apply_family_cascade(fam) sets the native size and the family's option subset, then declare() (via
+	// redeclare()) publishes it. A frontend that instead reads an option before declaration falls back to
+	// the core's default_value(), which apply_family_cascade() has patched to the same family native, so
+	// both paths agree. RetroArch populates its Core Options menu from the load-time declaration.
 }
 
 RETRO_API void retro_set_video_refresh(retro_video_refresh_t cb) { s_video_cb = cb; }
@@ -659,6 +667,14 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// compiled in — true for all three once the cores merge.
 	const family fam = family_of(system);
 	s_family = fam;   // cached for retro_run's live-options handler, which has no `system`
+
+	// Re-gate the menu for this family now that it is known. retro_set_environment declared the full union
+	// (it runs before any set is chosen); start from that full set and hide the options the other families
+	// own, then re-point Internal Resolution's native size and re-publish. Runs BEFORE the option reads
+	// below so the native-res default the renderer picks up is this family's, not the authored Model 2 one.
+	m2opt::clear_hidden();
+	apply_family_cascade(fam);
+	m2opt::redeclare(s_environ_cb);
 
 	// Options are read once, here. Both of them are settled before the machine starts — the
 	// renderer picks a draw path, the diagnostic combo is baked into the input devices' default
