@@ -115,6 +115,12 @@ constexpr int SHUTDOWN_WAIT_MS = 2000;
 // frames and can be destroyed mid-run.
 bool                                       s_hw_render = false;
 
+// Which of the three families the loaded set belongs to. Set from the driver source file in
+// retro_load_game (see family_of()), cached here so retro_run's live-options handler — which has no
+// `system` in scope — can gate the System 22 block without re-deriving it. model2 until a game loads.
+enum class family { model2, system22, system21 };
+family                                     s_family = family::model2;
+
 // Per-game option visibility (RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY) is applied once, the first frame
 // after the steering detector resolves — which needs a running machine, so it cannot be decided at
 // declare() time. Reset on unload so the next game re-decides. See the block in retro_run().
@@ -325,6 +331,36 @@ void publish_reticles()
 	}
 }
 
+
+//============================================================
+//  driver family
+//============================================================
+
+// Which of the three families a loaded set belongs to. Keyed on the running driver's source file, not
+// on which flagship happens to be compiled into the table: driver_list::find("ridgerac")>=0 answers
+// "is System 22 in my table", which is true for every game the moment all three families share one
+// core. driver().type.source() is the __FILE__ of the driver's cpp — sega/model2.cpp,
+// namco/namcos22.cpp, namco/namcos21.cpp or namco/namcos21_c67.cpp — so it names the family the set
+// actually belongs to regardless of what else the table holds. The set names do not collide across the
+// four cpps (checked), so a name lookup is unambiguous. (enum family is declared with the state block above.)
+
+family family_of(const std::string &system)
+{
+	int const driver = driver_list::find(system.c_str());
+	if (driver < 0)
+		return family::model2;   // not one of ours; the machine fails to start regardless
+
+	// The raw __FILE__ carries whatever build-relative prefix the compiler was handed, so match on the
+	// distinguishing token rather than the whole path (this is how MAME's own info_xml_creator finds it).
+	// namcos21_c67.cpp contains "namcos21"; the two Namco tokens do not overlap.
+	const std::string src = driver_list::driver(driver).type.source();
+	if (src.find("namcos22") != std::string::npos)
+		return family::system22;
+	if (src.find("namcos21") != std::string::npos)
+		return family::system21;
+	return family::model2;
+}
+
 } // anonymous namespace
 
 
@@ -349,6 +385,14 @@ RETRO_API void retro_set_environment(retro_environment_t cb)
 	// own driver table (the driver_list::find() note below at line ~555), so a flagship name that exists
 	// in exactly one family tells them apart before any game is loaded. Positive-detect System 22 and
 	// leave Model 2's authored default in place otherwise, so a future third family is safe by default.
+	//
+	// ⚠️ This is the ONE family decision still keyed on table contents rather than family_of() — because
+	// it runs at declare() time, before any set is loaded, so there is no running driver to key off. It is
+	// correct only while each subtarget compiles in one family; the Modelizer merge (M1) makes all three
+	// flagships present here, so this menu-gating block moves to load time then (the SET_CORE_OPTIONS_DISPLAY
+	// pattern already used for the steering/analog detectors). Left as-is for M0: it changes no rendered
+	// pixel — option values and the native-res default are read from the live DEFINITIONS[] at load, not
+	// from what the menu was told — so three-core digests and menus are unchanged.
 	if (driver_list::find("ridgerac") >= 0)
 	{
 		m2opt::set_native_resolution("640x480");
@@ -610,6 +654,12 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	int const driver = driver_list::find(system.c_str());
 	char const *const parent = (driver >= 0) ? driver_list::driver(driver).parent : nullptr;
 
+	// Which family this set belongs to, from its driver source file. Every per-family decision below
+	// keys off this rather than off driver_list::find(<flagship>), which only asks whether a family is
+	// compiled in — true for all three once the cores merge.
+	const family fam = family_of(system);
+	s_family = fam;   // cached for retro_run's live-options handler, which has no `system`
+
 	// Options are read once, here. Both of them are settled before the machine starts — the
 	// renderer picks a draw path, the diagnostic combo is baked into the input devices' default
 	// assignments — so a change made later is reported by retro_run() and applied at the next load.
@@ -751,7 +801,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// above). Parked in the S22 polygon pass; a harmless no-op on Model 2, whose seam never draws. The
 	// option is hidden there, so it always reads its "off" default, but the read is gated on family
 	// anyway so the S22-only log line stays off the Model 2 console.
-	if (driver_list::find("ridgerac") >= 0)
+	if (fam == family::system22)
 	{
 		const bool s22_filter = m2opt::get_s22_texture_filter(s_environ_cb);
 		s22::set_option_filter(s22_filter);
@@ -808,7 +858,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// The System 21 GPU pass (T2) owns the 3D under the same condition, gated on its own family so a
 	// namcos22 / Model 2 build never turns S21 capture on (harmless if it did — no S21 seam fires — but
 	// kept safe-by-default). Only the namcos21 build compiles in starblad.
-	if (driver_list::find("starblad") >= 0)
+	if (fam == family::system21)
 	{
 		if (no_3d)
 			s21::set_no_3d();
@@ -820,8 +870,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// The second entry is what makes a clone loadable when its parent set lives elsewhere. Which
 	// leaf that is depends on the driver family compiled into this dylib (see the driver_list::find
 	// note in retro_set_environment above) — a System 22 build must not go looking in ".../model2".
-	const std::string family_dir = (driver_list::find("ridgerac") >= 0) ? "system22"
-			: (driver_list::find("starblad") >= 0) ? "system21" : "model2";
+	const std::string family_dir = (fam == family::system22) ? "system22"
+			: (fam == family::system21) ? "system21" : "model2";
 	std::string rompath = rompath_from_path(path);
 	const std::string systemdir = frontend_directory(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY);
 	if (!systemdir.empty())
@@ -984,6 +1034,7 @@ RETRO_API void retro_unload_game(void)
 	// Next game re-runs the steering-visibility decision (its wheel status may differ).
 	s_steer_display_applied = false;
 	s_analog_display_applied = false;
+	s_family = family::model2;   // next game re-derives from its driver source
 
 	// The frontend normally fires context_destroy before this; make the state safe whether or not it
 	// did, and stop a context_reset arriving for a machine that no longer exists.
@@ -1114,7 +1165,7 @@ RETRO_API void retro_run(void)
 
 		// System 22 texture filter, fog, no-textures and No Lighting all apply live — push-constant bits
 		// read at the next draw, nothing to rebuild.
-		if (driver_list::find("ridgerac") >= 0)
+		if (s_family == family::system22)
 		{
 			s22::set_option_filter(m2opt::get_s22_texture_filter(s_environ_cb));
 			s22::set_option_fog(m2opt::get_s22_fog(s_environ_cb));
