@@ -51,6 +51,7 @@
 
 // after emu.h, which it reads MAME's ioport / running_machine types out of and which only a .cpp may
 // include
+#include "m2vk_analog.h"
 #include "m2vk_steer.h"
 
 #include "corestr.h"
@@ -118,6 +119,10 @@ bool                                       s_hw_render = false;
 // after the steering detector resolves — which needs a running machine, so it cannot be decided at
 // declare() time. Reset on unload so the next game re-decides. See the block in retro_run().
 bool                                       s_steer_display_applied = false;
+
+// Same, for the two analog-stick options: shown only on the sets that declare an IPT_AD_STICK, hidden
+// on the wheel/gun/fighter sets. Gated on the analog detector, reset on unload. See retro_run().
+bool                                       s_analog_display_applied = false;
 
 // Runs the whole MAME frontend. Everything after start_frontend() returns is teardown.
 void emu_thread_main(std::vector<std::string> args)
@@ -625,6 +630,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	const unsigned steer_damp_drive = m2opt::get_steering_damp_drive(s_environ_cb);
 	const unsigned steer_damp_return = m2opt::get_steering_damp_return(s_environ_cb);
 	const bool steer_display = m2opt::get_steering_display(s_environ_cb);
+	const float analog_deadzone = m2opt::get_analog_deadzone(s_environ_cb);
+	const float analog_reach = m2opt::get_analog_reach(s_environ_cb);
 
 	// The resolution is logged as "native" rather than as the 0x0 the parser produces for a value it
 	// did not recognise: "model2_internal_res=0x0" reads as a bug in the option, when what it means is
@@ -656,6 +663,10 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			"model2_steering_damp", damp_drive_text, damp_return_text,
 			m2opt::KEY_STEERING_DISPLAY, steer_display ? "on" : "off");
 
+	s_log_cb(RETRO_LOG_INFO, "[model2] analog: %s=%.0f%% %s=%.0f%%\n",
+			m2opt::KEY_ANALOG_DEADZONE, double(analog_deadzone) * 100.0,
+			m2opt::KEY_ANALOG_REACH, double(analog_reach) * 100.0);
+
 	// The frontend's remap labels, per game, from the same layout row the pad reads. This is what makes
 	// the Controls menu say "GEAR 1" and "VR1 (Red)" instead of "Button 2" and "Button 6", and it is the
 	// user-facing half of the per-game layout work: a default nobody has to change, and a remap screen
@@ -686,7 +697,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// was set is still the right thing to have printed.
 	for (char const *const sw : { "M2VK_RES", "M2VK_SS", "M2VK_FORCE_SOLID", "M2VK_FLAT_LUMA", "M2VK_BLEND",
 			"M2VK_STEER_LINEAR", "M2VK_STEER_DEADZONE", "M2VK_STEER_GAMMA", "M2VK_STEER_RANGE",
-			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR", "M2VK_S22_FILTER",
+			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR",
+			"M2VK_ANALOG_LINEAR", "M2VK_ANALOG_DEADZONE", "M2VK_ANALOG_REACH", "M2VK_S22_FILTER",
 			"M2VK_S22_DEPTH", "M2VK_S22_FOG", "M2VK_S22_NOTEX", "M2VK_S22_HUD", "M2VK_POLYCOUNT" })
 	{
 		if (std::getenv(sw) != nullptr)
@@ -727,6 +739,9 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
 	m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 	m2vk::set_option_steerbar(steer_display);
+
+	// analog_config() recomposes this against the M2VK_ANALOG_* switches once the machine exists.
+	m2vk::set_option_analog(analog_deadzone, analog_reach);
 
 	// Polygon counter — a HUD read-out, all three families. Vulkan-path only (it counts GPU primitives),
 	// a harmless no-op on the software renderer.
@@ -968,6 +983,7 @@ RETRO_API void retro_unload_game(void)
 	s_hw_render = false;
 	// Next game re-runs the steering-visibility decision (its wheel status may differ).
 	s_steer_display_applied = false;
+	s_analog_display_applied = false;
 
 	// The frontend normally fires context_destroy before this; make the state safe whether or not it
 	// did, and stop a context_reset arriving for a machine that no longer exists.
@@ -1027,6 +1043,22 @@ RETRO_API void retro_run(void)
 					wheel ? "shown" : "hidden", wheel ? "has a wheel" : "has no wheel");
 	}
 
+	// The same, for the two analog-stick options: shown only on the sets that declare an IPT_AD_STICK
+	// (Star Blade, the twin-stick and flight sets), hidden on the wheel/gun/fighter sets. Gated on the
+	// analog detector, not the driver family, so Star Blade (System 21) shows them. Runs once, the first
+	// frame after m2vk::analog_frame() resolves. Visibility only — a hidden option still reads its
+	// declared default, so no harness pin is disturbed.
+	if (!s_analog_display_applied && m2vk::analog().resolved)
+	{
+		const bool stick = m2vk::analog().active;
+		for (char const *const key : { m2opt::KEY_ANALOG_DEADZONE, m2opt::KEY_ANALOG_REACH })
+			m2opt::set_option_display(s_environ_cb, key, stick);
+		s_analog_display_applied = true;
+		if (s_log_cb != nullptr)
+			s_log_cb(RETRO_LOG_INFO, "[model2] analog-stick options %s (machine %s)\n",
+					stick ? "shown" : "hidden", stick ? "has an analog stick" : "has no analog stick");
+	}
+
 	// Four of the six options apply live; two cannot. The frontend clears the flag as this reads it,
 	// so this runs once per change rather than once per frame.
 	//
@@ -1077,6 +1109,7 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
 		m2vk::set_option_steer_damping(steer_damp_drive, steer_damp_return);
 		m2vk::set_option_steerbar(steer_display);
+		m2vk::set_option_analog(m2opt::get_analog_deadzone(s_environ_cb), m2opt::get_analog_reach(s_environ_cb));
 		m2vk::set_option_counter(m2opt::get_poly_counter(s_environ_cb));
 
 		// System 22 texture filter, fog, no-textures and No Lighting all apply live — push-constant bits

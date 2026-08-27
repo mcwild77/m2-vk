@@ -10,6 +10,7 @@
 
 // after emu.h, which it reads MAME's ioport / running_machine types out of and which only a .cpp may
 // include
+#include "m2vk_analog.h"
 #include "m2vk_steer.h"
 #include "m2vk_twinstick.h"
 
@@ -402,6 +403,31 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 	// curve an axis that is about to be thrown away, and the read-out would report a value MAME is
 	// never handed. Everything that writes m_axes[AXIS_LEFT_X] has run by this point.
 	shape_and_publish_steer();
+
+	// The analog-stick shaper, on the four stick axes, when the machine declares an IPT_AD_STICK. On a
+	// pure stick game (Star Blade, the flight sets) steering is inactive and shape_and_publish_steer()
+	// left the axes as the frontend delivered them, so this shapes all four. A no-op on the fighters/guns.
+	shape_analog();
+}
+
+// Shape the four stick axes (left X/Y, right X/Y) — Star Blade aims with the left stick, the twin-stick
+// cabinets use both. Per axis, independently, which is what keeps a diagonal a true 45°. A no-op unless
+// the machine declares an IPT_AD_STICK; see m2vk_analog.h.
+//
+// ⚠ desert (Desert Tank) declares BOTH an IPT_PADDLE and an IPT_AD_STICK_Y, so the two detectors are
+// NOT mutually exclusive there — the plan assumed they were. The paddle is bound to the left stick X and
+// shape_and_publish_steer() has already shaped it; running the analog curve over it too would compound
+// two transforms on one axis. So the axis the steering pipeline owns (left X, and only ever left X) is
+// skipped whenever steering is active. desert's AD_STICK_Y (left Y, the turret/throttle) is still shaped.
+void libretro_m2_pad_device::shape_analog()
+{
+	const bool steer_owns_left_x = m2vk::steer().active;
+	for (unsigned axis = AXIS_LEFT_X; axis <= AXIS_RIGHT_Y; axis++)
+	{
+		if (steer_owns_left_x && (axis == AXIS_LEFT_X))
+			continue;
+		m_axes[axis] = m2vk::analog_shape(m_axes[axis]);
+	}
 }
 
 // Shape the left stick X and publish port 0's sample to the read-out. Shaping is per port (both
@@ -932,6 +958,13 @@ void libretro_m2_input::input_init(running_machine &machine)
 	m2vk::steer().deadzone   = machine.options().joystick_deadzone();
 	m2vk::steer().saturation = machine.options().joystick_saturation();
 	m2vk::steer_config();
+
+	// The analog-stick shaper captures the same two numbers for the same pre-compensation, and reads its
+	// own M2VK_ANALOG_* switches. Its detector (an IPT_AD_STICK field) also resolves later from update(),
+	// because the port list is empty here. Mutually exclusive with the wheel detector above.
+	m2vk::analog().deadzone   = machine.options().joystick_deadzone();
+	m2vk::analog().saturation = machine.options().joystick_saturation();
+	m2vk::analog_config();
 
 	// Resolved once, here, and shared by every pad: the row belongs to the machine and a port has no say
 	// in it any more. It is a pointer into a constexpr table with static storage duration, so it outlives

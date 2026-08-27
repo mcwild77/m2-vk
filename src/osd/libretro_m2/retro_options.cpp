@@ -383,6 +383,50 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		},
 		"off"
 	},
+	{
+		m2opt::KEY_ANALOG_DEADZONE,
+		"Analog Deadzone",
+		nullptr,
+		"How far the analog stick must move before the game responds, on the stick games (Star Blade, "
+		"the twin-stick and flight sets). Raise it if your aim drifts with your thumb off the stick; a "
+		"worn stick needs more than a new one. The travel it costs is given back to the rest of the "
+		"sweep rather than thrown away. Only affects games with an analog stick; the wheel, gun and "
+		"fighting games are untouched. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			// The value IS the percentage, parsed by get_analog_deadzone().
+			{ "0%",  "0% (off)" },
+			{ "2%",  "2%" },
+			{ "5%",  "5%" },
+			{ "10%", "10%" },
+			{ "15%", "15%" },
+			{ nullptr, nullptr }
+		},
+		"5%"
+	},
+	{
+		m2opt::KEY_ANALOG_REACH,
+		"Analog Reach",
+		nullptr,
+		"How far you must push the analog stick to reach full deflection, on the stick games. At 100% "
+		"the very edge of the stick is full input; lowering it means full input arrives before the edge, "
+		"so a stick that no longer reaches its corners can still peg the aim. Only affects games with an "
+		"analog stick; the wheel, gun and fighting games are untouched. Takes effect immediately.",
+		nullptr,
+		nullptr,
+		{
+			// The value IS the percentage, parsed by get_analog_reach().
+			{ "100%", "100% (full deflection)" },
+			{ "95%",  "95%" },
+			{ "90%",  "90%" },
+			{ "85%",  "85%" },
+			{ "80%",  "80%" },
+			{ "75%",  "75%" },
+			{ nullptr, nullptr }
+		},
+		"100%"
+	},
 	{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, { { nullptr, nullptr } }, nullptr }
 };
 
@@ -764,6 +808,16 @@ unsigned m2opt::get_steering_damp_drive(retro_environment_t environ_cb)
 unsigned m2opt::get_steering_damp_return(retro_environment_t environ_cb)
 {
 	return frames_option(environ_cb, KEY_STEERING_DAMP_RETURN);
+}
+
+float m2opt::get_analog_deadzone(retro_environment_t environ_cb)
+{
+	return percent_option(environ_cb, KEY_ANALOG_DEADZONE, 0.05f);
+}
+
+float m2opt::get_analog_reach(retro_environment_t environ_cb)
+{
+	return percent_option(environ_cb, KEY_ANALOG_REACH, 1.0f);
 }
 
 bool m2opt::updated(retro_environment_t environ_cb)

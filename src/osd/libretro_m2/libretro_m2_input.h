@@ -188,6 +188,11 @@ private:
 	// and a shape has been named — see m2vk_steer.h.
 	void shape_and_publish_steer();
 
+	// Runs the analog-stick shaper (deadzone + reach) on the four stick axes, on the sets that declare
+	// an IPT_AD_STICK. Not const: writes the shaped values back into m_axes. A no-op on every other set
+	// and mutually exclusive with the wheel shaping above — see m2vk_analog.h.
+	void shape_analog();
+
 	unsigned         m_diagnostic;
 	unsigned const  *m_layout;      // never null; see the constructor
 	bool             m_joy_shifter; // gear shift is on the joystick — bind it to L1/R1 in configure()

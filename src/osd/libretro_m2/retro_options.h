@@ -145,6 +145,14 @@ inline constexpr char const *KEY_STEERING_DAMP_RETURN = "model2_steering_damp_re
 // would have, so a run with it on would difference against a background that does not.
 inline constexpr char const *KEY_STEERING_DISPLAY = "model2_steering_display";
 
+// The two analog-stick options — shape the sticks on the sets that declare an IPT_AD_STICK (Star
+// Blade, the twin-stick and flight sets), mutually exclusive with the wheel games. Deadzone is our
+// own (default 5 %); reach is the deflection at which full output is reached (default 100 %). Like the
+// steering options the default is NOT the untouched path — MAME's raw 15 %/85 % is the defect. The
+// machine is asked (an IPT_AD_STICK field), not a table consulted (m2vk_analog.h).
+inline constexpr char const *KEY_ANALOG_DEADZONE = "model2_analog_deadzone";
+inline constexpr char const *KEY_ANALOG_REACH    = "model2_analog_reach";
+
 // The values of that option. Declaration order, and the numbering is what the input module keys its
 // combo table on — so the two lists cannot drift apart, because there is only one list.
 enum diagnostic_input : unsigned
@@ -288,6 +296,11 @@ float get_steering_range(retro_environment_t environ_cb);
 // unrecognised (including "Off") → 0, which m2vk::set_option_steer_damping() reads as instant.
 unsigned get_steering_damp_drive(retro_environment_t environ_cb);
 unsigned get_steering_damp_return(retro_environment_t environ_cb);
+
+// Analog-stick deadzone/reach parsed to fractions, for m2vk::set_option_analog(). Percentage strings;
+// unparseable → the declared default (5 % / 100 %).
+float get_analog_deadzone(retro_environment_t environ_cb);
+float get_analog_reach(retro_environment_t environ_cb);
 
 // The frontend's value for an option, or our declared default if the frontend has no value for it
 // (or supports no options at all, which is the retrohost case).

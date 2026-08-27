@@ -17,6 +17,7 @@
 
 // after emu.h, which they read MAME's ioport / running_machine types out of and which only a .cpp
 // may include
+#include "m2vk_analog.h"
 #include "m2vk_gunlog.h"
 #include "m2vk_inputdump.h"
 #include "m2vk_savestate.h"
@@ -185,6 +186,9 @@ void libretro_m2_osd_interface::osd_exit()
 	// same for the steering detector's paddle fields — a second load re-decides
 	m2vk::steer_close();
 
+	// same for the analog-stick detector — a second load re-decides against the new set's fields
+	m2vk::analog_close();
+
 	// same for the twin-AD-stick binding — it holds no pointers, but a second load must re-decide
 	// against the new set's fields
 	m2vk::twin_stick_close();
@@ -303,6 +307,10 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// Steering detector + M2VK_STEER_LOG read-out. Here rather than in input_init() because the port
 	// list is empty there — same trap as the gun read-out above.
 	m2vk::steer_frame(machine());
+
+	// Analog-stick detector (IPT_AD_STICK). Here rather than in input_init() for the same empty-port-list
+	// reason as the steering detector above.
+	m2vk::analog_frame(machine());
 
 	// Single-pad twin-AD-stick binding (cybsled's right tread is player 2's IPT_AD_STICK). Same
 	// once-from-update() reason: the port list is empty at input_init(). See m2vk_twinstick.h.
