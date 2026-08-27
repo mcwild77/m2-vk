@@ -2,6 +2,7 @@
 // copyright-holders:mcwild77
 
 #include "retro_options.h"
+#include "retro_options_text.h"
 
 #include <cstdio>
 #include <cstring>
@@ -25,58 +26,23 @@ namespace {
 retro_core_option_v2_definition DEFINITIONS[] = {
 	{
 		m2opt::KEY_RENDERER,
-		"3D Renderer",
+		m2txt::RENDERER_LABEL,
 		nullptr,
-		"How Model 2's 3D is drawn. Vulkan is why this core exists. Software is MAME's own "
-		"rasteriser — slower, but it is the reference the Vulkan output is checked against, and it "
-		"is the fallback on machines with no usable Vulkan driver. Applied when content is loaded.",
+		m2txt::RENDERER_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "vulkan",   "Vulkan (hardware)" },
-			{ "software", "Software (MAME)" },
+			{ "vulkan",   m2txt::RENDERER_VULKAN },
+			{ "software", m2txt::RENDERER_SOFTWARE },
 			{ nullptr, nullptr }
 		},
 		"vulkan"
 	},
 	{
-		m2opt::KEY_DIAGNOSTIC_INPUT,
-		"Diagnostic Input (Test Menu)",
-		nullptr,
-		"Button combination that flips the cabinet's test switch, for player 1. This core draws none "
-		"of MAME's menus, so with this set to None there is no way to reach a game's test mode or "
-		"change its settings. The buttons a combination names are consumed by it, so Start is not "
-		"also pressed; the Hold variants want about a second. Setting anything other than None also "
-		"puts the service coin (a free credit) on L3. Applied when content is loaded.",
-		nullptr,
-		nullptr,
-		{
-			// One entry per m2opt::diagnostic_input, in that order — get_diagnostic() below returns
-			// the position in this list, so a reordering here silently renames every combo.
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE],             nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_START],       nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_START_AB],         nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_START_AB],    nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_START_LR],         nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_START_LR],    nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT],      nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_SELECT_AB],        nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT_AB],   nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_SELECT_LR],        nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT_LR],   nullptr },
-			{ nullptr, nullptr }
-		},
-		m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE]
-	},
-	{
 		m2opt::KEY_INTERNAL_RES,
-		"Internal Resolution",
+		m2txt::RES_LABEL,
 		nullptr,
-		"The framebuffer the game is drawn into. Native is the hardware's own resolution; anything above "
-		"it draws the same scene with more pixels, so polygon edges stop stair-stepping. Textures do not "
-		"get sharper — the mip level comes from the game, not from the resolution. Costs memory and fill "
-		"rate with the pixel count. Vulkan only; the software renderer always draws at native. Takes "
-		"effect immediately.",
+		m2txt::RES_INFO,
 		nullptr,
 		nullptr,
 		{
@@ -88,9 +54,9 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 			// calls set_native_resolution() and must see its own entry already marked. The aspect the
 			// frontend is told never changes — these are sample grids for one picture, not different
 			// shapes of picture.
-			{ "496x384",   "496x384 (Native)" },
-			{ "496x480",   "496x480" },
-			{ "640x480",   "640x480" },
+			{ "496x384",   m2txt::RES_496x384_NATIVE },
+			{ "496x480",   m2txt::RES_496x480 },
+			{ "640x480",   m2txt::RES_640x480 },
 			{ "1024x768",  "1024x768" },
 			{ "1280x960",  "1280x960" },
 			{ "1440x1080", "1440x1080" },
@@ -103,158 +69,126 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		"496x384"
 	},
 	{
-		m2opt::KEY_FLAT_SHADING,
-		"Flat Shading",
-		nullptr,
-		"Draws every polygon in its base colour with no texture, which is roughly what the geometry "
-		"looked like on the workstations these games were modelled on. Acts on both renderers, so the "
-		"software and Vulkan pictures stay comparable. Takes effect immediately.",
-		nullptr,
-		nullptr,
-		{
-			{ "off",  "Off" },
-			{ "flat", "Untextured" },
-			{ nullptr, nullptr }
-		},
-		"off"
-	},
-	{
-		m2opt::KEY_FLAT_LUMA,
-		"No Lighting",
-		nullptr,
-		"Draws every surface at full brightness, so you get the texture and the polygon's own colour "
-		"with nothing shaded onto them. Model 2 lights each face by how it is angled to the light, "
-		"which is what makes cars darken as they turn and rooms fall into shadow; switching it off "
-		"gives a flat, evenly lit picture that shows the artwork as it was drawn. Acts on both "
-		"renderers, so the software and Vulkan pictures stay comparable. Takes effect immediately.",
-		nullptr,
-		nullptr,
-		{
-			{ "off", "Off" },
-			{ "on",  "On" },
-			{ nullptr, nullptr }
-		},
-		"off"
-	},
-	{
 		m2opt::KEY_TRANSPARENCY,
-		"Transparency",
+		m2txt::TRANSPARENCY_LABEL,
 		nullptr,
-		"How see-through surfaces are drawn. Model 2 has no alpha blender, so the hardware fakes them "
-		"with a 50% screen door — a checkerboard of holes, which is what Screen Door reproduces. "
-		"Blended draws them as real half-transparency instead: smoke, glass, shadows and headlight "
-		"cones stop shimmering, at the cost of no longer matching the arcade. Vulkan only; the "
-		"software renderer always uses the screen door. Takes effect immediately.",
+		m2txt::TRANSPARENCY_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "stipple", "Screen Door (accurate)" },
-			{ "blended", "Blended" },
+			{ "stipple", m2txt::TRANSPARENCY_STIPPLE },
+			{ "blended", m2txt::TRANSPARENCY_BLENDED },
 			{ nullptr, nullptr }
 		},
 		"stipple"
 	},
 	{
 		m2opt::KEY_S22_TEXTURE_FILTER,
-		"Texture Filtering (3D)",
+		m2txt::S22_TEXTURE_FILTER_LABEL,
 		nullptr,
-		"Smooths the textures on the 3D polygons with a bilinear blend. System 22 sampled its textures "
-		"one texel at a time, so distant and stretched surfaces show hard blocky steps; this softens "
-		"them. It is an enhancement, not accuracy — off matches the arcade. Vulkan only; System 22 "
-		"games only. Takes effect immediately.",
+		m2txt::S22_TEXTURE_FILTER_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "off", "Off" },
-			{ "on",  "On" },
-			{ nullptr, nullptr }
-		},
-		"off"
-	},
-	// NOTE: the "Depth Buffer (3D)" option (KEY_S22_DEPTH_BUFFER) was removed before release — the
-	// per-pixel depth experiment corrupted textures/UVs on the ground and broke the layered UI, so it is
-	// not shippable. The renderer code is still present but dormant (s22::depth_enabled() is forced off);
-	// see devnotes/zfighting.md. Do not re-add this menu entry without fixing the underlying issues.
-	{
-		m2opt::KEY_POLY_COUNTER,
-		"Polygon Counter",
-		nullptr,
-		"Shows the number of 3D polygons the game is drawing each frame, as a small read-out in the "
-		"top-right corner. A curiosity — watch it climb as a scene fills with cars or scenery. It counts "
-		"what the hardware renderer is handed, so it only appears on the Vulkan renderer, not the software "
-		"one. Takes effect immediately.",
-		nullptr,
-		nullptr,
-		{
-			{ "off", "Off" },
-			{ "on",  "On" },
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
 		"off"
 	},
 	{
 		m2opt::KEY_S22_FOG,
-		"Fog (3D)",
+		m2txt::S22_FOG_LABEL,
 		nullptr,
-		"Whether System 22 draws its distance fog. The hardware fades far polygons toward a fog colour — "
-		"the haze over Ridge Racer's hills, the murk in the tunnels — and On reproduces it. Off removes "
-		"the fog entirely, so the whole scene draws at full clarity; unlike the other System 22 options "
-		"this is the reverse of accuracy, a look rather than a fix. Vulkan only; System 22 games only. "
-		"Takes effect immediately.",
+		m2txt::S22_FOG_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "on",  "On (accurate)" },
-			{ "off", "Off" },
+			{ "on",  m2txt::V_ON },
+			{ "off", m2txt::V_OFF },
 			{ nullptr, nullptr }
 		},
 		"on"
 	},
+	// NOTE: the "Depth Buffer (3D)" option (KEY_S22_DEPTH_BUFFER) was removed before release — the
+	// per-pixel depth experiment corrupted textures/UVs on the ground and broke the layered UI, so it is
+	// not shippable. The renderer code is still present but dormant (s22::depth_enabled() is forced off);
+	// see devnotes/zfighting.md. Do not re-add this menu entry without fixing the underlying issues.
 	{
 		m2opt::KEY_S22_NO_TEXTURES,
-		"No Textures (3D)",
+		m2txt::S22_NO_TEXTURES_LABEL,
 		nullptr,
-		"Draws every 3D surface in plain white instead of its texture, lit by the hardware's own shading "
-		"so the picture becomes a clean greyscale view of the geometry — the polygons and how they are lit, "
-		"with none of the artwork. System 22 lights by brightness alone (there are no coloured lights), so "
-		"the result is a true greyscale. A diagnostic look the arcade could not produce; off matches the "
-		"arcade. Vulkan only; System 22 games only. Takes effect immediately.",
+		m2txt::S22_NO_TEXTURES_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "off", "Off" },
-			{ "on",  "On" },
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_FLAT_SHADING,
+		m2txt::FLAT_SHADING_LABEL,
+		nullptr,
+		m2txt::FLAT_SHADING_INFO,
+		nullptr,
+		nullptr,
+		{
+			{ "off",  m2txt::V_OFF },
+			{ "flat", m2txt::FLAT_SHADING_UNTEXTURED },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_FLAT_LUMA,
+		m2txt::FLAT_LUMA_LABEL,
+		nullptr,
+		m2txt::FLAT_LUMA_INFO,
+		nullptr,
+		nullptr,
+		{
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_POLY_COUNTER,
+		m2txt::POLY_COUNTER_LABEL,
+		nullptr,
+		m2txt::POLY_COUNTER_INFO,
+		nullptr,
+		nullptr,
+		{
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
 		"off"
 	},
 	{
 		m2opt::KEY_S22_2D_OVERLAY,
-		"2D Overlay (HUD)",
+		m2txt::S22_2D_OVERLAY_LABEL,
 		nullptr,
-		"Whether the 2D HUD layer — the score, the lap counter, the on-screen text — is drawn over the 3D. "
-		"On is how the game looks; Off hides that layer, leaving a clean view of the 3D scene over its 2D "
-		"background, which is useful for screenshots. It does not touch the sky or the background artwork, "
-		"only the foreground HUD. Vulkan only; System 22 games only. Takes effect immediately.",
+		m2txt::S22_2D_OVERLAY_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "on",  "On" },
-			{ "off", "Off" },
+			{ "on",  m2txt::V_ON },
+			{ "off", m2txt::V_OFF },
 			{ nullptr, nullptr }
 		},
 		"on"
 	},
 	{
 		m2opt::KEY_STEERING_RESPONSE,
-		"Steering Response",
+		m2txt::STEERING_RESPONSE_LABEL,
 		nullptr,
-		"How stick movement maps to the wheel on the driving games. A real cabinet's wheel is most of "
-		"a turn lock to lock and a thumbstick is about a centimetre, so mapping the two straight onto "
-		"each other makes the car dart at the slightest touch — that is what Linear does, and it is "
-		"what this core did before. The other settings keep full lock at full deflection but make the "
-		"movement around centre finer, which is what lets you hold a line. Stronger is finer. Only "
-		"affects games with a wheel; the fighting and gun games are untouched. Takes effect immediately.",
+		m2txt::STEERING_RESPONSE_INFO,
 		nullptr,
 		nullptr,
 		{
@@ -273,17 +207,14 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 	},
 	{
 		m2opt::KEY_STEERING_DEADZONE,
-		"Steering Deadzone",
+		m2txt::STEERING_DEADZONE_LABEL,
 		nullptr,
-		"How far the stick must move before the wheel does. Raise it if the car wanders on a straight "
-		"with your thumb off the stick; a worn stick needs more than a new one. The travel it costs is "
-		"given back to the rest of the sweep rather than thrown away, so a larger deadzone does not "
-		"cost you lock. Only affects games with a wheel. Takes effect immediately.",
+		m2txt::STEERING_DEADZONE_INFO,
 		nullptr,
 		nullptr,
 		{
 			// The value IS the percentage, parsed by get_steering_deadzone().
-			{ "0%",  "0% (off)" },
+			{ "0%",  m2txt::PCT_0_OFF },
 			{ "2%",  "2%" },
 			{ "5%",  "5%" },
 			{ "8%",  "8%" },
@@ -296,16 +227,13 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 	},
 	{
 		m2opt::KEY_STEERING_RANGE,
-		"Steering Range",
+		m2txt::STEERING_RANGE_LABEL,
 		nullptr,
-		"How much of the wheel full stick deflection reaches. At 100% the stick's edge is full lock. "
-		"Lowering it trades top-end lock for finer control everywhere, which suits the tracks that "
-		"never ask for a hairpin — but if you cannot get round one, it is set too low. Only affects "
-		"games with a wheel. Takes effect immediately.",
+		m2txt::STEERING_RANGE_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "100%", "100% (full lock)" },
+			{ "100%", m2txt::PCT_100_FULL_LOCK },
 			{ "90%",  "90%" },
 			{ "80%",  "80%" },
 			{ "70%",  "70%" },
@@ -317,86 +245,65 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 	},
 	{
 		m2opt::KEY_STEERING_DAMP_DRIVE,
-		"Steering Damping (Turn)",
+		m2txt::STEERING_DAMP_DRIVE_LABEL,
 		nullptr,
-		"How quickly the wheel follows the stick when you turn. A real cabinet's wheel has weight and "
-		"cannot snap to full lock the way a thumbstick can, so the games — and the original emulator — "
-		"ease it there over a few frames, which is a large part of why a stick feels twitchy without it. "
-		"Lower is faster (fewer frames to full lock); Off is instant, the old behaviour. Pair it with "
-		"Return below. Only affects games with a wheel. Takes effect immediately.",
+		m2txt::STEERING_DAMP_DRIVE_INFO,
 		nullptr,
 		nullptr,
 		{
-			// The value is a bare frame count, parsed by get_steering_damp_drive(); "Off" → instant.
-			{ "Off", "Off (instant)" },
-			{ "2",   "2 frames (very fast)" },
-			{ "3",   "3 frames" },
-			{ "4",   "4 frames" },
-			{ "5",   "5 frames" },
-			{ "6",   "6 frames (slow)" },
-			{ "8",   "8 frames (very slow)" },
+			// The value is a bare frame count, parsed by get_steering_damp_drive(); "0" → instant.
+			{ "0",  m2txt::DAMP_0 },
+			{ "2",  m2txt::DAMP_2 },
+			{ "4",  m2txt::DAMP_4 },
+			{ "8",  m2txt::DAMP_8 },
+			{ "16", m2txt::DAMP_16 },
 			{ nullptr, nullptr }
 		},
-		// 4 frames, decided by hand-check against the official emulator's timed wheel. See
-		// steering-handcheck.md.
-		"4"
+		// 8, not the 4 the original hand-check picked (steering-handcheck.md) — moved to match Return
+		// below and requested directly, 2026-08-27.
+		"8"
 	},
 	{
 		m2opt::KEY_STEERING_DAMP_RETURN,
-		"Steering Damping (Return)",
+		m2txt::STEERING_DAMP_RETURN_LABEL,
 		nullptr,
-		"How quickly the wheel recentres when you let go of the stick, as a self-centring wheel's spring "
-		"does. Usually a little slower than Turn above — that asymmetry is what a real wheel feels like. "
-		"Lower is faster (fewer frames back to centre); Off is instant, the old behaviour. Only affects "
-		"games with a wheel. Takes effect immediately.",
+		m2txt::STEERING_DAMP_RETURN_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "Off", "Off (instant)" },
-			{ "4",   "4 frames (very fast)" },
-			{ "5",   "5 frames" },
-			{ "6",   "6 frames" },
-			{ "7",   "7 frames" },
-			{ "8",   "8 frames" },
-			{ "10",  "10 frames (slow)" },
-			{ "12",  "12 frames (very slow)" },
+			{ "0",  m2txt::DAMP_0 },
+			{ "2",  m2txt::DAMP_2 },
+			{ "4",  m2txt::DAMP_4 },
+			{ "8",  m2txt::DAMP_8 },
+			{ "16", m2txt::DAMP_16 },
 			{ nullptr, nullptr }
 		},
-		// 8 frames, decided by hand-check. See steering-handcheck.md.
 		"8"
 	},
 	{
 		m2opt::KEY_STEERING_DISPLAY,
-		"Steering Display",
+		m2txt::STEERING_DISPLAY_LABEL,
 		nullptr,
-		"Draws a bar across the top of the screen showing how much steering the game is actually "
-		"receiving: red is the wheel you are not using, green is the wheel you are. A white notch "
-		"shows where the stick itself is, so the gap between the notch and the end of the green is "
-		"what the three settings above are doing. Only appears on games with a wheel. Meant for "
-		"setting the steering up rather than for playing with it on. Takes effect immediately.",
+		m2txt::STEERING_DISPLAY_INFO,
 		nullptr,
 		nullptr,
 		{
-			{ "off", "Off" },
-			{ "on",  "On" },
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
 		"off"
 	},
 	{
 		m2opt::KEY_ANALOG_DEADZONE,
-		"Analog Deadzone",
+		m2txt::ANALOG_DEADZONE_LABEL,
 		nullptr,
-		"How far the analog stick must move before the game responds, on the stick games (Star Blade, "
-		"the twin-stick and flight sets). Raise it if your aim drifts with your thumb off the stick; a "
-		"worn stick needs more than a new one. The travel it costs is given back to the rest of the "
-		"sweep rather than thrown away. Only affects games with an analog stick; the wheel, gun and "
-		"fighting games are untouched. Takes effect immediately.",
+		m2txt::ANALOG_DEADZONE_INFO,
 		nullptr,
 		nullptr,
 		{
 			// The value IS the percentage, parsed by get_analog_deadzone().
-			{ "0%",  "0% (off)" },
+			{ "0%",  m2txt::PCT_0_OFF },
 			{ "2%",  "2%" },
 			{ "5%",  "5%" },
 			{ "10%", "10%" },
@@ -407,17 +314,14 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 	},
 	{
 		m2opt::KEY_ANALOG_REACH,
-		"Analog Reach",
+		m2txt::ANALOG_REACH_LABEL,
 		nullptr,
-		"How far you must push the analog stick to reach full deflection, on the stick games. At 100% "
-		"the very edge of the stick is full input; lowering it means full input arrives before the edge, "
-		"so a stick that no longer reaches its corners can still peg the aim. Only affects games with an "
-		"analog stick; the wheel, gun and fighting games are untouched. Takes effect immediately.",
+		m2txt::ANALOG_REACH_INFO,
 		nullptr,
 		nullptr,
 		{
 			// The value IS the percentage, parsed by get_analog_reach().
-			{ "100%", "100% (full deflection)" },
+			{ "100%", m2txt::PCT_100_FULL_DEFLECTION },
 			{ "95%",  "95%" },
 			{ "90%",  "90%" },
 			{ "85%",  "85%" },
@@ -426,6 +330,23 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 			{ nullptr, nullptr }
 		},
 		"100%"
+	},
+	{
+		m2opt::KEY_DIAGNOSTIC_INPUT,
+		m2txt::DIAGNOSTIC_INPUT_LABEL,
+		nullptr,
+		m2txt::DIAGNOSTIC_INPUT_INFO,
+		nullptr,
+		nullptr,
+		{
+			// One entry per m2opt::diagnostic_input, in that order — get_diagnostic() below returns
+			// the position in this list, so a reordering here silently renames every combo.
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE],        nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_L3_R3],       nullptr },
+			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT], nullptr },
+			{ nullptr, nullptr }
+		},
+		m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE]
 	},
 	{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, { { nullptr, nullptr } }, nullptr }
 };
@@ -604,11 +525,11 @@ void m2opt::set_native_resolution(char const *native)
 			// the native one the label, the others their plain size. Every larger entry keeps its plain
 			// label untouched.
 			if (std::strcmp(val, "496x384") == 0)
-				def.values[v].label = is_native ? "496x384 (Native)" : "496x384";
+				def.values[v].label = is_native ? m2txt::RES_496x384_NATIVE : m2txt::RES_496x384;
 			else if (std::strcmp(val, "496x480") == 0)
-				def.values[v].label = is_native ? "496x480 (Native)" : "496x480";
+				def.values[v].label = is_native ? m2txt::RES_496x480_NATIVE : m2txt::RES_496x480;
 			else if (std::strcmp(val, "640x480") == 0)
-				def.values[v].label = is_native ? "640x480 (Native)" : "640x480";
+				def.values[v].label = is_native ? m2txt::RES_640x480_NATIVE : m2txt::RES_640x480;
 			if (is_native)
 				def.default_value = val;
 		}

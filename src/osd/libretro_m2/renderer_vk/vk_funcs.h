@@ -11,7 +11,7 @@
     (RetroArch bundles MoltenVK). Linking anything of our own would either fail to load or load a
     second, unrelated implementation.
 
-    The practical consequence is that model2_libretro.dylib stays loadable on a machine with no
+    The practical consequence is that modelizer_libretro.dylib stays loadable on a machine with no
     Vulkan at all, which is what makes the software renderer an honest fallback rather than a
     theoretical one.
 

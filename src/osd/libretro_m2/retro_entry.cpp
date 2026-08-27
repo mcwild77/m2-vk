@@ -379,6 +379,10 @@ void apply_family_cascade(family fam)
 		// greyscale view) rather than the base-colour draw Flat Shading gives, so Flat Shading would be a
 		// dead entry here.
 		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
+		// Transparency (stipple vs blended) is a Model 2-only fix: it drives s_option_blend in vk_geom.cpp,
+		// the Model 2 polygon pass. System 22's pipeline hardcodes blendEnable=VK_TRUE (s22_geom.cpp) — it
+		// does real hardware transparency unconditionally — so the option would be a dead menu entry.
+		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
 	}
 	else if (fam == family::system21)
 	{

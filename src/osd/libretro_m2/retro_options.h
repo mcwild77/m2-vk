@@ -158,16 +158,8 @@ inline constexpr char const *KEY_ANALOG_REACH    = "model2_analog_reach";
 enum diagnostic_input : unsigned
 {
 	DIAG_NONE = 0,
-	DIAG_HOLD_START,
-	DIAG_START_AB,
-	DIAG_HOLD_START_AB,
-	DIAG_START_LR,
-	DIAG_HOLD_START_LR,
+	DIAG_L3_R3,
 	DIAG_HOLD_SELECT,
-	DIAG_SELECT_AB,
-	DIAG_HOLD_SELECT_AB,
-	DIAG_SELECT_LR,
-	DIAG_HOLD_SELECT_LR,
 	DIAG_COUNT
 };
 
@@ -175,16 +167,8 @@ enum diagnostic_input : unsigned
 // pad layout, and which MAME button that produces is the layout's business and not this option's.
 inline constexpr char const *DIAGNOSTIC_VALUES[DIAG_COUNT] = {
 	"None",
-	"Hold Start",
-	"Start + A + B",
-	"Hold Start + A + B",
-	"Start + L + R",
-	"Hold Start + L + R",
-	"Hold Select",
-	"Select + A + B",
-	"Hold Select + A + B",
-	"Select + L + R",
-	"Hold Select + L + R" };
+	"L3 + R3",
+	"Hold Select" };
 
 // KEY_STEERING_RESPONSE values and their gammas. One list, so nothing drifts. The curve is
 // |v|^gamma — above 1, fine near centre, coarse near lock; full lock reachable at every setting.

@@ -240,29 +240,29 @@ static_assert(std::size(FIXED_BUTTONS) + libretro_m2_pad_device::NUMBERED_BUTTON
 // m2opt::diagnostic_input, which is also the position of the value in the option's own list, so the
 // words the player picked and the controls read here are one table apart and cannot drift.
 //
-// These are RetroPad ids on purpose and not slots: the option says "Start + A + B", meaning the pad's
-// A and B, and it has to keep meaning that under either pad layout. What the layout decides is which
+// These are RetroPad ids on purpose and not slots: the option says "L3 + R3", meaning the pad's own
+// L3 and R3, and it has to keep meaning that under either pad layout. What the layout decides is which
 // MAME buttons the combo then has to *consume*, which update_diagnostic() works back through it.
+//
+// Only two non-None values, deliberately: the original eleven were FBNeo's list verbatim, and most of
+// them are built from buttons a Model 2 cabinet actually uses in play (Start, A, B, L, R) — a setting
+// meant to be turned on and left on cannot be one of those. L3 and R3 are otherwise idle on every
+// Model 2 set, and Select doubles as Coin (see configure() below) but nothing else, so a one-second
+// hold on it does not collide with anything short of standing at the coin slot.
 //
 // ⚠ Model 2 has two switches where FBNeo models one. This drives IPT_SERVICE, the test switch that
 // opens the menu; IPT_SERVICE1, the service coin, has no equivalent in FBNeo's vocabulary and stays
-// on L3 whenever the option is not None. devnotes/lightgun.md §2.5.3.
+// on L3 alone whenever the option is not None — L3 + R3 uses that same button as half its chord, so
+// tapping L3 by itself still spends the credit and L3 + R3 together opens the test switch instead.
+// devnotes/lightgun.md §2.5.3.
 constexpr unsigned COMBO_NO_ID = ~0U;
 
 struct diagnostic_combo { unsigned ids[3]; bool hold; };
 
 constexpr diagnostic_combo DIAGNOSTIC_COMBOS[m2opt::DIAG_COUNT] = {
-	/* None                */ { { COMBO_NO_ID, COMBO_NO_ID, COMBO_NO_ID }, false },
-	/* Hold Start          */ { { RETRO_DEVICE_ID_JOYPAD_START,  COMBO_NO_ID, COMBO_NO_ID }, true },
-	/* Start + A + B       */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, false },
-	/* Hold Start + A + B  */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, true },
-	/* Start + L + R       */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, false },
-	/* Hold Start + L + R  */ { { RETRO_DEVICE_ID_JOYPAD_START,  RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, true },
-	/* Hold Select         */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, COMBO_NO_ID, COMBO_NO_ID }, true },
-	/* Select + A + B      */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, false },
-	/* Hold Select + A + B */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_A, RETRO_DEVICE_ID_JOYPAD_B }, true },
-	/* Select + L + R      */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, false },
-	/* Hold Select + L + R */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, RETRO_DEVICE_ID_JOYPAD_L, RETRO_DEVICE_ID_JOYPAD_R }, true } };
+	/* None        */ { { COMBO_NO_ID, COMBO_NO_ID, COMBO_NO_ID }, false },
+	/* L3 + R3     */ { { RETRO_DEVICE_ID_JOYPAD_L3,     RETRO_DEVICE_ID_JOYPAD_R3, COMBO_NO_ID }, false },
+	/* Hold Select */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, COMBO_NO_ID,               COMBO_NO_ID }, true } };
 
 static_assert(std::size(DIAGNOSTIC_COMBOS) == m2opt::DIAG_COUNT,
 		"one combo per declared value of model2_diagnostic_input, in the same order");

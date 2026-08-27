@@ -138,14 +138,14 @@ function maintargetosdoptions(_target, _subtarget)
 
 	-- A libretro core is a shared library the frontend dlopen()s.  mainProject() has
 	-- already said kind "ConsoleApp"; say otherwise now, while still in its scope.
-	-- Name the core after the subtarget so two drivers built on this one OSD do not
-	-- clobber each other's dylib.  SUBTARGET=model2 still yields "model2_libretro"
-	-- (every launcher/symlink/harness path depends on that literal), and
-	-- SUBTARGET=namcos22 yields "namcos22_libretro".
+	-- One unified subtarget (modelizer) carries all three families, so the core name is
+	-- the constant "modelizer_libretro"; every launcher/symlink/harness path depends on
+	-- that literal.  (The retired per-family subtargets used _subtarget here to keep
+	-- their dylibs from clobbering each other -- no longer needed with a single build.)
 	configuration { }
 		kind "SharedLib"
 		targetprefix ""
-		targetname (_subtarget .. "_libretro")
+		targetname ("modelizer_libretro")
 
 	configuration { "osx*" }
 		targetextension ".dylib"
@@ -164,17 +164,16 @@ function maintargetosdoptions(_target, _subtarget)
 	configuration { "android-*" }
 		targetextension ".so"
 		targetprefix ""
-		targetname (_subtarget .. "_libretro_android")
+		targetname ("modelizer_libretro_android")
 		-- Reissued here because mainProject()'s own android block, which is where a genie build
 		-- normally gets these, is skipped for this OSD -- it also links SDL2 and GLES.  The soname
 		-- matters: Android's loader dedupes by soname, and mainProject()'s is the generic
 		-- "libmain.so", which is a collision waiting to happen inside a frontend's process.
 		linkoptions {
 			"-shared",
-			-- Derived from the subtarget so it tracks the dylib basename (model2_libretro_android.so,
-			-- modelizer_libretro_android.so, ...); the two must agree or the frontend's loader dedupe
-			-- and .info matching break.
-			"-Wl,-soname," .. _subtarget .. "_libretro_android.so",
+			-- Matches the dylib basename (modelizer_libretro_android.so); the soname and the
+			-- basename must agree or the frontend's loader dedupe and .info matching break.
+			"-Wl,-soname,modelizer_libretro_android.so",
 			-- The NDK's clang links libc++_shared.so by default, which would make the core
 			-- undlopenable in any frontend whose APK does not happen to ship that library --
 			-- a runtime failure on the phone, discovered late, with nothing in the build to
