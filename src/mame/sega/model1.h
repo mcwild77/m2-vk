@@ -92,6 +92,12 @@ public:
 		point_t *p[4] = { nullptr, nullptr, nullptr, nullptr };
 		float z = 0;
 		int col = 0;
+#ifdef M1VK
+		// The pre-luma palette albedo (0x00RRGGBB), captured in push_object BEFORE the color_xlat luma LUT
+		// runs — the input the "No Lighting" toggle (model2_flat_luma) emits instead of the lit `col`. Only
+		// the Modelizer build (M1VK) reads it; a plain MAME build never sets or reads this field.
+		uint32_t albedo = 0;
+#endif
 	};
 
 private:

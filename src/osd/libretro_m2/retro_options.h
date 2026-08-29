@@ -40,6 +40,7 @@
 #pragma once
 
 #include "libretro.h"
+#include "retro_options_text.h"
 
 #include <string>
 
@@ -166,9 +167,9 @@ enum diagnostic_input : unsigned
 // The names are RetroPad controls, not MAME button numbers: "A" is the pad's A button under either
 // pad layout, and which MAME button that produces is the layout's business and not this option's.
 inline constexpr char const *DIAGNOSTIC_VALUES[DIAG_COUNT] = {
-	"None",
-	"L3 + R3",
-	"Hold Select" };
+	m2txt::DIAG_NONE_LABEL,
+	m2txt::DIAG_L3_R3_LABEL,
+	m2txt::DIAG_HOLD_SELECT_LABEL };
 
 // KEY_STEERING_RESPONSE values and their gammas. One list, so nothing drifts. The curve is
 // |v|^gamma — above 1, fine near centre, coarse near lock; full lock reachable at every setting.
@@ -183,11 +184,11 @@ enum steering_response : unsigned
 };
 
 inline constexpr char const *STEERING_RESPONSE_VALUES[STEER_RESPONSE_COUNT] = {
-	"Linear",
-	"Slight",
-	"Medium",
-	"Strong",
-	"Very Strong" };
+	m2txt::STEER_LINEAR_LABEL,
+	m2txt::STEER_SLIGHT_LABEL,
+	m2txt::STEER_MEDIUM_LABEL,
+	m2txt::STEER_STRONG_LABEL,
+	m2txt::STEER_VERY_STRONG_LABEL };
 
 inline constexpr float STEERING_RESPONSE_GAMMA[STEER_RESPONSE_COUNT] = {
 	1.0f, 1.3f, 1.7f, 2.2f, 3.0f };
@@ -224,7 +225,9 @@ void hide_option(char const *key);
 // default in place. The build's
 // object files are shared across subtargets, so this cannot be a compile-time choice — retro_entry
 // detects the driver family (driver_list) at retro_set_environment() time and calls this first.
-void set_native_resolution(char const *native);
+// `native_label_496` overrides the "(Native)" text for the 496x384 entry (Model 1 and Model 2 share that
+// size but want different family names); nullptr keeps the Model 2 label.
+void set_native_resolution(char const *native, char const *native_label_496 = nullptr);
 
 // Publish the option set to the frontend. Must be called from retro_set_environment(), which is
 // where a frontend expects to find out about options — it is called before retro_init().

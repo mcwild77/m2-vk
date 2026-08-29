@@ -37,6 +37,7 @@
 #include "m2vk_sink.h"
 #include "s22_seam.h"
 #include "s21_seam.h"
+#include "m1_seam.h"
 
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
@@ -118,7 +119,7 @@ bool                                       s_hw_render = false;
 // Which of the three families the loaded set belongs to. Set from the driver source file in
 // retro_load_game (see family_of()), cached here so retro_run's live-options handler — which has no
 // `system` in scope — can gate the System 22 block without re-deriving it. model2 until a game loads.
-enum class family { model2, system22, system21 };
+enum class family { model2, system22, system21, model1 };
 family                                     s_family = family::model2;
 
 // Per-game option visibility (RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY) is applied once, the first frame
@@ -358,6 +359,11 @@ family family_of(const std::string &system)
 		return family::system22;
 	if (src.find("namcos21") != std::string::npos)
 		return family::system21;
+	// "model1" is a token only sega/model1.cpp carries — sega/model2.cpp does not contain it — so it
+	// distinguishes the Model 1 driver from Model 2 without matching the shared model1io device files
+	// (which are compiled into mame_model2 but never register a GAME()).
+	if (src.find("model1") != std::string::npos)
+		return family::model1;
 	return family::model2;
 }
 
@@ -400,6 +406,24 @@ void apply_family_cascade(family fam)
 		// for the same reason the S22-only options are hidden from Model 2 below.
 		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
 		m2opt::hide_option(m2opt::KEY_FLAT_LUMA);
+		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
+	}
+	else if (fam == family::model1)
+	{
+		// Model 1's visible area is the same 496x384 as Model 2, so it reuses the size but wants its own
+		// "(Native)" label. Its menu keeps No Lighting (model2_flat_luma, wired GPU-side in m1_geom) and
+		// Internal Resolution, plus the shared steering/analog block (vr/vformula/swa gate on the
+		// IPT_PADDLE/IPT_AD_STICK detectors, not on the family).
+		m2opt::set_native_resolution("496x384", m2txt::RES_496x384_NATIVE_M1);
+		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
+		m2opt::hide_option(m2opt::KEY_S22_FOG);
+		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
+		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
+		// Model 1 is ALWAYS flat-shaded and untextured — no textured-vs-flat distinction — so Flat Shading
+		// (force-solid in vk_geom, the Model 2 pass) has nothing to remove. And m1_geom hardcodes the MOIRE
+		// stipple (no blendEnable choice), so Transparency (stipple vs blended, a Model 2 vk_geom fix) is a
+		// dead entry too. Hide both, as S21 does for the same reason.
+		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
 		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
 	}
 	else
@@ -843,6 +867,15 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
 				m2opt::KEY_S22_2D_OVERLAY, s22_overlay ? "on" : "off");
 	}
+	else if (fam == family::model1)
+	{
+		// No Lighting is the shared model2_flat_luma option; on the Model 1 path it makes m1_geom emit the
+		// pre-luma albedo instead of the lit colour (read live in geom_draw). The value was read as
+		// `flat_luma` above; the m2vk global is also set for the software fallback's benefit.
+		m1::set_option_no_lighting(flat_luma);
+		s_log_cb(RETRO_LOG_INFO, "[model1] options: %s=%s\n",
+				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off");
+	}
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
 	// composites them itself (m2vk_frame.h). On the software path the two hooks in screen_update()
@@ -886,12 +919,26 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			s21::set_gpu(s_hw_render && (std::getenv("M2VK_SW_3D") == nullptr));
 	}
 
+	// The Sega Model 1 GPU pass (M1-2), gated on its own family so a model2 / namcos2x build never turns
+	// Model 1 capture on (harmless if it did — no M1 seam fires — but kept safe-by-default). set_gpu(true)
+	// attaches the record consumer and stops model1_v's fill_quad; set_no_3d() is the M2VK_NO_3D
+	// background reference (2D tile layers only). Model 1 rides the passthrough, so there is no m2vk-style
+	// layer capture to enable here.
+	if (fam == family::model1)
+	{
+		if (no_3d)
+			m1::set_no_3d();
+		else
+			m1::set_gpu(s_hw_render && (std::getenv("M2VK_SW_3D") == nullptr));
+	}
+
 	// The content's own directory, plus a place for sets the frontend keeps alongside the core.
 	// The second entry is what makes a clone loadable when its parent set lives elsewhere. Which
 	// leaf that is depends on the driver family compiled into this dylib (see the driver_list::find
 	// note in retro_set_environment above) — a System 22 build must not go looking in ".../model2".
 	const std::string family_dir = (fam == family::system22) ? "system22"
-			: (fam == family::system21) ? "system21" : "model2";
+			: (fam == family::system21) ? "system21"
+			: (fam == family::model1) ? "model1" : "model2";
 	std::string rompath = rompath_from_path(path);
 	const std::string systemdir = frontend_directory(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY);
 	if (!systemdir.empty())
@@ -1193,6 +1240,9 @@ RETRO_API void retro_run(void)
 			s22::set_option_no_lighting(flat_luma);
 			s22::set_option_hud(m2opt::get_s22_2d_overlay(s_environ_cb));
 		}
+		// Model 1 No Lighting applies live too — geom_draw reads it as a push-constant bit at the next draw.
+		else if (s_family == family::model1)
+			m1::set_option_no_lighting(flat_luma);
 
 		char res_text[32];
 		if ((res_width == 0) || (res_height == 0))

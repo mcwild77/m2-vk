@@ -7,6 +7,10 @@
 #include "cpu/mb86233/mb86233.h"
 #include "model1.h"
 
+#ifdef M1VK
+#include "libretro_m2/m1_seam.h"
+#endif
+
 #define LOG_TGP (1U << 1)
 
 #define VERBOSE (0)
@@ -486,6 +490,43 @@ void model1_state::draw_quads(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 
 	for (int i = 0; i < count; i++)
 	{
+#ifdef M1VK
+		// Observation-only tap: record the resolved quad (screen-space corners, sort z, final colour) in
+		// the exact sorted order fill_quad paints, and draw nothing extra — the software rasteriser below
+		// still owns the picture, so the output stays byte-identical to the M1-0 baseline. Both quad
+		// sources (draw_objects' sorted quads, draw_direct's direct quads) reach draw_quads(), so this one
+		// tap covers the family. col is the value fill_quad writes to the bitmap: 0x00RRGGBB | (MOIRE bit).
+		if (m1::active())
+		{
+			const quad_t &q = *m_quadind[i];
+			float px[4], py[4];
+			for (int j = 0; j < 4; j++)
+			{
+				// Recover the FLOAT projected pixel the software rounds to s.x/s.y, so the GPU pass
+				// rasterises sub-pixel and scales cleanly at a raised internal resolution (M1-3). The two
+				// projection paths store p->xx/yy but map them to a pixel differently: project_point applies
+				// zoom+view (s = xc/yc +/- (xx*zoom + view)), project_point_direct does not (s = xc/yc +/-
+				// xx). draw_quads does not know which produced this point, but each call is homogeneous, so
+				// compute both candidates and take the one whose truncation reproduces the stored integer s;
+				// the degenerate z<=0 direct case (s forced to 0, xx/yy stale) matches neither and falls back
+				// to the integer, i.e. no worse than the pre-M1-3 capture.
+				const point_t *const p = q.p[j];
+				const float rx = float(view->xc) + (p->xx * view->zoomx + view->viewx);
+				const float ry = float(view->yc) - (p->yy * view->zoomy + view->viewy);
+				const float dx = float(view->xc) + p->xx;
+				const float dy = float(view->yc) - p->yy;
+				px[j] = (int32_t(rx) == p->s.x) ? rx : (int32_t(dx) == p->s.x) ? dx : float(p->s.x);
+				py[j] = (int32_t(ry) == p->s.y) ? ry : (int32_t(dy) == p->s.y) ? dy : float(p->s.y);
+			}
+			m1::submit_quad(px, py, q.z, uint32_t(q.col), q.albedo);
+		}
+
+		// When the GPU pass owns the 3D (set_gpu(true)), the software rasteriser stops drawing it — the
+		// record above is what gets rendered instead. Default is true, so M1-1 and every non-Vulkan build
+		// still fill the bitmap here.
+		if (!m1::sw_owns_3d())
+			continue;
+#endif
 		fill_quad(bitmap, view, *m_quadind[i]);
 #if 0
 		quad_t *q = m_quadind[i];
@@ -951,6 +992,12 @@ void model1_state::push_object(uint32_t tex_adr, uint32_t poly_adr, uint32_t siz
 			int g = (color >> 0x5) & 0x1f;
 			int b = (color >> 0xA) & 0x1f;
 
+#ifdef M1VK
+			// "No Lighting" = the raw palette albedo, before the color_xlat luma LUT below. Captured here
+			// (where the 5-bit channels are still pre-LUT) and carried across the seam so the toggle can be
+			// a GPU-side pick; the lit `col` is still resolved below and remains the default.
+			cquad.albedo = (pal5bit(r) << 16) | (pal5bit(g) << 8) | pal5bit(b);
+#endif
 			lumval >>= 2; //there must be a luma translation table somewhere
 			if (lumval > 0x3f)
 				lumval = 0x3f;
@@ -1119,6 +1166,11 @@ int model1_state::push_direct(int list_offset) {
 			int r = (color >> 0x0) & 0x1f;
 			int g = (color >> 0x5) & 0x1f;
 			int b = (color >> 0xA) & 0x1f;
+#ifdef M1VK
+			// See push_object's main path: capture the pre-LUT albedo for "No Lighting". This is the
+			// draw_direct path (project_point_direct quads); same palette lookup, same albedo.
+			cquad.albedo = (pal5bit(r) << 16) | (pal5bit(g) << 8) | pal5bit(b);
+#endif
 			lumval >>= 2; //there must be a luma translation table somewhere
 			if (lumval > 0x3f) lumval = 0x3f;
 			else if (lumval < 0) lumval = 0;
@@ -1649,6 +1701,14 @@ uint32_t model1_state::screen_update_model1(screen_device &screen, bitmap_rgb32 
 	screen.priority().fill(0);
 	bitmap.fill(m_palette->pen(0x400), cliprect);
 
+#ifdef M1VK
+	// Frame bracket: fires once per frame (draw_quads is called more than once inside tgp_render, so the
+	// bracket cannot live there). Wraps the whole 2D-under / 3D / 2D-over composite so M1-4's tile-layer
+	// capture has the bracket already in place. frame_begin() also performs the tap's one-time attach
+	// decision, so it must precede any submit_quad in draw_quads.
+	m1::frame_begin();
+#endif
+
 	// draw tilemap B as opaque
 	m_tiles->draw(screen, bitmap, cliprect, 6, 0, TILEMAP_DRAW_OPAQUE);
 	m_tiles->draw(screen, bitmap, cliprect, 4, 0, TILEMAP_DRAW_OPAQUE);
@@ -1661,6 +1721,29 @@ uint32_t model1_state::screen_update_model1(screen_device &screen, bitmap_rgb32 
 	m_tiles->draw(screen, bitmap, cliprect, 5, 0, 0);
 	m_tiles->draw(screen, bitmap, cliprect, 3, 0, 0);
 	m_tiles->draw(screen, bitmap, cliprect, 1, 0, 0);
+
+#ifdef M1VK
+	// 2D-over capture (M1-4): when the GPU owns the 3D, the OVER band above has been painted into the
+	// passthrough where the GPU 3D will cover it, so lift it back on top. Redraw layers 7/5/3/1 into a
+	// sentinel-filled scratch (high byte 0; tile pens are 0xffRRGGBB) and snapshot the pixels they touch
+	// as the overlay vk_present sandwiches over the 3D. The UNDER band (6/4/2/0, drawn before tgp_render)
+	// needs no capture — it is already the passthrough background. gpu_owns_3d() is false in software /
+	// M2VK_NO_3D, so this costs one predicate there.
+	if (m1::gpu_owns_3d())
+	{
+		static bitmap_rgb32 s_over_scratch;
+		if ((s_over_scratch.width() < bitmap.width()) || (s_over_scratch.height() < bitmap.height()))
+			s_over_scratch.allocate(bitmap.width(), bitmap.height());
+		s_over_scratch.fill(0, cliprect);
+		m_tiles->draw(screen, s_over_scratch, cliprect, 7, 0, 0);
+		m_tiles->draw(screen, s_over_scratch, cliprect, 5, 0, 0);
+		m_tiles->draw(screen, s_over_scratch, cliprect, 3, 0, 0);
+		m_tiles->draw(screen, s_over_scratch, cliprect, 1, 0, 0);
+		m1::capture_over(s_over_scratch, cliprect);
+	}
+
+	m1::frame_end();
+#endif
 
 	return 0;
 }

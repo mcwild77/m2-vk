@@ -5,13 +5,15 @@
 --
 --   modelizer.lua
 --
---   Modelizer subtarget: one core carrying all three hardware-accelerated
---   families -- Sega Model 2, Namco (Super) System 22, Namco System 21 --
---   behind the shared Vulkan seam.  Use make SUBTARGET=modelizer to build.
+--   Modelizer subtarget: one core carrying all four hardware-accelerated
+--   families -- Sega Model 1, Sega Model 2, Namco (Super) System 22, Namco
+--   System 21 -- behind the shared Vulkan seam.  Use make SUBTARGET=modelizer
+--   to build.
 --
---   This is the UNION of the three per-family subtarget scripts
---   (model2.lua + namcos22.lua + namcos21.lua).  Each family keeps its OWN
---   driver project and its own scoping define (M2VK / S22VK / S21VK), so the
+--   This is the UNION of the four per-family subtarget scripts
+--   (model1.lua + model2.lua + namcos22.lua + namcos21.lua).  Each family keeps
+--   its OWN driver project and its own scoping define (M1VK / M2VK / S22VK /
+--   S21VK), so the
 --   _v.cpp seam hooks stay scoped exactly as they are in the split builds --
 --   merging the three into one project would force all three defines onto
 --   every driver source.  The three projects link together into one binary.
@@ -26,11 +28,16 @@
 --   merge (see their headers) and re-fold the changes here; keep the marked
 --   HAND-ADDED blocks.
 --
---   ONE de-duplication vs a literal concatenation: namco/namco_dsp.cpp is in
---   both the namcos22 and namcos21 file lists.  Compiling it into both driver
---   libraries would define namco_dsp twice (a duplicate device registration).
---   It is compiled once, in mame_namcos22; mame_namcos21's references resolve
---   from that library at the final link.
+--   DE-DUPLICATIONS vs a literal concatenation:
+--    * namco/namco_dsp.cpp is in both the namcos22 and namcos21 file lists.
+--      Compiling it into both driver libraries would define namco_dsp twice (a
+--      duplicate device registration).  It is compiled once, in mame_namcos22;
+--      mame_namcos21's references resolve from that library at the final link.
+--    * Model 1 shares six source files with Model 2 (segaic24, segam1audio,
+--      dsbz80, model1io, model1io2, 315_5338a).  They are compiled once, in
+--      mame_model2; mame_model1 compiles only its four unique sources
+--      (model1, model1_m, model1_v, m1comm) and resolves the shared devices
+--      from mame_model2 at the final link.
 --
 ---------------------------------------------------------------------------
 
@@ -53,9 +60,13 @@ CPUS["TMS320C2X"] = true       -- namcos22 + namcos21
 CPUS["M6502"] = true           -- namcos21
 CPUS["M6805"] = true           -- namcos21
 CPUS["M6809"] = true           -- namcos21
+CPUS["V60"] = true             -- model1 (main CPU)
+CPUS["I386"] = true            -- model1
 
 MACHINES["6821PIA"] = true
 MACHINES["ACIA6850"] = true
+MACHINES["AM9517A"] = true      -- model1
+MACHINES["MB89374"] = true      -- model1
 MACHINES["CXD1095"] = true
 MACHINES["EEPROMDEV"] = true
 MACHINES["GEN_FIFO"] = true    -- native to model2; also satisfies the m2vk_savestate gen_fifo trailer
@@ -96,6 +107,51 @@ VIDEOS["MC6845"] = true
 
 
 function createProjects_mame_modelizer(_target, _subtarget)
+
+    --=====================================================================
+    --  Sega Model 1  (from model1.lua)
+    --=====================================================================
+    project ("mame_model1")
+    targetsubdir(_target .."_" .. _subtarget)
+    kind (LIBTYPE)
+    uuid (os.uuid("drv-mame-model1"))
+    addprojectflags()
+
+    -- HAND-ADDED: scopes the M1 seam hooks in model1_v.cpp to this driver
+    -- project (no hooks yet at M1-0; the define is in place for M1-1).
+    defines {
+        "M1VK",
+    }
+
+    includedirs {
+        MAME_DIR .. "src/osd",
+        MAME_DIR .. "src/emu",
+        MAME_DIR .. "src/devices",
+        MAME_DIR .. "src/mame/shared",
+        MAME_DIR .. "src/lib",
+        MAME_DIR .. "src/lib/util",
+        MAME_DIR .. "src/lib/netlist",
+        MAME_DIR .. "3rdparty",
+        GEN_DIR  .. "mame/layout",
+        ext_includedir("asio"),
+        ext_includedir("flac"),
+        ext_includedir("glm"),
+        ext_includedir("jpeg"),
+        ext_includedir("rapidjson"),
+        ext_includedir("zlib"),
+    }
+
+    files{
+        MAME_DIR .. "src/mame/sega/m1comm.cpp",
+        MAME_DIR .. "src/mame/sega/m1comm.h",
+        MAME_DIR .. "src/mame/sega/model1.cpp",
+        MAME_DIR .. "src/mame/sega/model1.h",
+        MAME_DIR .. "src/mame/sega/model1_m.cpp",
+        MAME_DIR .. "src/mame/sega/model1_v.cpp",
+        -- segaic24 / segam1audio / dsbz80 / model1io / model1io2 / 315_5338a
+        -- intentionally omitted: compiled once in mame_model2 (see header);
+        -- the references resolve from that library at the final link.
+    }
 
     --=====================================================================
     --  Sega Model 2  (from model2.lua)
@@ -288,6 +344,7 @@ end
 
 function linkProjects_mame_modelizer(_target, _subtarget)
     links {
+        "mame_model1",
         "mame_model2",
         "mame_namcos22",
         "mame_namcos21",

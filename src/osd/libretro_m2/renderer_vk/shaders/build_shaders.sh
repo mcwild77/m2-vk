@@ -91,6 +91,11 @@ emit frag poly.frag        poly_early_frag -DEARLY_Z=1
 emit vert s22.vert         s22_vert
 emit frag s22.frag         s22_frag
 
+# Sega Model 1 flat untextured polygon pass (M1-2): draw-order painter's, one flat colour per quad,
+# moiré translucency as a stipple discard.
+emit vert m1.vert          m1_vert
+emit frag m1.frag          m1_frag
+
 # Namco System 21 flat untextured polygon pass (T2). s21.vert is shared by the pen-space geometry pass.
 emit vert s21.vert         s21_vert
 

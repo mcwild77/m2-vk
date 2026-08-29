@@ -76,11 +76,11 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		nullptr,
 		{
-			{ "stipple", m2txt::TRANSPARENCY_STIPPLE },
-			{ "blended", m2txt::TRANSPARENCY_BLENDED },
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
-		"stipple"
+		"off"
 	},
 	{
 		m2opt::KEY_S22_TEXTURE_FILTER,
@@ -494,10 +494,11 @@ void m2opt::hide_option(char const *key)
 }
 
 
-void m2opt::set_native_resolution(char const *native)
+void m2opt::set_native_resolution(char const *native, char const *native_label_496)
 {
 	if (native == nullptr)
 		return;
+	char const *const label_496_native = native_label_496 ? native_label_496 : m2txt::RES_496x384_NATIVE;
 
 	for (unsigned i = 0; i < OPTION_COUNT; i++)
 	{
@@ -525,7 +526,7 @@ void m2opt::set_native_resolution(char const *native)
 			// the native one the label, the others their plain size. Every larger entry keeps its plain
 			// label untouched.
 			if (std::strcmp(val, "496x384") == 0)
-				def.values[v].label = is_native ? m2txt::RES_496x384_NATIVE : m2txt::RES_496x384;
+				def.values[v].label = is_native ? label_496_native : m2txt::RES_496x384;
 			else if (std::strcmp(val, "496x480") == 0)
 				def.values[v].label = is_native ? m2txt::RES_496x480_NATIVE : m2txt::RES_496x480;
 			else if (std::strcmp(val, "640x480") == 0)
@@ -669,9 +670,9 @@ bool m2opt::get_poly_counter(retro_environment_t environ_cb)
 
 unsigned m2opt::get_transparency(retro_environment_t environ_cb)
 {
-	// Tested against the enhancement rather than against the default, so that anything unrecognised —
-	// a frontend's invention, a hand-written .opt file — lands on the accurate screen door.
-	return (get(environ_cb, KEY_TRANSPARENCY) == "blended") ? 1 : 0;
+	// "on" tested rather than not "off", so anything unrecognised — a frontend's invention, a
+	// hand-written .opt file — lands on the accurate screen door.
+	return (get(environ_cb, KEY_TRANSPARENCY) == "on") ? 1 : 0;
 }
 
 bool m2opt::get_s22_depth_buffer(retro_environment_t environ_cb)

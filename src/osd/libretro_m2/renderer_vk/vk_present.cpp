@@ -41,7 +41,9 @@
 #include "renderer_vk/s22_geom.h"
 #include "s22_seam.h"
 #include "renderer_vk/s21_geom.h"
+#include "renderer_vk/m1_geom.h"
 #include "s21_seam.h"
+#include "m1_seam.h"
 
 #include "m2vk_frame.h"
 #include "m2vk_reticle.h"
@@ -1181,6 +1183,7 @@ void forget_ring()
 	m2vk::geom_forget();
 	s22::geom_forget();
 	s21::geom_forget();
+	m1::geom_forget();
 
 	// Zeroed rather than left stale: the frontend may still hold a pointer to a slot's handover.
 	for (frame_slot &slot : s_slots)
@@ -1303,6 +1306,7 @@ void destroy_ring()
 	m2vk::geom_destroy();
 	s22::geom_destroy();
 	s21::geom_destroy();
+	m1::geom_destroy();
 	destroy_shared();
 
 	// The frame counts are the point of this line as much as the ring is: they are what says whether
@@ -1645,6 +1649,13 @@ bool build_ring(const retro_hw_render_interface_vulkan &iface, unsigned width, u
 		return false;
 	}
 
+	// The Sega Model 1 pass, likewise — built alongside the ring, pipeline built lazily on first capture.
+	if (!m1::geom_build(iface, s_fns, s_render_pass, count))
+	{
+		destroy_ring();
+		return false;
+	}
+
 	// Set before the loop so that a slot which fails half-built is still destroyed by destroy_ring.
 	s_slot_count = count;
 	for (uint32_t i = 0; i < count; i++)
@@ -1940,7 +1951,7 @@ void draw_counter(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
 // passthrough exactly: a single opaque fullscreen draw of whatever landed in layer 0. `draw_3d` says
 // whether the polygon pass has anything to put between the two.
-bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool draw_3d, bool draw_3d_s22, bool draw_3d_s21, bool dump)
+bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool draw_3d, bool draw_3d_s22, bool draw_3d_s21, bool draw_3d_m1, bool dump)
 {
 	if (!check(s_fns.reset_command_pool(s_device, slot.pool, 0), "vkResetCommandPool"))
 		return false;
@@ -2070,6 +2081,13 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	if (draw_3d_s22)
 		s22::geom_draw(index, slot.cmd, s_width, s_height, draw_width, draw_height);
 
+	// The Sega Model 1 pass (M1-2). Over the background, painter's order with the depth test off — like
+	// S22, it never touches the depth attachment the Model 2 pass shares. The three families are never
+	// both live in one loaded game (family routing picks one). Its 2D-over HUD is the RGB overlay
+	// redrawn by the shared OVER pass below (draw_over), the S22-style sandwich (M1-4).
+	if (draw_3d_m1)
+		m1::geom_draw(index, slot.cmd, s_width, s_height, draw_width, draw_height);
+
 	// (System 21 is composited entirely in the pen pass + finish_draw above; nothing here.)
 
 	if (draw_over)
@@ -2101,6 +2119,8 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 		s_counter_value = s22::geom_primitive_count();
 	else if (draw_3d_s21)
 		s_counter_value = s21::geom_primitive_count();
+	else if (draw_3d_m1)
+		s_counter_value = m1::geom_primitive_count();
 	else if (draw_3d)
 		s_counter_value = m2vk::geom_frame_polys();
 	draw_counter(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
@@ -2301,6 +2321,16 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// GPU (option B, s21_geom.cpp), so it hands back no RGB overlay to sandwich; the UNDER staging below
 	// carries `pixels` only for the inert reticle/steering background, and finish_draw draws the picture.
 
+	// The Sega Model 1 2D-over overlay (M1-4): the HUD (layers 7/5/3/1) that must sit above the GPU 3D.
+	// Model 1's tile layers are RGB, so — like S22, and unlike S21's pen-space composite — it is the plain
+	// UNDER/OVER sandwich: `pixels` (the finished 2D frame, seam-stripped of software 3D, already carrying
+	// the 2D-UNDER band) as the background, this overlay drawn again after the 3D. nullptr in every build
+	// that did not capture Model 1 and in M1 software / NO_3D mode.
+	int m1_over_w = 0, m1_over_h = 0;
+	uint32_t const *const m1_over = m1::over_pixels(m1_over_w, m1_over_h);
+	const bool m1_sandwich = (layers == nullptr) && (m1_over != nullptr)
+			&& (unsigned(m1_over_w) == width) && (unsigned(m1_over_h) == height);
+
 	if (layers != nullptr)
 	{
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, layers->layer[m2vk::LAYER_UNDER].pixels.data(), bytes);
@@ -2311,6 +2341,8 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 		std::memcpy(slot.layers[m2vk::LAYER_UNDER].staging_mapped, pixels, bytes);
 		if (s22_sandwich)
 			std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, s22_over, bytes);
+		else if (m1_sandwich)
+			std::memcpy(slot.layers[m2vk::LAYER_OVER].staging_mapped, m1_over, bytes);
 	}
 
 	// The polygon stream, turned into this slot's vertex, index and parameter buffers. Only when the
@@ -2335,14 +2367,19 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 	// predicate there.
 	const bool draw_3d_s21 = s21::geom_upload(index);
 
-	// A foreground OVER pass runs when Model 2 captured both layers, or when the S22 core handed back an
-	// overlay to sandwich its 3D between. (S21's OVER band is applied in the finish pass, not here.)
-	const bool draw_over = (layers != nullptr) || s22_sandwich;
+	// The Sega Model 1 untextured pass (M1-2). Like S22, it draws its 3D over MAME's finished 2D frame
+	// (the seam stripped of software 3D), riding the passthrough — layers is null, background is `pixels`.
+	// geom_upload returns false in every build that did not capture Model 1, so this costs one predicate.
+	const bool draw_3d_m1 = m1::geom_upload(index);
+
+	// A foreground OVER pass runs when Model 2 captured both layers, or when the S22 or Model 1 core handed
+	// back an overlay to sandwich its 3D between. (S21's OVER band is applied in the finish pass, not here.)
+	const bool draw_over = (layers != nullptr) || s22_sandwich || m1_sandwich;
 
 	const bool dump = !s_dump_done && !s_dump_prefix.empty() && (s_dump_mapped != nullptr)
 			&& (s_frames == s_dump_frame);
 
-	if (!record_and_submit(slot, index, draw_over, draw_3d, draw_3d_s22, draw_3d_s21, dump))
+	if (!record_and_submit(slot, index, draw_over, draw_3d, draw_3d_s22, draw_3d_s21, draw_3d_m1, dump))
 	{
 		if (!s_reported_frame_error)
 		{
@@ -2424,6 +2461,7 @@ void present_end_run()
 	m2vk::geom_end_run();
 	s22::geom_end_run();
 	s21::geom_end_run();
+	m1::geom_end_run();
 	s_frames = 0;
 
 	// The record's own serials restart with the run, so the watermarks that chase them have to as

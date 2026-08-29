@@ -3176,6 +3176,309 @@
     "R2": "Accelerator",
     "L2": "Brake"
    }
+  },
+  {
+   "id": "vf",
+   "sets": [
+    "vf"
+   ],
+   "lightgun": false,
+   "note": "Virtua Fighter \u2014 three-button fighter (Guard/Punch/Kick) on an 8-way stick; mirrors the vf2 pad layout.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Punch"
+    },
+    {
+     "source": "A",
+     "label": "Kick"
+    },
+    {
+     "source": "Y",
+     "label": "Guard"
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    }
+   ],
+   "labels": {
+    "B": "Punch",
+    "A": "Kick",
+    "Y": "Guard",
+    "UP": "Up",
+    "DOWN": "Down",
+    "LEFT": "Left",
+    "RIGHT": "Right",
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "LSTICK_X": "Move",
+    "LSTICK_Y": "Move"
+   }
+  },
+  {
+   "id": "vr",
+   "sets": [
+    "vr",
+    "vformula"
+   ],
+   "lightgun": false,
+   "note": "Virtua Racing \u2014 wheel, accelerator/brake pedals, VR1-4 view buttons on the d-pad (clockwise from Up), shift down/up on B/A.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "UP",
+     "label": "VR1 (Red)"
+    },
+    {
+     "source": "RIGHT",
+     "label": "VR2 (Blue)"
+    },
+    {
+     "source": "DOWN",
+     "label": "VR3 (Yellow)"
+    },
+    {
+     "source": "LEFT",
+     "label": "VR4 (Green)"
+    },
+    {
+     "source": "B",
+     "label": "Shift Down"
+    },
+    {
+     "source": "A",
+     "label": "Shift Up"
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    }
+   ],
+   "labels": {
+    "B": "Shift Down",
+    "A": "Shift Up",
+    "UP": "VR1 (Red)",
+    "RIGHT": "VR2 (Blue)",
+    "DOWN": "VR3 (Yellow)",
+    "LEFT": "VR4 (Green)",
+    "L2": "Brake",
+    "R2": "Accelerator",
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "LSTICK_X": "Steering"
+   }
+  },
+  {
+   "id": "swa",
+   "sets": [
+    "swa",
+    "swaj"
+   ],
+   "lightgun": false,
+   "note": "Star Wars Arcade \u2014 analog aim on the left stick, twin fire triggers on B/A. Third button semantics unverified (MACHINE_IMPERFECT_CONTROLS).",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Fire"
+    },
+    {
+     "source": "A",
+     "label": "Fire (Right)"
+    },
+    {
+     "source": "Y",
+     "label": "Button 3"
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    }
+   ],
+   "labels": {
+    "B": "Fire",
+    "A": "Fire (Right)",
+    "Y": "Button 3",
+    "R2": "Throttle",
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "LSTICK_X": "Aim",
+    "LSTICK_Y": "Aim"
+   }
+  },
+  {
+   "id": "wingwar",
+   "sets": [
+    "wingwar",
+    "wingwaru",
+    "wingwarj"
+   ],
+   "lightgun": false,
+   "note": "Wing War \u2014 analog aim on the left stick, throttle on R2, weapons on B/A/Y, four view buttons on the d-pad.",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Machine Gun"
+    },
+    {
+     "source": "A",
+     "label": "Missile"
+    },
+    {
+     "source": "Y",
+     "label": "Smoke"
+    },
+    {
+     "source": "UP",
+     "label": "View 1"
+    },
+    {
+     "source": "RIGHT",
+     "label": "View 2"
+    },
+    {
+     "source": "DOWN",
+     "label": "View 3"
+    },
+    {
+     "source": "LEFT",
+     "label": "View 4"
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    }
+   ],
+   "labels": {
+    "B": "Machine Gun",
+    "A": "Missile",
+    "Y": "Smoke",
+    "UP": "View 1",
+    "RIGHT": "View 2",
+    "DOWN": "View 3",
+    "LEFT": "View 4",
+    "R2": "Throttle",
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "LSTICK_X": "Aim",
+    "LSTICK_Y": "Aim"
+   }
+  },
+  {
+   "id": "netmerc",
+   "sets": [
+    "netmerc"
+   ],
+   "lightgun": false,
+   "note": "Sega NetMerc \u2014 analog aim on the left stick, Trigger/Thumb/MVD Holder on B/A/Y (MACHINE_NOT_WORKING).",
+   "verified": "",
+   "buttons": [
+    {
+     "source": "B",
+     "label": "Trigger"
+    },
+    {
+     "source": "A",
+     "label": "Thumb"
+    },
+    {
+     "source": "Y",
+     "label": "MVD Holder"
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    },
+    {
+     "source": "NONE",
+     "label": ""
+    }
+   ],
+   "labels": {
+    "B": "Trigger",
+    "A": "Thumb",
+    "Y": "MVD Holder",
+    "SELECT": "Coin",
+    "START": "Start",
+    "L3": "Service Coin",
+    "LSTICK_X": "Aim",
+    "LSTICK_Y": "Aim"
+   }
   }
  ]
 }
