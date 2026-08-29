@@ -5,18 +5,19 @@
 --
 --   modelizer.lua
 --
---   Modelizer subtarget: one core carrying all four hardware-accelerated
+--   Modelizer subtarget: one core carrying all five hardware-accelerated
 --   families -- Sega Model 1, Sega Model 2, Namco (Super) System 22, Namco
---   System 21 -- behind the shared Vulkan seam.  Use make SUBTARGET=modelizer
---   to build.
+--   System 21, Namco System 23 -- behind the shared Vulkan seam.  Use make
+--   SUBTARGET=modelizer to build.
 --
---   This is the UNION of the four per-family subtarget scripts
---   (model1.lua + model2.lua + namcos22.lua + namcos21.lua).  Each family keeps
---   its OWN driver project and its own scoping define (M1VK / M2VK / S22VK /
---   S21VK), so the
+--   This is the UNION of the five per-family driver projects (originally
+--   model1.lua + model2.lua + namcos22.lua + namcos21.lua; namcos23 was added
+--   directly here, no standalone namcos23.lua ever existed).  Each family
+--   keeps its OWN driver project and its own scoping define (M1VK / M2VK /
+--   S22VK / S21VK / S23VK), so the
 --   _v.cpp seam hooks stay scoped exactly as they are in the split builds --
 --   merging the three into one project would force all three defines onto
---   every driver source.  The three projects link together into one binary.
+--   every driver source.  The five projects link together into one binary.
 --
 --   The driver LIST (which GAME()s register in driver_list) comes from the
 --   sibling src/mame/modelizer.flt, not from here; this file only says which
@@ -41,9 +42,10 @@
 --
 ---------------------------------------------------------------------------
 
--- Union of the three families' global feature flags (BUSES/CPUS/MACHINES/SOUNDS/VIDEOS).
+-- Union of the five families' global feature flags (BUSES/CPUS/MACHINES/SOUNDS/VIDEOS).
 -- Setting a flag true more than once is harmless; the union is de-duplicated here for readability.
 BUSES["HEATHZENITH_H19"] = true
+BUSES["JVS"] = true            -- namcos23 (namcoio TSS-I/O board)
 BUSES["RS232"] = true
 BUSES["SUNKBD"] = true
 
@@ -62,6 +64,10 @@ CPUS["M6805"] = true           -- namcos21
 CPUS["M6809"] = true           -- namcos21
 CPUS["V60"] = true             -- model1 (main CPU)
 CPUS["I386"] = true            -- model1
+CPUS["F2MC16"] = true          -- namcos23 (TSS-I/O board MCU, mb90570)
+CPUS["H8"] = true              -- namcos23 (H8/3002 subcpu)
+CPUS["MIPS3"] = true           -- namcos23 (R4650BE main CPU)
+CPUS["SH"] = true              -- namcos23 (SH7604, firewire/video subsystem)
 
 MACHINES["6821PIA"] = true
 MACHINES["ACIA6850"] = true
@@ -70,7 +76,11 @@ MACHINES["MB89374"] = true      -- model1
 MACHINES["CXD1095"] = true
 MACHINES["EEPROMDEV"] = true
 MACHINES["GEN_FIFO"] = true    -- native to model2; also satisfies the m2vk_savestate gen_fifo trailer
+MACHINES["I2CHLE"] = true      -- namcos23 (vpx3220a video decoder)
 MACHINES["I8251"] = true
+MACHINES["INTELFLASH"] = true  -- pulled in unconditionally by BUSES["JVS"]'s cyberlead.cpp (unused
+                                -- LED-sign JVS peripheral, not a namcos23 dependency, but the JVS bus
+                                -- flag compiles all of bus/jvs/* into the shared optional lib)
 MACHINES["IE15"] = true
 MACHINES["INPUT_MERGER"] = true
 MACHINES["INS8250"] = true
@@ -79,6 +89,8 @@ MACHINES["MB8421"] = true
 MACHINES["MM5740"] = true
 MACHINES["MSM6253"] = true
 MACHINES["PCF8573"] = true
+MACHINES["PS2INTC"] = true     -- pulled in unconditionally by VIDEOS["PS2GS"] (see PS2GIF/PS2GS above)
+MACHINES["RTC4543"] = true     -- namcos23
 MACHINES["SWTPC8212"] = true
 MACHINES["VOTRAXTNT"] = true
 MACHINES["Z80CTC"] = true
@@ -97,13 +109,15 @@ SOUNDS["YM2203"] = true
 SOUNDS["YM2608"] = true
 SOUNDS["YM2610"] = true
 SOUNDS["YM2612"] = true
-SOUNDS["C352"] = true          -- namcos22
+SOUNDS["C352"] = true          -- namcos22 + namcos23
 SOUNDS["MB87077"] = true       -- namcos22 + namcos21
 SOUNDS["C140"] = true          -- namcos21
 SOUNDS["YM2151"] = true        -- namcos21
 
 VIDEOS["HD44780"] = true
 VIDEOS["MC6845"] = true
+VIDEOS["PS2GIF"] = true        -- pulled in unconditionally by CPUS["MIPS3"]'s ps2vu.cpp/ps2vif1.cpp
+VIDEOS["PS2GS"] = true         -- (PS2 vector-unit support code, not a namcos23 dependency either)
 
 
 function createProjects_mame_modelizer(_target, _subtarget)
@@ -340,6 +354,54 @@ function createProjects_mame_modelizer(_target, _subtarget)
     -- The T2 seam/GPU pass (s21_seam.cpp / renderer_vk/s21_geom.cpp) live in the shared libretro_m2 OSD,
     -- not here; retro_entry.cpp and vk_present.cpp reference the s21:: symbols and resolve against the OSD
     -- in every build.  Inert unless a namcos21 driver arms capture.
+
+    --=====================================================================
+    --  Namco System 23 / Super System 23  (new; no standalone namcos23.lua
+    --  ever existed -- this project was hand-derived directly against
+    --  modelizer, per devnotes/plan_system23.md phase 23-0)
+    --=====================================================================
+    project ("mame_namcos23")
+    targetsubdir(_target .."_" .. _subtarget)
+    kind (LIBTYPE)
+    uuid (os.uuid("drv-mame-namcos23"))
+    addprojectflags()
+
+    -- HAND-ADDED: scopes the (future) seam hooks in namcos23.cpp to this
+    -- driver project (no hooks yet at 23-0; the define is in place for 23-1).
+    defines {
+        "S23VK",
+    }
+
+    includedirs {
+        MAME_DIR .. "src/osd",
+        MAME_DIR .. "src/emu",
+        MAME_DIR .. "src/devices",
+        MAME_DIR .. "src/mame/shared",
+        MAME_DIR .. "src/lib",
+        MAME_DIR .. "src/lib/util",
+        MAME_DIR .. "src/lib/netlist",
+        MAME_DIR .. "3rdparty",
+        GEN_DIR  .. "mame/layout",
+        ext_includedir("asio"),
+        ext_includedir("flac"),
+        ext_includedir("glm"),
+        ext_includedir("jpeg"),
+        ext_includedir("rapidjson"),
+        ext_includedir("zlib"),
+    }
+
+    files{
+        MAME_DIR .. "src/mame/namco/md8412b_s23.cpp",
+        MAME_DIR .. "src/mame/namco/md8412b_s23.h",
+        MAME_DIR .. "src/mame/namco/namco_settings.cpp",
+        MAME_DIR .. "src/mame/namco/namco_settings.h",
+        MAME_DIR .. "src/mame/namco/namcos23.cpp",
+        MAME_DIR .. "src/mame/namco/vpx3220a.cpp",
+        MAME_DIR .. "src/mame/namco/vpx3220a.h",
+    }
+
+    -- A future S23 seam/GPU pass would live in the shared libretro_m2 OSD like the
+    -- other three, not here; inert until 23-1 taps render_flush/the four producers.
 end
 
 function linkProjects_mame_modelizer(_target, _subtarget)
@@ -348,5 +410,6 @@ function linkProjects_mame_modelizer(_target, _subtarget)
         "mame_model2",
         "mame_namcos22",
         "mame_namcos21",
+        "mame_namcos23",
     }
 end
