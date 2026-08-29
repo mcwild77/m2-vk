@@ -68,6 +68,8 @@ CPUS["F2MC16"] = true          -- namcos23 (TSS-I/O board MCU, mb90570)
 CPUS["H8"] = true              -- namcos23 (H8/3002 subcpu)
 CPUS["MIPS3"] = true           -- namcos23 (R4650BE main CPU)
 CPUS["SH"] = true              -- namcos23 (SH7604, firewire/video subsystem)
+CPUS["MCS48"] = true           -- s97801 rs232 terminal dep (I8035 keyboard MCU; added mame0289)
+CPUS["MCS51"] = true           -- s97801 rs232 terminal dep (I8031 main MCU; added mame0289)
 
 MACHINES["6821PIA"] = true
 MACHINES["ACIA6850"] = true
@@ -91,6 +93,8 @@ MACHINES["MSM6253"] = true
 MACHINES["PCF8573"] = true
 MACHINES["PS2INTC"] = true     -- pulled in unconditionally by VIDEOS["PS2GS"] (see PS2GIF/PS2GS above)
 MACHINES["RTC4543"] = true     -- namcos23
+MACHINES["S97801"] = true      -- backs BUSES["RS232"]'s s97801 terminal (added mame0289), like IE15/SWTPC8212
+MACHINES["SCN_PCI"] = true      -- s97801 terminal dep (SCN2661B UART)
 MACHINES["SWTPC8212"] = true
 MACHINES["VOTRAXTNT"] = true
 MACHINES["Z80CTC"] = true
@@ -115,6 +119,7 @@ SOUNDS["C140"] = true          -- namcos21
 SOUNDS["YM2151"] = true        -- namcos21
 
 VIDEOS["HD44780"] = true
+VIDEOS["SCN2674"] = true        -- s97801 rs232 terminal dep (SCN2672/2674 CRTC; added mame0289)
 VIDEOS["MC6845"] = true
 VIDEOS["PS2GIF"] = true        -- pulled in unconditionally by CPUS["MIPS3"]'s ps2vu.cpp/ps2vif1.cpp
 VIDEOS["PS2GS"] = true         -- (PS2 vector-unit support code, not a namcos23 dependency either)

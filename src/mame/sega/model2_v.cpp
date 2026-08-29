@@ -96,6 +96,8 @@
 #include "libretro_m2/m2vk_sink.h"
 #endif
 
+#include "corefloat.h"
+
 #include <cmath>
 #include <limits>
 
