@@ -38,6 +38,7 @@
 #include "s22_seam.h"
 #include "s21_seam.h"
 #include "m1_seam.h"
+#include "s23_seam.h"
 
 #include "renderer_vk/vk_context.h"
 #include "renderer_vk/vk_funcs.h"
@@ -119,7 +120,7 @@ bool                                       s_hw_render = false;
 // Which of the three families the loaded set belongs to. Set from the driver source file in
 // retro_load_game (see family_of()), cached here so retro_run's live-options handler — which has no
 // `system` in scope — can gate the System 22 block without re-deriving it. model2 until a game loads.
-enum class family { model2, system22, system21, model1 };
+enum class family { model2, system22, system21, model1, system23 };
 family                                     s_family = family::model2;
 
 // Per-game option visibility (RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY) is applied once, the first frame
@@ -355,6 +356,9 @@ family family_of(const std::string &system)
 	// distinguishing token rather than the whole path (this is how MAME's own info_xml_creator finds it).
 	// namcos21_c67.cpp contains "namcos21"; the two Namco tokens do not overlap.
 	const std::string src = driver_list::driver(driver).type.source();
+	// namcos23 before namcos22/namcos21: its token overlaps neither, but check the most specific first.
+	if (src.find("namcos23") != std::string::npos)
+		return family::system23;
 	if (src.find("namcos22") != std::string::npos)
 		return family::system22;
 	if (src.find("namcos21") != std::string::npos)
@@ -434,6 +438,24 @@ void apply_family_cascade(family fam)
 		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
 		// Model 1 keeps its own Smooth Shading (model1_smooth_shading, left visible above); the Model 2 one
 		// is not its menu's.
+		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
+	}
+	else if (fam == family::system23)
+	{
+		// System 23 native is 640x480, like System 22. 23-2 wires no per-family debug options yet (the S23
+		// fog/no-lighting/no-textures/gamma set is R3 work), so hide every family-specific toggle: the S22
+		// options its pass does not read, both Smooth Shadings, and the three Model 2 render options (it is
+		// untextured-stand-in here, has no luma hook wired, and hardcodes no blend). Internal Resolution and
+		// the detector-gated steering/analog block (both in-scope sets are light-gun games) stay visible.
+		m2opt::set_native_resolution("640x480");
+		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
+		m2opt::hide_option(m2opt::KEY_S22_FOG);
+		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
+		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
+		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
+		m2opt::hide_option(m2opt::KEY_FLAT_LUMA);
+		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
+		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
 		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
 	}
 	else
@@ -953,13 +975,25 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			m1::set_gpu(s_hw_render && (std::getenv("M2VK_SW_3D") == nullptr));
 	}
 
+	// The Namco System 23 GPU pass (23-2), gated on its own family so no other build turns S23 capture on.
+	// set_gpu(true) attaches the record consumer and stops render_flush's software 3D walk; set_no_3d() is
+	// the M2VK_NO_3D background reference (2D layers only). S23 rides the passthrough like S22/M1.
+	if (fam == family::system23)
+	{
+		if (no_3d)
+			s23::set_no_3d();
+		else
+			s23::set_gpu(s_hw_render && (std::getenv("M2VK_SW_3D") == nullptr));
+	}
+
 	// The content's own directory, plus a place for sets the frontend keeps alongside the core.
 	// The second entry is what makes a clone loadable when its parent set lives elsewhere. Which
 	// leaf that is depends on the driver family compiled into this dylib (see the driver_list::find
 	// note in retro_set_environment above) — a System 22 build must not go looking in ".../model2".
 	const std::string family_dir = (fam == family::system22) ? "system22"
 			: (fam == family::system21) ? "system21"
-			: (fam == family::model1) ? "model1" : "model2";
+			: (fam == family::model1) ? "model1"
+			: (fam == family::system23) ? "system23" : "model2";
 	std::string rompath = rompath_from_path(path);
 	const std::string systemdir = frontend_directory(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY);
 	if (!systemdir.empty())

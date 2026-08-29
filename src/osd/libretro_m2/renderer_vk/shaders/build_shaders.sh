@@ -102,6 +102,10 @@ emit frag m1.frag          m1_frag
 emit vert m1_smooth.vert   m1_smooth_vert
 emit frag m1_smooth.frag   m1_smooth_frag
 
+# Namco System 23 textured polygon pass (23-3): texture_lookup + per-pixel shade, painter's draw order.
+emit vert s23.vert         s23_vert
+emit frag s23.frag         s23_frag
+
 # Namco System 21 flat untextured polygon pass (T2). s21.vert is shared by the pen-space geometry pass.
 emit vert s21.vert         s21_vert
 

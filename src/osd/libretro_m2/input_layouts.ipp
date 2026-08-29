@@ -20,6 +20,7 @@ char const *const SETS_alpiner[] = { "alpinerd", "alpinr2b", nullptr };
 char const *const SETS_alpines[] = { "alpines", nullptr };
 char const *const SETS_aquajet[] = { "aquajet", nullptr };
 char const *const SETS_bel[] = { "bel", nullptr };
+char const *const SETS_crszone[] = { "crszone", nullptr };
 char const *const SETS_cybrcomm[] = { "cybrcomm", nullptr };
 char const *const SETS_cybrcycc[] = { "cybrcycc", nullptr };
 char const *const SETS_cybsled[] = { "cybsled", nullptr };
@@ -55,6 +56,7 @@ char const *const SETS_srallyc[] = { "srallyc", nullptr };
 char const *const SETS_starblad[] = { "starblad", nullptr };
 char const *const SETS_swa[] = { "swa", nullptr };
 char const *const SETS_timecris[] = { "timecris", nullptr };
+char const *const SETS_timecrs2[] = { "timecrs2", nullptr };
 char const *const SETS_tokyowar[] = { "tokyowar", nullptr };
 char const *const SETS_topskatr[] = { "topskatr", nullptr };
 char const *const SETS_vcop[] = { "vcop", nullptr };
@@ -497,6 +499,50 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Aim",
 			/* 17 LSTICK_Y         */ "Aim",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
+	// Crisis Zone — Evolution 2 lightgun cabinet, inherits Time Crisis II's ports (trigger button 1, Foot Pedal
+	// button 2, User Enter button 3); aim is the left stick. Its BUTTON5 is unused (motor-test line). Clones
+	// resolve by parent.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"crszone",
+		SETS_crszone,
+		true,
+		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Gun Trigger */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Foot Pedal */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 User Enter */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Gun Trigger",
+			/*  1 Y        BUTTON3 */ "User Enter",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Foot Pedal",
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Aim X",
+			/* 17 LSTICK_Y         */ "Aim Y",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -1973,6 +2019,50 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
+	// Time Crisis II — lightgun cabinet, same shape as timecris; on a pad the trigger is button 1, the
+	// cover/reload Foot Pedal is button 2, and User Enter (button 3) navigates the operator's user-service menu.
+	// Aim is the left stick. Clones (timecrs2v4a etc.) resolve to this row by parent.
+	// verified: NOT YET MEASURED IN GAME
+	{
+		"timecrs2",
+		SETS_timecrs2,
+		true,
+		false,  // not a single-pad twin-stick cabinet
+		false,  // gear shift, if any, is a numbered button (no joystick routing)
+		{
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Gun Trigger */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Foot Pedal */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 User Enter */
+			SOURCE_NONE,  /* BUTTON4 Button 4 */
+			SOURCE_NONE,  /* BUTTON5 Button 5 */
+			SOURCE_NONE,  /* BUTTON6 Button 6 */
+			SOURCE_NONE,  /* BUTTON7 Button 7 */
+			SOURCE_NONE,  /* BUTTON8 Button 8 */
+			SOURCE_NONE,  /* BUTTON9 Button 9 */
+		},
+		{
+			/*  0 B        BUTTON1 */ "Gun Trigger",
+			/*  1 Y        BUTTON3 */ "User Enter",
+			/*  2 SELECT           */ "Coin",
+			/*  3 START            */ "Start",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Foot Pedal",
+			/*  9 X                */ nullptr,
+			/* 10 L                */ nullptr,
+			/* 11 R                */ nullptr,
+			/* 12 L2               */ nullptr,
+			/* 13 R2               */ nullptr,
+			/* 14 L3               */ "Service Coin",
+			/* 15 R3               */ nullptr,
+			/* 16 LSTICK_X         */ "Aim X",
+			/* 17 LSTICK_Y         */ "Aim Y",
+			/* 18 RSTICK_X         */ nullptr,
+			/* 19 RSTICK_Y         */ nullptr,
+		},
+	},
 	// Tokyo Wars — tank sim: wheel + two pedals (forward/backward) + twin cannon triggers; not a lightgun cabinet
 	// despite the name.
 	// verified: NOT YET MEASURED IN GAME
@@ -2568,4 +2658,4 @@ constexpr game_layout GAME_LAYOUTS[] = {
 	}
 };
 
-static_assert(std::size(GAME_LAYOUTS) == 58, "regenerate input_layouts.ipp");
+static_assert(std::size(GAME_LAYOUTS) == 60, "regenerate input_layouts.ipp");

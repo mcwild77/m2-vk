@@ -1251,6 +1251,10 @@ It can also be used with Final Furlong when wired correctly.
 #include "namco_settings.h"
 #include "vpx3220a.h"
 
+#ifdef S23VK
+#include "libretro_m2/s23_seam.h"
+#endif
+
 #include <cfloat>
 
 #define LOG_CLIP_DATA       (1ULL << 1)
@@ -1731,6 +1735,12 @@ public:
 
 	render_t m_render;
 	const u8 *m_sprrom;
+
+#ifdef S23VK
+	// 23-3: render_flush (a namcos23_renderer method) hands the GPU seam the palette pens, which live on
+	// this protected device. One guarded friend, so the hook reaches m_palette without a new accessor.
+	friend class namcos23_renderer;
+#endif
 
 protected:
 	virtual void machine_start() override ATTR_COLD;
@@ -4373,6 +4383,86 @@ void namcos23_renderer::render_flush(screen_device &screen, bitmap_rgb32 &bitmap
 
 	const static rectangle scissor(0, 639, 0, 479);
 
+#ifdef S23VK
+	// 23-1 seam: record the SORTED stream (this qsort is the depth result), draw nothing. See
+	// s23_seam.h. Observation-only — this loop never touches what render_scanline draws below.
+	s23::frame_begin(0);
+	if (s23::active())
+	{
+		// 23-3: hand the GPU the texture ROM (stable pointers) and the live palette. The two decoded
+		// arrays and texrom were resolved once in this renderer's constructor; the palette pens change per
+		// frame but the pointer does not — the consumer uploads the ROM once and re-reads the palette.
+		const pen_t *const pal_base = m_state.m_palette->pens();
+		s23::texture_rom trom;
+		trom.tmrom_decoded   = m_tmrom_decoded.get();
+		trom.texattr_decoded = m_texattr_decoded.get();
+		trom.decoded_count   = (m_tileid_mask | 0xff) + 1;
+		trom.texrom          = m_texrom;
+		trom.texrom_bytes    = (m_tile_mask + 1) * 256;
+		trom.palette         = pal_base;
+		trom.palette_count   = m_state.m_palette->entries();
+		trom.tileid_mask     = m_tileid_mask;
+		trom.texram          = m_texram;          // 23-4 stencil: C412 sram, re-read each frame
+		trom.texram_count    = 0x20000;
+		s23::set_texture_rom(trom);
+
+		for (int i = 0; i < render.poly_count; i++)
+		{
+			const namcos23_poly_entry *e = render.poly_order[i];
+			s23::poly sp;
+			sp.num_verts = uint8_t((e->vertex_count < 16) ? e->vertex_count : 16);
+			for (int v = 0; v < sp.num_verts; v++)
+			{
+				sp.x[v]   = e->pv[v].x;
+				sp.y[v]   = e->pv[v].y;
+				sp.p0[v]  = e->pv[v].p[0];   // ooz (1/z)
+				sp.uoz[v] = e->pv[v].p[1];   // u_texel*ooz — texel u = uoz/ooz
+				sp.voz[v] = e->pv[v].p[2];   // v_texel*ooz — texel v = voz/ooz, then + tbase
+				sp.ish[v] = e->pv[v].p[3];   // shade param; shade = ish/ooz
+			}
+			sp.pens_base       = uint32_t(e->rd.pens - pal_base);   // the poly's palette bank (0..0x7f00)
+			sp.vp_size_x       = e->rd.vp_size_x;
+			sp.vp_size_y       = e->rd.vp_size_y;
+			sp.vp_offset_x     = e->rd.vp_offset_x;
+			sp.vp_offset_y     = e->rd.vp_offset_y;
+			sp.zkey            = e->zkey;
+			sp.model           = !e->rd.direct && !e->rd.immediate && !e->rd.sprite;
+			sp.direct          = e->rd.direct;
+			sp.immediate       = e->rd.immediate;
+			sp.sprite          = e->rd.sprite;
+			sp.stencil_enabled = e->rd.stencil_enabled;
+			sp.shade_enabled   = e->rd.shade_enabled;
+			sp.pfade_enabled   = e->rd.pfade_enabled;
+			sp.colorfade       = e->rd.fadefactor != 0xff;
+			sp.blend_enabled   = e->rd.blend_enabled;
+			sp.poly_alpha      = e->rd.alpha != 0xff;
+			sp.alpha           = uint8_t(e->rd.alpha);          // 23-4 poly-alpha (bit0)
+			sp.alpha_pen       = e->rd.poly_alpha_pen;
+			sp.alpha_enabled   = e->rd.alpha_enabled;
+			sp.polycolor_r     = uint8_t(e->rd.polycolor_r);   // 23-4 poly-fade (bit3)
+			sp.polycolor_g     = uint8_t(e->rd.polycolor_g);
+			sp.polycolor_b     = uint8_t(e->rd.polycolor_b);
+			sp.fadefactor      = uint8_t(e->rd.fadefactor);    // 23-4 colour-fade (bit2)
+			sp.fadecolor_r     = uint8_t(e->rd.fadecolor_r);
+			sp.fadecolor_g     = uint8_t(e->rd.fadecolor_g);
+			sp.fadecolor_b     = uint8_t(e->rd.fadecolor_b);
+			sp.cmode           = e->rd.cmode;
+			sp.tbase           = e->rd.tbase;
+			sp.model_id        = e->rd.model;
+			s23::submit(sp);
+		}
+	}
+#endif
+
+	// 23-2: when the GPU owns the 3D (set_gpu / M2VK_NO_3D) skip the whole software rasterise below; the
+	// recorded stream above becomes the Vulkan geometry pass instead. sw_owns_3d() is true in every
+	// non-namcos23 build and whenever the software renderer is chosen, so this is the untouched path there.
+#ifdef S23VK
+	const bool s23_sw_owns_3d = s23::sw_owns_3d();
+#else
+	const bool s23_sw_owns_3d = true;
+#endif
+	if (s23_sw_owns_3d)
 	for (int i = 0; i < render.poly_count; i++)
 	{
 		const namcos23_poly_entry *p = render.poly_order[i];
@@ -4464,6 +4554,10 @@ void namcos23_renderer::render_flush(screen_device &screen, bitmap_rgb32 &bitmap
 			}
 		}
 	}
+
+#ifdef S23VK
+	s23::frame_end();
+#endif
 
 	render.poly_count = 0;
 }
@@ -5013,6 +5107,17 @@ u32 namcos23_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 	{
 		mix_text_layer(screen, bitmap, cliprect, 6);
 	}
+
+#ifdef S23VK
+	// 23-5: snapshot the text/HUD layer as the 2D-over overlay so the renderer can redraw it above the GPU
+	// 3D. With the GPU owning the 3D, render_run drew nothing and nothing wrote the priority buffer, so the
+	// only priority present is the text tilemap's own value 4 (draw_text_layer) — the "text over a polygon"
+	// case (priority 6) never arises. So capture ALL text (priority 4): it is redrawn over the GPU 3D,
+	// placing the HUD above every primitive, which matches software here (render_flush forces prioverchar=2
+	// on every primitive, so software always redraws the text over the 3D anyway). Inert while the software
+	// rasteriser owns the 3D — the passthrough already has the text on top then.
+	s23::capture_over(bitmap, screen.priority(), 4, cliprect);
+#endif
 
 	return 0;
 }

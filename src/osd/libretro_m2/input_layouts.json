@@ -767,6 +767,63 @@
       }
     },
     {
+      "id": "crszone",
+      "sets": [
+        "crszone"
+      ],
+      "lightgun": true,
+      "note": "Crisis Zone — Evolution 2 lightgun cabinet, inherits Time Crisis II's ports (trigger button 1, Foot Pedal button 2, User Enter button 3); aim is the left stick. Its BUTTON5 is unused (motor-test line). Clones resolve by parent.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Gun Trigger"
+        },
+        {
+          "source": "A",
+          "label": "Foot Pedal"
+        },
+        {
+          "source": "Y",
+          "label": "User Enter"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Gun Trigger",
+        "A": "Foot Pedal",
+        "Y": "User Enter",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim X",
+        "LSTICK_Y": "Aim Y"
+      }
+    },
+    {
       "id": "daytona",
       "sets": [
         "daytona"
@@ -2665,6 +2722,63 @@
       "labels": {
         "B": "Gun Trigger",
         "A": "Foot Pedal",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim X",
+        "LSTICK_Y": "Aim Y"
+      }
+    },
+    {
+      "id": "timecrs2",
+      "sets": [
+        "timecrs2"
+      ],
+      "lightgun": true,
+      "note": "Time Crisis II — lightgun cabinet, same shape as timecris; on a pad the trigger is button 1, the cover/reload Foot Pedal is button 2, and User Enter (button 3) navigates the operator's user-service menu. Aim is the left stick. Clones (timecrs2v4a etc.) resolve to this row by parent.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Gun Trigger"
+        },
+        {
+          "source": "A",
+          "label": "Foot Pedal"
+        },
+        {
+          "source": "Y",
+          "label": "User Enter"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Gun Trigger",
+        "A": "Foot Pedal",
+        "Y": "User Enter",
         "SELECT": "Coin",
         "START": "Start",
         "L3": "Service Coin",
