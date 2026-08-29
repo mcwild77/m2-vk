@@ -27,7 +27,7 @@ char const *const SETS_daytona[] = { "daytona", nullptr };
 char const *const SETS_desert[] = { "desert", nullptr };
 char const *const SETS_dirtdash[] = { "dirtdash", nullptr };
 char const *const SETS_doa[] = { "doa", nullptr };
-char const *const SETS_dynabb[] = { "dynabb", nullptr };
+char const *const SETS_dynabb[] = { "dynabb", "dynabb97", nullptr };
 char const *const SETS_dynamcop[] = { "dynamcop", nullptr };
 char const *const SETS_gunblade[] = { "gunblade", nullptr };
 char const *const SETS_hotd[] = { "hotd", nullptr };
@@ -43,7 +43,7 @@ char const *const SETS_propcycl[] = { "propcycl", nullptr };
 char const *const SETS_raverace[] = { "raverace", nullptr };
 char const *const SETS_rchase2[] = { "rchase2", nullptr };
 char const *const SETS_rchase2a[] = { "rchase2a", nullptr };
-char const *const SETS_ridgera[] = { "ridgerac", "ridgerac3m", nullptr };
+char const *const SETS_ridgera[] = { "ridgerac", nullptr };
 char const *const SETS_ridgera2[] = { "ridgera2", nullptr };
 char const *const SETS_ridgeracf[] = { "ridgeracf", nullptr };
 char const *const SETS_schamp[] = { "schamp", nullptr };
@@ -53,7 +53,7 @@ char const *const SETS_skisuprg[] = { "skisuprg", nullptr };
 char const *const SETS_skytargt[] = { "skytargt", nullptr };
 char const *const SETS_srallyc[] = { "srallyc", nullptr };
 char const *const SETS_starblad[] = { "starblad", nullptr };
-char const *const SETS_swa[] = { "swa", "swaj", nullptr };
+char const *const SETS_swa[] = { "swa", nullptr };
 char const *const SETS_timecris[] = { "timecris", nullptr };
 char const *const SETS_tokyowar[] = { "tokyowar", nullptr };
 char const *const SETS_topskatr[] = { "topskatr", nullptr };
@@ -63,11 +63,11 @@ char const *const SETS_vf[] = { "vf", nullptr };
 char const *const SETS_vf2[] = { "vf2", "hpyagu98", "fvipers", "lastbrnx", nullptr };
 char const *const SETS_victlap[] = { "victlap", nullptr };
 char const *const SETS_von[] = { "von", nullptr };
-char const *const SETS_vr[] = { "vr", "vformula", nullptr };
+char const *const SETS_vr[] = { "vr", nullptr };
 char const *const SETS_vstriker[] = { "vstriker", nullptr };
 char const *const SETS_waverunr[] = { "waverunr", nullptr };
-char const *const SETS_wingwar[] = { "wingwar", "wingwaru", "wingwarj", nullptr };
-char const *const SETS_winrun[] = { "winrun", "winrungp", nullptr };
+char const *const SETS_wingwar[] = { "wingwar", nullptr };
+char const *const SETS_winrun[] = { "winrun", nullptr };
 char const *const SETS_zerogun[] = { "zerogun", nullptr };
 
 // The fallback, and it is deliberately identical to the layout every set used before there were
@@ -183,10 +183,10 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  1 Y                */ nullptr,
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
-			/*  4 UP               */ nullptr,
-			/*  5 DOWN             */ nullptr,
-			/*  6 LEFT             */ nullptr,
-			/*  7 RIGHT            */ nullptr,
+			/*  4 UP               */ "Dev Service Up",
+			/*  5 DOWN             */ "Dev Service Down",
+			/*  6 LEFT             */ "Dev Service Left",
+			/*  7 RIGHT            */ "Dev Service Right",
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
 			/* 10 L                */ nullptr,
@@ -337,7 +337,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"alpiner",
 		SETS_alpiner,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
-		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // not a single-pad twin-stick cabinet
 		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
@@ -355,8 +355,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  1 Y                */ nullptr,
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
-			/*  4 UP               */ nullptr,
-			/*  5 DOWN             */ nullptr,
+			/*  4 UP               */ "Up",
+			/*  5 DOWN             */ "Down",
 			/*  6 LEFT             */ "Left",
 			/*  7 RIGHT            */ "Right",
 			/*  8 A                */ nullptr,
@@ -368,7 +368,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Steps Swing",
-			/* 17 LSTICK_Y         */ nullptr,
+			/* 17 LSTICK_Y         */ "Move",
 			/* 18 RSTICK_X         */ "Steps Edge",
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -379,7 +379,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"alpines",
 		SETS_alpines,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
-		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // not a single-pad twin-stick cabinet
 		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			SOURCE_NONE,  /* BUTTON1 Button 1 */
@@ -397,8 +397,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  1 Y                */ nullptr,
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
-			/*  4 UP               */ nullptr,
-			/*  5 DOWN             */ nullptr,
+			/*  4 UP               */ "Up",
+			/*  5 DOWN             */ "Down",
 			/*  6 LEFT             */ "Left",
 			/*  7 RIGHT            */ "Right",
 			/*  8 A                */ nullptr,
@@ -410,7 +410,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Steps Swing",
-			/* 17 LSTICK_Y         */ nullptr,
+			/* 17 LSTICK_Y         */ "Move",
 			/* 18 RSTICK_X         */ "Steps Edge",
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -508,7 +508,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"cybrcomm",
 		SETS_cybrcomm,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
-		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // not a single-pad twin-stick cabinet
 		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_R2,  /* BUTTON1 Gun Trigger */
@@ -592,7 +592,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		"cybsled",
 		SETS_cybsled,
 		false,   // no IPT_LIGHTGUN_X/Y: send no gun descriptors
-		true,  // single-pad twin-stick: OR pad 1 right stick onto player>1 IPT_AD_STICK
+		false,  // not a single-pad twin-stick cabinet
 		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
 			RETRO_DEVICE_ID_JOYPAD_L2,  /* BUTTON1 Missile */
@@ -628,9 +628,9 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
-	// one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. Gears sit on the face
-	// diamond by position — GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A). The d-pad carries VR1-4
-	// clockwise from Up; the cabinet has them left-to-right and a d-pad is not a row.
+	// one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. The d-pad assignment is
+	// clockwise from Up and is the one arbitrary choice: the cabinet has VR1-4 left-to-right and a d-pad is not a
+	// row.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"daytona",
@@ -641,9 +641,9 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		{
 			SOURCE_NONE,  /* BUTTON1 GEAR N — GEAR N: the pad is out of buttons, and neutral is reachable by shifting down out of gear 1 */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
-			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 GEAR 2 */
-			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 GEAR 3 */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON5 GEAR 4 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON3 GEAR 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON4 GEAR 3 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON5 GEAR 4 */
 			RETRO_DEVICE_ID_JOYPAD_UP,  /* BUTTON6 VR1 (Red) */
 			RETRO_DEVICE_ID_JOYPAD_RIGHT,  /* BUTTON7 VR2 (Blue) */
 			RETRO_DEVICE_ID_JOYPAD_DOWN,  /* BUTTON8 VR3 (Yellow) */
@@ -651,15 +651,15 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		},
 		{
 			/*  0 B        BUTTON2 */ "GEAR 1",
-			/*  1 Y        BUTTON3 */ "GEAR 2",
+			/*  1 Y        BUTTON4 */ "GEAR 3",
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
 			/*  4 UP       BUTTON6 */ "VR1 (Red)",
 			/*  5 DOWN     BUTTON8 */ "VR3 (Yellow)",
 			/*  6 LEFT     BUTTON9 */ "VR4 (Green)",
 			/*  7 RIGHT    BUTTON7 */ "VR2 (Blue)",
-			/*  8 A        BUTTON5 */ "GEAR 4",
-			/*  9 X        BUTTON4 */ "GEAR 3",
+			/*  8 A        BUTTON3 */ "GEAR 2",
+			/*  9 X        BUTTON5 */ "GEAR 4",
 			/* 10 L                */ nullptr,
 			/* 11 R                */ nullptr,
 			/* 12 L2               */ "Brake",
@@ -826,20 +826,20 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  1 Y                */ nullptr,
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
-			/*  4 UP               */ nullptr,
-			/*  5 DOWN             */ nullptr,
-			/*  6 LEFT             */ nullptr,
-			/*  7 RIGHT            */ nullptr,
+			/*  4 UP               */ "Up",
+			/*  5 DOWN             */ "Down",
+			/*  6 LEFT             */ "Left",
+			/*  7 RIGHT            */ "Right",
 			/*  8 A        BUTTON2 */ "Button 2",
 			/*  9 X                */ nullptr,
 			/* 10 L                */ nullptr,
 			/* 11 R                */ nullptr,
-			/* 12 L2               */ nullptr,
+			/* 12 L2               */ "Bat Swing",
 			/* 13 R2               */ "Bat Swing",
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
-			/* 16 LSTICK_X         */ nullptr,
-			/* 17 LSTICK_Y         */ nullptr,
+			/* 16 LSTICK_X         */ "Move",
+			/* 17 LSTICK_Y         */ "Move",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -1472,7 +1472,6 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
-	// ridgerac3m (three-monitor version) shares this port set verbatim via PORT_INCLUDE; MACHINE_NOT_WORKING.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"ridgera",
@@ -1555,8 +1554,6 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
-	// Ridge Racer Full Scale — as ridgerac (MACHINE_NOT_WORKING, no local ROM to dump) plus a cockpit
-	// ignition/AT/MT switch trio; read from source, not a live dump.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"ridgeracf",
@@ -1565,35 +1562,35 @@ constexpr game_layout GAME_LAYOUTS[] = {
 		false,  // not a single-pad twin-stick cabinet
 		false,  // gear shift, if any, is a numbered button (no joystick routing)
 		{
-			SOURCE_NONE,  /* BUTTON1 Button 1 */
-			SOURCE_NONE,  /* BUTTON2 Button 2 */
-			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Clutch Pedal */
-			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Ignition Key */
-			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON5 AT Switch */
-			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON6 MT Switch */
-			SOURCE_NONE,  /* BUTTON7 Button 7 */
-			SOURCE_NONE,  /* BUTTON8 Button 8 */
-			SOURCE_NONE,  /* BUTTON9 Button 9 */
+			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON1 Button 1 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON2 Button 2 */
+			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 Button 3 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 Button 4 */
+			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON5 Button 5 */
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON6 Button 6 */
+			SOURCE_L2_AXIS,  /* BUTTON7 Button 7 */
+			SOURCE_R2_AXIS,  /* BUTTON8 Button 8 */
+			RETRO_DEVICE_ID_JOYPAD_R3,  /* BUTTON9 Button 9 */
 		},
 		{
-			/*  0 B                */ nullptr,
-			/*  1 Y        BUTTON3 */ "Clutch Pedal",
+			/*  0 B        BUTTON1 */ "Button 1",
+			/*  1 Y        BUTTON3 */ "Button 3",
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
-			/*  4 UP               */ "Shift Down",
-			/*  5 DOWN             */ "Shift Up",
-			/*  6 LEFT             */ "Shift Left",
-			/*  7 RIGHT            */ "Shift Right",
-			/*  8 A                */ nullptr,
-			/*  9 X        BUTTON4 */ "Ignition Key",
-			/* 10 L        BUTTON6 */ "MT Switch",
-			/* 11 R        BUTTON5 */ "AT Switch",
-			/* 12 L2               */ "Brake Pedal",
-			/* 13 R2               */ "Gas Pedal",
+			/*  4 UP               */ nullptr,
+			/*  5 DOWN             */ nullptr,
+			/*  6 LEFT             */ nullptr,
+			/*  7 RIGHT            */ nullptr,
+			/*  8 A        BUTTON2 */ "Button 2",
+			/*  9 X        BUTTON4 */ "Button 4",
+			/* 10 L        BUTTON6 */ "Button 6",
+			/* 11 R        BUTTON5 */ "Button 5",
+			/* 12 L2       BUTTON7 */ "Button 7",
+			/* 13 R2       BUTTON8 */ "Button 8",
 			/* 14 L3               */ "Service Coin",
-			/* 15 R3               */ nullptr,
-			/* 16 LSTICK_X         */ "Move / Steering Wheel",
-			/* 17 LSTICK_Y         */ "Move",
+			/* 15 R3       BUTTON9 */ "Button 9",
+			/* 16 LSTICK_X         */ nullptr,
+			/* 17 LSTICK_Y         */ nullptr,
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -1807,8 +1804,6 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 19 RSTICK_Y         */ nullptr,
 		},
 	},
-	// gears on the face diamond by position — GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A); GEAR N / hand
-	// brake on R, VR on L.
 	// verified: NOT YET MEASURED IN GAME
 	{
 		"srallyc",
@@ -1820,8 +1815,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON1 GEAR N */
 			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON2 GEAR 1 */
 			RETRO_DEVICE_ID_JOYPAD_Y,  /* BUTTON3 GEAR 2 */
-			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON4 GEAR 3 */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON5 GEAR 4 */
+			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON4 GEAR 3 */
+			RETRO_DEVICE_ID_JOYPAD_X,  /* BUTTON5 GEAR 4 */
 			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON6 VR */
 			SOURCE_NONE,  /* BUTTON7 Button 7 */
 			SOURCE_NONE,  /* BUTTON8 Button 8 */
@@ -1836,8 +1831,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  5 DOWN             */ nullptr,
 			/*  6 LEFT             */ nullptr,
 			/*  7 RIGHT            */ nullptr,
-			/*  8 A        BUTTON5 */ "GEAR 4",
-			/*  9 X        BUTTON4 */ "GEAR 3",
+			/*  8 A        BUTTON4 */ "GEAR 3",
+			/*  9 X        BUTTON5 */ "GEAR 4",
 			/* 10 L        BUTTON6 */ "VR",
 			/* 11 R        BUTTON1 */ "Hand Brake / GEAR N",
 			/* 12 L2               */ "Brake Pedal",
@@ -2298,10 +2293,10 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  1 Y                */ nullptr,
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
-			/*  4 UP               */ nullptr,
-			/*  5 DOWN             */ nullptr,
-			/*  6 LEFT             */ nullptr,
-			/*  7 RIGHT            */ nullptr,
+			/*  4 UP               */ "Up",
+			/*  5 DOWN             */ "Down",
+			/*  6 LEFT             */ "Left",
+			/*  7 RIGHT            */ "Right",
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
 			/* 10 L        BUTTON1 */ "Left Shot",
@@ -2310,8 +2305,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 13 R2       BUTTON4 */ "Right Dash",
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
-			/* 16 LSTICK_X         */ nullptr,
-			/* 17 LSTICK_Y         */ nullptr,
+			/* 16 LSTICK_X         */ "Move",
+			/* 17 LSTICK_Y         */ "Move",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},
@@ -2332,12 +2327,12 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			RETRO_DEVICE_ID_JOYPAD_RIGHT,  /* BUTTON4 VR2 (Blue) */
 			RETRO_DEVICE_ID_JOYPAD_DOWN,  /* BUTTON5 VR3 (Yellow) */
 			RETRO_DEVICE_ID_JOYPAD_LEFT,  /* BUTTON6 VR4 (Green) */
-			RETRO_DEVICE_ID_JOYPAD_B,  /* BUTTON7 Shift Down */
-			RETRO_DEVICE_ID_JOYPAD_A,  /* BUTTON8 Shift Up */
+			RETRO_DEVICE_ID_JOYPAD_L,  /* BUTTON7 Shift Down */
+			RETRO_DEVICE_ID_JOYPAD_R,  /* BUTTON8 Shift Up */
 			SOURCE_NONE,  /* BUTTON9 (unused) */
 		},
 		{
-			/*  0 B        BUTTON7 */ "Shift Down",
+			/*  0 B                */ nullptr,
 			/*  1 Y                */ nullptr,
 			/*  2 SELECT           */ "Coin",
 			/*  3 START            */ "Start",
@@ -2345,10 +2340,10 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  5 DOWN     BUTTON5 */ "VR3 (Yellow)",
 			/*  6 LEFT     BUTTON6 */ "VR4 (Green)",
 			/*  7 RIGHT    BUTTON4 */ "VR2 (Blue)",
-			/*  8 A        BUTTON8 */ "Shift Up",
+			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
-			/* 10 L                */ nullptr,
-			/* 11 R                */ nullptr,
+			/* 10 L        BUTTON7 */ "Shift Down",
+			/* 11 R        BUTTON8 */ "Shift Up",
 			/* 12 L2               */ "Brake",
 			/* 13 R2               */ "Accelerator",
 			/* 14 L3               */ "Service Coin",
@@ -2513,8 +2508,8 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/*  3 START            */ "Start",
 			/*  4 UP               */ "Shift Down",
 			/*  5 DOWN             */ "Shift Up",
-			/*  6 LEFT             */ nullptr,
-			/*  7 RIGHT            */ nullptr,
+			/*  6 LEFT             */ "Left",
+			/*  7 RIGHT            */ "Right",
 			/*  8 A                */ nullptr,
 			/*  9 X                */ nullptr,
 			/* 10 L                */ "Shift Down",
@@ -2524,7 +2519,7 @@ constexpr game_layout GAME_LAYOUTS[] = {
 			/* 14 L3               */ "Service Coin",
 			/* 15 R3               */ nullptr,
 			/* 16 LSTICK_X         */ "Steering Wheel",
-			/* 17 LSTICK_Y         */ nullptr,
+			/* 17 LSTICK_Y         */ "Move",
 			/* 18 RSTICK_X         */ nullptr,
 			/* 19 RSTICK_Y         */ nullptr,
 		},

@@ -1,3484 +1,3512 @@
 {
- "schema": 1,
- "generated_by": "devnotes/tools/padmap.html",
- "generic": {
-  "note": "the fallback for every port set with no row \u2014 today's Classic layout, unchanged",
-  "buttons": [
-   {
-    "source": "B",
-    "label": ""
-   },
-   {
-    "source": "A",
-    "label": ""
-   },
-   {
-    "source": "Y",
-    "label": ""
-   },
-   {
-    "source": "X",
-    "label": ""
-   },
-   {
-    "source": "R",
-    "label": ""
-   },
-   {
-    "source": "L",
-    "label": ""
-   },
-   {
-    "source": "L2_AXIS",
-    "label": ""
-   },
-   {
-    "source": "R2_AXIS",
-    "label": ""
-   },
-   {
-    "source": "R3",
-    "label": ""
-   }
-  ],
-  "labels": {
-   "B": "Button 1",
-   "A": "Button 2",
-   "Y": "Button 3",
-   "X": "Button 4",
-   "R": "Button 5",
-   "L": "Button 6",
-   "L2": "Brake / Button 7",
-   "R2": "Accelerator / Button 8",
-   "SELECT": "Coin",
-   "START": "Start",
-   "R3": "Button 9",
-   "L3": "Service Coin",
-   "UP": "Up",
-   "DOWN": "Down",
-   "LEFT": "Left",
-   "RIGHT": "Right",
-   "LSTICK_X": "Steering / Stick X",
-   "LSTICK_Y": "Stick Y",
-   "RSTICK_X": "Right Stick X",
-   "RSTICK_Y": "Right Stick Y"
-  }
- },
- "rows": [
-  {
-   "id": "acedrive",
-   "sets": [
-    "acedrive"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Dev Service Enter"
-    },
-    {
-     "source": "NONE",
-     "label": "Dev Service Exit"
-    },
-    {
-     "source": "Y",
-     "label": "View Change"
-    },
-    {
-     "source": "NONE",
-     "label": "Motion-Stop"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
+  "schema": 1,
+  "generated_by": "devnotes/tools/padmap.html",
+  "generic": {
+    "note": "the fallback for every port set with no row — today's Classic layout, unchanged",
+    "buttons": [
+      {
+        "source": "B",
+        "label": ""
+      },
+      {
+        "source": "A",
+        "label": ""
+      },
+      {
+        "source": "Y",
+        "label": ""
+      },
+      {
+        "source": "X",
+        "label": ""
+      },
+      {
+        "source": "R",
+        "label": ""
+      },
+      {
+        "source": "L",
+        "label": ""
+      },
+      {
+        "source": "L2_AXIS",
+        "label": ""
+      },
+      {
+        "source": "R2_AXIS",
+        "label": ""
+      },
+      {
+        "source": "R3",
+        "label": ""
+      }
+    ],
+    "labels": {
+      "B": "Button 1",
+      "A": "Button 2",
+      "Y": "Button 3",
+      "X": "Button 4",
+      "R": "Button 5",
+      "L": "Button 6",
+      "L2": "Brake / Button 7",
+      "R2": "Accelerator / Button 8",
+      "SELECT": "Coin",
+      "START": "Start",
+      "R3": "Button 9",
+      "L3": "Service Coin",
+      "UP": "Up",
+      "DOWN": "Down",
+      "LEFT": "Left",
+      "RIGHT": "Right",
+      "LSTICK_X": "Steering / Stick X",
+      "LSTICK_Y": "Stick Y",
+      "RSTICK_X": "Right Stick X",
+      "RSTICK_Y": "Right Stick Y"
     }
-   ],
-   "labels": {
-    "Y": "View Change",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "UP": "Dev Service Up",
-    "DOWN": "Dev Service Down",
-    "LEFT": "Dev Service Left",
-    "RIGHT": "Dev Service Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move / Steering Wheel",
-    "LSTICK_Y": "Move"
-   }
   },
-  {
-   "id": "airwlkrs",
-   "sets": [
-    "airwlkrs"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
+  "rows": [
     {
-     "source": "B",
-     "label": "Button 1"
+      "id": "acedrive",
+      "sets": [
+        "acedrive"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Dev Service Enter"
+        },
+        {
+          "source": "NONE",
+          "label": "Dev Service Exit"
+        },
+        {
+          "source": "Y",
+          "label": "View Change"
+        },
+        {
+          "source": "NONE",
+          "label": "Motion-Stop"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View Change",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Dev Service Up",
+        "DOWN": "Dev Service Down",
+        "LEFT": "Dev Service Left",
+        "RIGHT": "Dev Service Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
     },
     {
-     "source": "A",
-     "label": "Button 2"
+      "id": "adillor",
+      "sets": [
+        "adillor"
+      ],
+      "lightgun": false,
+      "note": "Armadillo Racing — trackball cabinet; the two dev-service buttons are a CUSTOM port, not player controls.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Dev Service Enter"
+        },
+        {
+          "source": "NONE",
+          "label": "Dev Service Exit"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "UP": "Dev Service Up",
+        "DOWN": "Dev Service Down",
+        "LEFT": "Dev Service Left",
+        "RIGHT": "Dev Service Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Trackball",
+        "LSTICK_Y": "Move / Trackball"
+      }
     },
     {
-     "source": "Y",
-     "label": "Button 3"
+      "id": "airco22",
+      "sets": [
+        "airco22b"
+      ],
+      "lightgun": false,
+      "note": "Air Combat 22 — flight stick + throttle; the throttle (AD_STICK_Z) defaults onto the right stick's X axis, not a trigger.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Gun Trigger"
+        },
+        {
+          "source": "A",
+          "label": "Missile Button"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Gun Trigger",
+        "A": "Missile Button",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move",
+        "RSTICK_X": "Throttle Stick"
+      }
     },
     {
-     "source": "X",
-     "label": "Button 4"
+      "id": "aircomb",
+      "sets": [
+        "aircomb"
+      ],
+      "lightgun": false,
+      "note": "Air Combat (System 21) — flight stick on the left stick, throttle (AD_STICK_Z) on the right stick X (as airco22). MAME names none of the six buttons; placed by number (btn1→B, btn2→A …). By airco22's shape btn1 is likely Gun and btn2 Missile — needs a hand-check.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "R",
+          "label": "Button 5"
+        },
+        {
+          "source": "L",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "L": "Button 6",
+        "R": "Button 5",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim",
+        "RSTICK_X": "Throttle"
+      }
     },
     {
-     "source": "R",
-     "label": "Button 5"
+      "id": "airwlkrs",
+      "sets": [
+        "airwlkrs"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "R",
+          "label": "Button 5"
+        },
+        {
+          "source": "L",
+          "label": "Button 6"
+        },
+        {
+          "source": "L2_AXIS",
+          "label": "Button 7"
+        },
+        {
+          "source": "R2_AXIS",
+          "label": "Button 8"
+        },
+        {
+          "source": "R3",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "L": "Button 6",
+        "R": "Button 5",
+        "L2": "Button 7",
+        "R2": "Button 8",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "R3": "Button 9"
+      }
     },
     {
-     "source": "L",
-     "label": "Button 6"
+      "id": "alpiner",
+      "sets": [
+        "alpinerd",
+        "alpinr2b"
+      ],
+      "lightgun": false,
+      "note": "Alpine Racer / Alpine Racer 2 — two independent leg-lean axes (Steps Swing / Steps Edge), tagged P1/P2 like Cyber Sled's treads; reuses the single-pad twin-stick binding so the second leg lands on the right stick's X axis. P1 Left/Right are unnamed digital fields on the same port.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steps Swing",
+        "LSTICK_Y": "Move",
+        "RSTICK_X": "Steps Edge"
+      }
     },
     {
-     "source": "L2_AXIS",
-     "label": "Button 7"
+      "id": "alpines",
+      "sets": [
+        "alpines"
+      ],
+      "lightgun": false,
+      "note": "Alpine Surfer — same leg-lean pair as Alpine Racer.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steps Swing",
+        "LSTICK_Y": "Move",
+        "RSTICK_X": "Steps Edge"
+      }
     },
     {
-     "source": "R2_AXIS",
-     "label": "Button 8"
+      "id": "aquajet",
+      "sets": [
+        "aquajet"
+      ],
+      "lightgun": false,
+      "note": "Aqua Jet — MAME gives no PORT_NAME for the paddle, pedal or AD_STICK_Y fields; labelled by best-guess function pending a hand-check.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "R2": "Throttle",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering",
+        "LSTICK_Y": "Lean"
+      }
     },
     {
-     "source": "R3",
-     "label": "Button 9"
+      "id": "bel",
+      "sets": [
+        "bel"
+      ],
+      "lightgun": false,
+      "note": "two-player simultaneous cabinet; aim on the left stick, fire on B, missile on A. MAME leaves button 1 unnamed. Player 2 uses its own pad.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Missile"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Missile",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim"
+      }
+    },
+    {
+      "id": "cybrcomm",
+      "sets": [
+        "cybrcomm"
+      ],
+      "lightgun": false,
+      "note": "Cyber Commando — twin-stick mech cabinet, same shape as Cyber Sled (System 21); trigger/missile/view are placed on both physical sticks so either hand fires. Main gun on R2, missile on L2 for a pad player.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "R2",
+          "label": "Gun Trigger"
+        },
+        {
+          "source": "L2",
+          "label": "Missile Button"
+        },
+        {
+          "source": "Y",
+          "label": "View Change"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View Change",
+        "L2": "Missile Button",
+        "R2": "Gun Trigger",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Aim",
+        "LSTICK_Y": "Move / Aim",
+        "RSTICK_X": "Move / Aim",
+        "RSTICK_Y": "Move / Aim"
+      }
+    },
+    {
+      "id": "cybrcycc",
+      "sets": [
+        "cybrcycc"
+      ],
+      "lightgun": false,
+      "note": "Cyber Cycles — leaning-motorcycle cabinet; throttle grip and brake lever share the pedal axes.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "L2": "Brake Lever",
+        "R2": "Throttle Grip",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering / Bike Bank"
+      }
+    },
+    {
+      "id": "cybsled",
+      "sets": [
+        "cybsled"
+      ],
+      "lightgun": false,
+      "note": "Cyber Sled — twin-stick tank; left stick aims. Main gun on R2, missile on L2 for a pad player.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "L2",
+          "label": "Missile"
+        },
+        {
+          "source": "R2",
+          "label": "Gun"
+        },
+        {
+          "source": "Y",
+          "label": "Viewport Change"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "Y": "Viewport Change",
+        "L2": "Missile",
+        "R2": "Gun",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Aim",
+        "LSTICK_Y": "Move / Aim"
+      }
+    },
+    {
+      "id": "daytona",
+      "sets": [
+        "daytona"
+      ],
+      "lightgun": false,
+      "note": "one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. The d-pad assignment is clockwise from Up and is the one arbitrary choice: the cabinet has VR1-4 left-to-right and a d-pad is not a row.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "GEAR N",
+          "why": "GEAR N: the pad is out of buttons, and neutral is reachable by shifting down out of gear 1"
+        },
+        {
+          "source": "B",
+          "label": "GEAR 1"
+        },
+        {
+          "source": "A",
+          "label": "GEAR 2"
+        },
+        {
+          "source": "Y",
+          "label": "GEAR 3"
+        },
+        {
+          "source": "X",
+          "label": "GEAR 4"
+        },
+        {
+          "source": "UP",
+          "label": "VR1 (Red)"
+        },
+        {
+          "source": "RIGHT",
+          "label": "VR2 (Blue)"
+        },
+        {
+          "source": "DOWN",
+          "label": "VR3 (Yellow)"
+        },
+        {
+          "source": "LEFT",
+          "label": "VR4 (Green)"
+        }
+      ],
+      "labels": {
+        "B": "GEAR 1",
+        "A": "GEAR 2",
+        "Y": "GEAR 3",
+        "X": "GEAR 4",
+        "L2": "Brake",
+        "R2": "Accelerator",
+        "UP": "VR1 (Red)",
+        "DOWN": "VR3 (Yellow)",
+        "LEFT": "VR4 (Green)",
+        "RIGHT": "VR2 (Blue)",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering"
+      }
+    },
+    {
+      "id": "desert",
+      "sets": [
+        "desert"
+      ],
+      "lightgun": false,
+      "note": "tank cabinet: wheel, one pedal, six buttons. The buttons keep the generic row's order, so nothing a player has learned moves and only the wording arrives. Two controls the generic row cannot describe: BRAKE is an IPT_AD_STICK_Y, i.e. the left stick's Y axis and not a trigger, and there is no IPT_PEDAL2 at all, so L2 does nothing and is left unlabelled.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Machine Gun"
+        },
+        {
+          "source": "A",
+          "label": "Cannon"
+        },
+        {
+          "source": "Y",
+          "label": "Shift"
+        },
+        {
+          "source": "X",
+          "label": "VR1 (Blue)"
+        },
+        {
+          "source": "R",
+          "label": "VR2 (Green)"
+        },
+        {
+          "source": "L",
+          "label": "VR3 (Red)"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7",
+          "why": "the machine declares no IPT_BUTTON7 — leaving it on the L2 threshold, as the generic row does, binds a button that does not exist"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8",
+          "why": "no IPT_BUTTON8 either; the accelerator on R2 is IPT_PEDAL and is bound outside the layout"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Machine Gun",
+        "A": "Cannon",
+        "Y": "Shift",
+        "X": "VR1 (Blue)",
+        "L": "VR3 (Red)",
+        "R": "VR2 (Green)",
+        "R2": "Accelerator",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering",
+        "LSTICK_Y": "Brake"
+      }
+    },
+    {
+      "id": "dirtdash",
+      "sets": [
+        "dirtdash"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "View Change"
+        },
+        {
+          "source": "NONE",
+          "label": "Motion-Stop"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View Change",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "doa",
+      "sets": [
+        "doa"
+      ],
+      "lightgun": false,
+      "note": "three buttons: Hold / Punch / Kick",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "Y",
+          "label": "Hold"
+        },
+        {
+          "source": "B",
+          "label": "Punch"
+        },
+        {
+          "source": "A",
+          "label": "Kick"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Punch",
+        "A": "Kick",
+        "Y": "Hold",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "dynabb",
+      "sets": [
+        "dynabb",
+        "dynabb97"
+      ],
+      "lightgun": false,
+      "note": "Dynamite Baseball — digital stick for movement, two buttons on B/A, and the analog Bat Swing pedal (IPT_PEDAL), which lands on R2 as every pedal does. Two-player; player 2 uses its own pad. MAME leaves the two buttons unnamed.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "L2": "Bat Swing",
+        "R2": "Bat Swing",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "dynamcop",
+      "sets": [
+        "dynamcop"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "Y",
+          "label": "Punch"
+        },
+        {
+          "source": "B",
+          "label": "Kick"
+        },
+        {
+          "source": "A",
+          "label": "Jump"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Kick",
+        "A": "Jump",
+        "Y": "Punch",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "gunblade",
+      "sets": [
+        "gunblade"
+      ],
+      "lightgun": false,
+      "note": "as rchase2 with a different PORT_MINMAX",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Stick X",
+        "LSTICK_Y": "Stick Y"
+      }
+    },
+    {
+      "id": "hotd",
+      "sets": [
+        "hotd"
+      ],
+      "lightgun": true,
+      "note": "The House of the Dead — lightgun cabinet, same shape as vcop. On a pad the trigger is button 1 and aim is the left stick. Two players; player 2 uses its own gun/pad.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Trigger"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Trigger",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim X",
+        "LSTICK_Y": "Aim Y"
+      }
+    },
+    {
+      "id": "indy500",
+      "sets": [
+        "indy500",
+        "stcc"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "R",
+          "label": "Shift Up"
+        },
+        {
+          "source": "L",
+          "label": "Shift Down"
+        },
+        {
+          "source": "B",
+          "label": "View 1 (Zoom In)"
+        },
+        {
+          "source": "A",
+          "label": "View 2 (Zoom Out)"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "View 1 (Zoom In)",
+        "A": "View 2 (Zoom Out)",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering Wheel"
+      }
+    },
+    {
+      "id": "manxtt",
+      "sets": [
+        "manxtt"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "R",
+          "label": "Shift Up"
+        },
+        {
+          "source": "L",
+          "label": "Shift Down"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake",
+        "R2": "Accelerator",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering"
+      }
+    },
+    {
+      "id": "model2crx",
+      "sets": [
+        "rascot2"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "R",
+          "label": "Button 5"
+        },
+        {
+          "source": "L",
+          "label": "Button 6"
+        },
+        {
+          "source": "L2_AXIS",
+          "label": "Button 7"
+        },
+        {
+          "source": "R2_AXIS",
+          "label": "Button 8"
+        },
+        {
+          "source": "R3",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "L": "Button 6",
+        "R": "Button 5",
+        "L2": "Button 7",
+        "R2": "Button 8",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "R3": "Button 9"
+      }
+    },
+    {
+      "id": "motoraid",
+      "sets": [
+        "motoraid"
+      ],
+      "lightgun": false,
+      "note": "bike cabinet: lean on the left stick, throttle and brake on the triggers, two buttons",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Punch"
+        },
+        {
+          "source": "A",
+          "label": "Kick"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Punch",
+        "A": "Kick",
+        "L2": "Brake",
+        "R2": "Accelerator",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering"
+      }
+    },
+    {
+      "id": "netmerc",
+      "sets": [
+        "netmerc"
+      ],
+      "lightgun": false,
+      "note": "Sega NetMerc — analog aim on the left stick, Trigger/Thumb/MVD Holder on B/A/Y (MACHINE_NOT_WORKING).",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Trigger"
+        },
+        {
+          "source": "A",
+          "label": "Thumb"
+        },
+        {
+          "source": "Y",
+          "label": "MVD Holder"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "B": "Trigger",
+        "A": "Thumb",
+        "Y": "MVD Holder",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim"
+      }
+    },
+    {
+      "id": "overrev",
+      "sets": [
+        "overrev"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "R",
+          "label": "Shift Up"
+        },
+        {
+          "source": "L",
+          "label": "Shift Down"
+        },
+        {
+          "source": "Y",
+          "label": "View 1"
+        },
+        {
+          "source": "X",
+          "label": "View 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View 1",
+        "X": "View 2",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering Wheel"
+      }
+    },
+    {
+      "id": "pltkids",
+      "sets": [
+        "pltkids"
+      ],
+      "lightgun": false,
+      "note": "two buttons only",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "powsled",
+      "sets": [
+        "powsled"
+      ],
+      "lightgun": false,
+      "note": "Power Sled — networked sled racer (two-player master/slave cabinet; the network is not emulated). Gas/brake pedals land on R2/L2 as every driving game's do. The four buttons are the cabinet's network/entry controls, not gameplay actions: Entry on B, Call on A, the two Cancel buttons on Y/X. No steering axis is declared.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Entry"
+        },
+        {
+          "source": "A",
+          "label": "Call"
+        },
+        {
+          "source": "Y",
+          "label": "Cancel Network Check"
+        },
+        {
+          "source": "X",
+          "label": "Cancel Error"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Entry",
+        "A": "Call",
+        "Y": "Cancel Network Check",
+        "X": "Cancel Error",
+        "L2": "Brake",
+        "R2": "Accelerator",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin"
+      }
+    },
+    {
+      "id": "propcycl",
+      "sets": [
+        "propcycl"
+      ],
+      "lightgun": false,
+      "note": "Prop Cycle — flying-bicycle cabinet; the pedal axis (AD_STICK_Z) defaults onto the right stick's X axis.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move",
+        "RSTICK_X": "Cycle Pedal"
+      }
+    },
+    {
+      "id": "raverace",
+      "sets": [
+        "raverace"
+      ],
+      "lightgun": false,
+      "note": "as ridgerac, with an added View Change button",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Clutch Pedal"
+        },
+        {
+          "source": "X",
+          "label": "View Change"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "Clutch Pedal",
+        "X": "View Change",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Shift Left",
+        "RIGHT": "Shift Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "rchase2",
+      "sets": [
+        "rchase2"
+      ],
+      "lightgun": false,
+      "note": "aim per player on that player's own left stick, one trigger each",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Stick X",
+        "LSTICK_Y": "Stick Y"
+      }
+    },
+    {
+      "id": "rchase2a",
+      "sets": [
+        "rchase2a"
+      ],
+      "lightgun": false,
+      "note": "as rchase2 with a wider range and no reverse; no ROMs locally, so the row is unmeasured",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "R",
+          "label": "Button 5"
+        },
+        {
+          "source": "L",
+          "label": "Button 6"
+        },
+        {
+          "source": "L2_AXIS",
+          "label": "Button 7"
+        },
+        {
+          "source": "R2_AXIS",
+          "label": "Button 8"
+        },
+        {
+          "source": "R3",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "L": "Button 6",
+        "R": "Button 5",
+        "L2": "Button 7",
+        "R2": "Button 8",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "R3": "Button 9"
+      }
+    },
+    {
+      "id": "ridgera",
+      "sets": [
+        "ridgerac"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Clutch Pedal"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "Clutch Pedal",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Shift Left",
+        "RIGHT": "Shift Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "ridgera2",
+      "sets": [
+        "ridgera2"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Clutch Pedal"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "Clutch Pedal",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Shift Left",
+        "RIGHT": "Shift Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "ridgeracf",
+      "sets": [
+        "ridgeracf"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "R",
+          "label": "Button 5"
+        },
+        {
+          "source": "L",
+          "label": "Button 6"
+        },
+        {
+          "source": "L2_AXIS",
+          "label": "Button 7"
+        },
+        {
+          "source": "R2_AXIS",
+          "label": "Button 8"
+        },
+        {
+          "source": "R3",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "L": "Button 6",
+        "R": "Button 5",
+        "L2": "Button 7",
+        "R2": "Button 8",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "R3": "Button 9"
+      }
+    },
+    {
+      "id": "schamp",
+      "sets": [
+        "schamp"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Punch"
+        },
+        {
+          "source": "A",
+          "label": "Kick"
+        },
+        {
+          "source": "Y",
+          "label": "Barrier"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Punch",
+        "A": "Kick",
+        "Y": "Barrier",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "segawski",
+      "sets": [
+        "segawski"
+      ],
+      "lightgun": false,
+      "note": "Sega Water Ski — slide on the left stick; Pitch Left/Right on the shoulders (natural L/R), Set on B, Select Up/Down on Y/X. No single clear primary action — outlier.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "L",
+          "label": "Pitch Left"
+        },
+        {
+          "source": "R",
+          "label": "Pitch Right"
+        },
+        {
+          "source": "Y",
+          "label": "Select Up"
+        },
+        {
+          "source": "B",
+          "label": "Set"
+        },
+        {
+          "source": "X",
+          "label": "Select Down"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Set",
+        "Y": "Select Up",
+        "X": "Select Down",
+        "L": "Pitch Left",
+        "R": "Pitch Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Slide"
+      }
+    },
+    {
+      "id": "sgt24h",
+      "sets": [
+        "sgt24h"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "R",
+          "label": "Shift Up"
+        },
+        {
+          "source": "L",
+          "label": "Shift Down"
+        },
+        {
+          "source": "Y",
+          "label": "View 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View 1",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering Wheel"
+      }
+    },
+    {
+      "id": "skisuprg",
+      "sets": [
+        "skisuprg"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Select 1"
+        },
+        {
+          "source": "A",
+          "label": "Select 2"
+        },
+        {
+          "source": "Y",
+          "label": "Select 3"
+        },
+        {
+          "source": "X",
+          "label": "Zoom Out"
+        },
+        {
+          "source": "R",
+          "label": "Zoom In"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Select 1",
+        "A": "Select 2",
+        "Y": "Select 3",
+        "X": "Zoom Out",
+        "R": "Zoom In",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Foot Sensor (L)",
+        "RIGHT": "Foot Sensor (R)",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Inclining",
+        "LSTICK_Y": "Move / Swing"
+      }
+    },
+    {
+      "id": "skytargt",
+      "sets": [
+        "skytargt"
+      ],
+      "lightgun": false,
+      "note": "Sky Target — flight shooter; machine gun and missile on the face buttons, view change on X, aim on the left stick.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Machine Gun"
+        },
+        {
+          "source": "A",
+          "label": "Missile"
+        },
+        {
+          "source": "X",
+          "label": "View Change"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Machine Gun",
+        "A": "Missile",
+        "X": "View Change",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim"
+      }
+    },
+    {
+      "id": "srallyc",
+      "sets": [
+        "srallyc"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "R",
+          "label": "GEAR N"
+        },
+        {
+          "source": "B",
+          "label": "GEAR 1"
+        },
+        {
+          "source": "Y",
+          "label": "GEAR 2"
+        },
+        {
+          "source": "A",
+          "label": "GEAR 3"
+        },
+        {
+          "source": "X",
+          "label": "GEAR 4"
+        },
+        {
+          "source": "L",
+          "label": "VR"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "GEAR 1",
+        "A": "GEAR 3",
+        "Y": "GEAR 2",
+        "X": "GEAR 4",
+        "L": "VR",
+        "R": "Hand Brake / GEAR N",
+        "L2": "Brake Pedal",
+        "R2": "Accelerate Pedal",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering Wheel"
+      }
+    },
+    {
+      "id": "starblad",
+      "sets": [
+        "starblad"
+      ],
+      "lightgun": false,
+      "note": "Star Blade — analog aim on the left stick, fire on B.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Fire"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "B": "Fire",
+        "A": "Button 2",
+        "Y": "Button 3",
+        "X": "Button 4",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim"
+      }
+    },
+    {
+      "id": "swa",
+      "sets": [
+        "swa"
+      ],
+      "lightgun": false,
+      "note": "Star Wars Arcade — analog aim on the left stick, twin fire triggers on B/A. Third button semantics unverified (MACHINE_IMPERFECT_CONTROLS).",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Fire"
+        },
+        {
+          "source": "A",
+          "label": "Fire (Right)"
+        },
+        {
+          "source": "Y",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "B": "Fire",
+        "A": "Fire (Right)",
+        "Y": "Button 3",
+        "R2": "Throttle",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim"
+      }
+    },
+    {
+      "id": "timecris",
+      "sets": [
+        "timecris"
+      ],
+      "lightgun": true,
+      "note": "lightgun cabinet, same shape as vcop; Foot Pedal is Time Crisis's cover/reload pedal, put on A for a pad player",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Gun Trigger"
+        },
+        {
+          "source": "A",
+          "label": "Foot Pedal"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Gun Trigger",
+        "A": "Foot Pedal",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim X",
+        "LSTICK_Y": "Aim Y"
+      }
+    },
+    {
+      "id": "tokyowar",
+      "sets": [
+        "tokyowar"
+      ],
+      "lightgun": false,
+      "note": "Tokyo Wars — tank sim: wheel + two pedals (forward/backward) + twin cannon triggers; not a lightgun cabinet despite the name.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Button 1"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "X",
+          "label": "Left Trigger"
+        },
+        {
+          "source": "R",
+          "label": "Right Trigger"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "X": "Left Trigger",
+        "R": "Right Trigger",
+        "L2": "Backward Pedal",
+        "R2": "Forward Pedal",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel"
+      }
+    },
+    {
+      "id": "topskatr",
+      "sets": [
+        "topskatr"
+      ],
+      "lightgun": false,
+      "note": "Top Skater — skateboard cabinet; jumps on the face buttons, board slide on the left stick.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Jump Front"
+        },
+        {
+          "source": "A",
+          "label": "Jump Tail"
+        },
+        {
+          "source": "Y",
+          "label": "Select Left"
+        },
+        {
+          "source": "X",
+          "label": "Select Right"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Jump Front",
+        "A": "Jump Tail",
+        "Y": "Select Left",
+        "X": "Select Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Slide"
+      }
+    },
+    {
+      "id": "vcop",
+      "sets": [
+        "vcop"
+      ],
+      "lightgun": true,
+      "note": "lightgun cabinet; on a port left as a pad the trigger is button 1 and aim is the left stick",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Trigger"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Trigger",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim X",
+        "LSTICK_Y": "Aim Y"
+      }
+    },
+    {
+      "id": "vcop2",
+      "sets": [
+        "vcop2"
+      ],
+      "lightgun": true,
+      "note": "lightgun cabinet, same shape as vcop",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Trigger"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Trigger",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim X",
+        "LSTICK_Y": "Aim Y"
+      }
+    },
+    {
+      "id": "vf",
+      "sets": [
+        "vf"
+      ],
+      "lightgun": false,
+      "note": "Virtua Fighter — three-button fighter (Guard/Punch/Kick) on an 8-way stick; mirrors the vf2 pad layout.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Punch"
+        },
+        {
+          "source": "A",
+          "label": "Kick"
+        },
+        {
+          "source": "Y",
+          "label": "Guard"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "B": "Punch",
+        "A": "Kick",
+        "Y": "Guard",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "vf2",
+      "sets": [
+        "vf2",
+        "hpyagu98",
+        "fvipers",
+        "lastbrnx"
+      ],
+      "lightgun": false,
+      "note": "three-button fighter on a four-way stick; shared by fvipers, lastbrnx and hpyagu98",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Punch"
+        },
+        {
+          "source": "A",
+          "label": "Kick"
+        },
+        {
+          "source": "Y",
+          "label": "Guard"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Punch",
+        "A": "Kick",
+        "Y": "Guard",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "victlap",
+      "sets": [
+        "victlap"
+      ],
+      "lightgun": false,
+      "note": "",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": "Dev Service Enter"
+        },
+        {
+          "source": "NONE",
+          "label": "Dev Service Exit"
+        },
+        {
+          "source": "Y",
+          "label": "View Change"
+        },
+        {
+          "source": "X",
+          "label": "Motion-Stop"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "Y": "View Change",
+        "X": "Motion-Stop",
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Dev Service Up",
+        "DOWN": "Dev Service Down",
+        "LEFT": "Dev Service Left",
+        "RIGHT": "Dev Service Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move / Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "von",
+      "sets": [
+        "von"
+      ],
+      "lightgun": false,
+      "note": "Cyber Troopers Virtual-On — twin DIGITAL sticks (both analog sticks drive them). Left/Right Shot on the shoulders, Left/Right Dash on the triggers (no pedals on this set, so the trigger axes are free). Symmetric twin-stick, so the single action/secondary rule doesn't apply — outlier.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "L",
+          "label": "Left Shot"
+        },
+        {
+          "source": "L2_AXIS",
+          "label": "Left Dash"
+        },
+        {
+          "source": "R",
+          "label": "Right Shot"
+        },
+        {
+          "source": "R2_AXIS",
+          "label": "Right Dash"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "L": "Left Shot",
+        "R": "Right Shot",
+        "L2": "Left Dash",
+        "R2": "Right Dash",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "vr",
+      "sets": [
+        "vr"
+      ],
+      "lightgun": false,
+      "note": "Virtua Racing — wheel, accelerator/brake pedals, VR1-4 view buttons on the d-pad (clockwise from Up), shift down/up on B/A.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "UP",
+          "label": "VR1 (Red)"
+        },
+        {
+          "source": "RIGHT",
+          "label": "VR2 (Blue)"
+        },
+        {
+          "source": "DOWN",
+          "label": "VR3 (Yellow)"
+        },
+        {
+          "source": "LEFT",
+          "label": "VR4 (Green)"
+        },
+        {
+          "source": "L",
+          "label": "Shift Down"
+        },
+        {
+          "source": "R",
+          "label": "Shift Up"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake",
+        "R2": "Accelerator",
+        "UP": "VR1 (Red)",
+        "DOWN": "VR3 (Yellow)",
+        "LEFT": "VR4 (Green)",
+        "RIGHT": "VR2 (Blue)",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering"
+      }
+    },
+    {
+      "id": "vstriker",
+      "sets": [
+        "vstriker"
+      ],
+      "lightgun": false,
+      "note": "three buttons. The driver's bit order is not its button order; these are by button number",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Short Pass"
+        },
+        {
+          "source": "A",
+          "label": "Long Pass"
+        },
+        {
+          "source": "Y",
+          "label": "Shoot"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Short Pass",
+        "A": "Long Pass",
+        "Y": "Shoot",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "waverunr",
+      "sets": [
+        "waverunr"
+      ],
+      "lightgun": false,
+      "note": "Wave Runner — jet-ski racer; handlebar steering on the left stick, View on X. Throttle is an analog lever (AD_STICK_Y), not a pedal, so it routes to the left-stick Y and cannot honour accelerator-on-R2. Only one button on the cabinet.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "X",
+          "label": "View"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "X": "View",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Handle Bar",
+        "LSTICK_Y": "Throttle"
+      }
+    },
+    {
+      "id": "wingwar",
+      "sets": [
+        "wingwar"
+      ],
+      "lightgun": false,
+      "note": "Wing War — analog aim on the left stick, throttle on R2, weapons on B/A/Y, four view buttons on the d-pad.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Machine Gun"
+        },
+        {
+          "source": "A",
+          "label": "Missile"
+        },
+        {
+          "source": "Y",
+          "label": "Smoke"
+        },
+        {
+          "source": "UP",
+          "label": "View 1"
+        },
+        {
+          "source": "RIGHT",
+          "label": "View 2"
+        },
+        {
+          "source": "DOWN",
+          "label": "View 3"
+        },
+        {
+          "source": "LEFT",
+          "label": "View 4"
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "B": "Machine Gun",
+        "A": "Missile",
+        "Y": "Smoke",
+        "R2": "Throttle",
+        "UP": "View 1",
+        "DOWN": "View 3",
+        "LEFT": "View 4",
+        "RIGHT": "View 2",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Aim",
+        "LSTICK_Y": "Aim"
+      }
+    },
+    {
+      "id": "winrun",
+      "sets": [
+        "winrun"
+      ],
+      "lightgun": false,
+      "note": "Winning Run — wheel, gas/brake pedals, up/down gearshift on the d-pad.",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        },
+        {
+          "source": "NONE",
+          "label": ""
+        }
+      ],
+      "labels": {
+        "L": "Shift Down",
+        "R": "Shift Up",
+        "L2": "Brake Pedal",
+        "R2": "Gas Pedal",
+        "UP": "Shift Down",
+        "DOWN": "Shift Up",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Steering Wheel",
+        "LSTICK_Y": "Move"
+      }
+    },
+    {
+      "id": "zerogun",
+      "sets": [
+        "zerogun"
+      ],
+      "lightgun": false,
+      "note": "two buttons only",
+      "verified": "",
+      "buttons": [
+        {
+          "source": "B",
+          "label": "Button 1"
+        },
+        {
+          "source": "A",
+          "label": "Button 2"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 3"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 4"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 5"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 6"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 7"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 8"
+        },
+        {
+          "source": "NONE",
+          "label": "Button 9"
+        }
+      ],
+      "labels": {
+        "B": "Button 1",
+        "A": "Button 2",
+        "UP": "Up",
+        "DOWN": "Down",
+        "LEFT": "Left",
+        "RIGHT": "Right",
+        "SELECT": "Coin",
+        "START": "Start",
+        "L3": "Service Coin",
+        "LSTICK_X": "Move",
+        "LSTICK_Y": "Move"
+      }
     }
-   ],
-   "labels": {
-    "B": "Button 1",
-    "A": "Button 2",
-    "Y": "Button 3",
-    "X": "Button 4",
-    "L": "Button 6",
-    "R": "Button 5",
-    "L2": "Button 7",
-    "R2": "Button 8",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "R3": "Button 9"
-   }
-  },
-  {
-   "id": "daytona",
-   "sets": [
-    "daytona"
-   ],
-   "lightgun": false,
-   "note": "one-player cabinet: wheel, two pedals, a four-position gearbox and VR1-4 in a row. Gears sit on the face diamond by position \u2014 GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A). The d-pad carries VR1-4 clockwise from Up; the cabinet has them left-to-right and a d-pad is not a row.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "GEAR N",
-     "why": "GEAR N: the pad is out of buttons, and neutral is reachable by shifting down out of gear 1"
-    },
-    {
-     "source": "B",
-     "label": "GEAR 1"
-    },
-    {
-     "source": "Y",
-     "label": "GEAR 2"
-    },
-    {
-     "source": "X",
-     "label": "GEAR 3"
-    },
-    {
-     "source": "A",
-     "label": "GEAR 4"
-    },
-    {
-     "source": "UP",
-     "label": "VR1 (Red)"
-    },
-    {
-     "source": "RIGHT",
-     "label": "VR2 (Blue)"
-    },
-    {
-     "source": "DOWN",
-     "label": "VR3 (Yellow)"
-    },
-    {
-     "source": "LEFT",
-     "label": "VR4 (Green)"
-    }
-   ],
-   "labels": {
-    "B": "GEAR 1",
-    "Y": "GEAR 2",
-    "X": "GEAR 3",
-    "A": "GEAR 4",
-    "L2": "Brake",
-    "R2": "Accelerator",
-    "UP": "VR1 (Red)",
-    "RIGHT": "VR2 (Blue)",
-    "DOWN": "VR3 (Yellow)",
-    "LEFT": "VR4 (Green)",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering"
-   }
-  },
-  {
-   "id": "desert",
-   "sets": [
-    "desert"
-   ],
-   "lightgun": false,
-   "note": "tank cabinet: wheel, one pedal, six buttons. The buttons keep the generic row's order, so nothing a player has learned moves and only the wording arrives. Two controls the generic row cannot describe: BRAKE is an IPT_AD_STICK_Y, i.e. the left stick's Y axis and not a trigger, and there is no IPT_PEDAL2 at all, so L2 does nothing and is left unlabelled.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Machine Gun"
-    },
-    {
-     "source": "A",
-     "label": "Cannon"
-    },
-    {
-     "source": "Y",
-     "label": "Shift"
-    },
-    {
-     "source": "X",
-     "label": "VR1 (Blue)"
-    },
-    {
-     "source": "R",
-     "label": "VR2 (Green)"
-    },
-    {
-     "source": "L",
-     "label": "VR3 (Red)"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7",
-     "why": "the machine declares no IPT_BUTTON7 \u2014 leaving it on the L2 threshold, as the generic row does, binds a button that does not exist"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8",
-     "why": "no IPT_BUTTON8 either; the accelerator on R2 is IPT_PEDAL and is bound outside the layout"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Machine Gun",
-    "A": "Cannon",
-    "Y": "Shift",
-    "X": "VR1 (Blue)",
-    "L": "VR3 (Red)",
-    "R": "VR2 (Green)",
-    "R2": "Accelerator",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering",
-    "LSTICK_Y": "Brake"
-   }
-  },
-  {
-   "id": "dirtdash",
-   "sets": [
-    "dirtdash"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "View Change"
-    },
-    {
-     "source": "NONE",
-     "label": "Motion-Stop"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "Y": "View Change",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "UP": "Shift Down",
-    "DOWN": "Shift Up",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move / Steering Wheel",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "doa",
-   "sets": [
-    "doa"
-   ],
-   "lightgun": false,
-   "note": "three buttons: Hold / Punch / Kick",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "Y",
-     "label": "Hold"
-    },
-    {
-     "source": "B",
-     "label": "Punch"
-    },
-    {
-     "source": "A",
-     "label": "Kick"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Punch",
-    "A": "Kick",
-    "Y": "Hold",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "dynamcop",
-   "sets": [
-    "dynamcop"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "Y",
-     "label": "Punch"
-    },
-    {
-     "source": "B",
-     "label": "Kick"
-    },
-    {
-     "source": "A",
-     "label": "Jump"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Kick",
-    "A": "Jump",
-    "Y": "Punch",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "gunblade",
-   "sets": [
-    "gunblade"
-   ],
-   "lightgun": false,
-   "note": "as rchase2 with a different PORT_MINMAX",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Button 1",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Stick X",
-    "LSTICK_Y": "Stick Y"
-   }
-  },
-  {
-   "id": "indy500",
-   "sets": [
-    "indy500",
-    "stcc"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "R",
-     "label": "Shift Up"
-    },
-    {
-     "source": "L",
-     "label": "Shift Down"
-    },
-    {
-     "source": "B",
-     "label": "View 1 (Zoom In)"
-    },
-    {
-     "source": "A",
-     "label": "View 2 (Zoom Out)"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "View 1 (Zoom In)",
-    "A": "View 2 (Zoom Out)",
-    "L": "Shift Down",
-    "R": "Shift Up",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering Wheel"
-   }
-  },
-  {
-   "id": "manxtt",
-   "sets": [
-    "manxtt"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "R",
-     "label": "Shift Up"
-    },
-    {
-     "source": "L",
-     "label": "Shift Down"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "L": "Shift Down",
-    "R": "Shift Up",
-    "L2": "Brake",
-    "R2": "Accelerator",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering"
-   }
-  },
-  {
-   "id": "model2crx",
-   "sets": [
-    "rascot2"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "A",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Button 3"
-    },
-    {
-     "source": "X",
-     "label": "Button 4"
-    },
-    {
-     "source": "R",
-     "label": "Button 5"
-    },
-    {
-     "source": "L",
-     "label": "Button 6"
-    },
-    {
-     "source": "L2_AXIS",
-     "label": "Button 7"
-    },
-    {
-     "source": "R2_AXIS",
-     "label": "Button 8"
-    },
-    {
-     "source": "R3",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Button 1",
-    "A": "Button 2",
-    "Y": "Button 3",
-    "X": "Button 4",
-    "L": "Button 6",
-    "R": "Button 5",
-    "L2": "Button 7",
-    "R2": "Button 8",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "R3": "Button 9"
-   }
-  },
-  {
-   "id": "motoraid",
-   "sets": [
-    "motoraid"
-   ],
-   "lightgun": false,
-   "note": "bike cabinet: lean on the left stick, throttle and brake on the triggers, two buttons",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Punch"
-    },
-    {
-     "source": "A",
-     "label": "Kick"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Punch",
-    "A": "Kick",
-    "L2": "Brake",
-    "R2": "Accelerator",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering"
-   }
-  },
-  {
-   "id": "overrev",
-   "sets": [
-    "overrev"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "R",
-     "label": "Shift Up"
-    },
-    {
-     "source": "L",
-     "label": "Shift Down"
-    },
-    {
-     "source": "Y",
-     "label": "View 1"
-    },
-    {
-     "source": "X",
-     "label": "View 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "R": "Shift Up",
-    "L": "Shift Down",
-    "Y": "View 1",
-    "X": "View 2",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering Wheel"
-   }
-  },
-  {
-   "id": "pltkids",
-   "sets": [
-    "pltkids"
-   ],
-   "lightgun": false,
-   "note": "two buttons only",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "A",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Button 1",
-    "A": "Button 2",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "rchase2",
-   "sets": [
-    "rchase2"
-   ],
-   "lightgun": false,
-   "note": "aim per player on that player's own left stick, one trigger each",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Button 1",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Stick X",
-    "LSTICK_Y": "Stick Y"
-   }
-  },
-  {
-   "id": "rchase2a",
-   "sets": [
-    "rchase2a"
-   ],
-   "lightgun": false,
-   "note": "as rchase2 with a wider range and no reverse; no ROMs locally, so the row is unmeasured",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "A",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Button 3"
-    },
-    {
-     "source": "X",
-     "label": "Button 4"
-    },
-    {
-     "source": "R",
-     "label": "Button 5"
-    },
-    {
-     "source": "L",
-     "label": "Button 6"
-    },
-    {
-     "source": "L2_AXIS",
-     "label": "Button 7"
-    },
-    {
-     "source": "R2_AXIS",
-     "label": "Button 8"
-    },
-    {
-     "source": "R3",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Button 1",
-    "A": "Button 2",
-    "Y": "Button 3",
-    "X": "Button 4",
-    "L": "Button 6",
-    "R": "Button 5",
-    "L2": "Button 7",
-    "R2": "Button 8",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "R3": "Button 9"
-   }
-  },
-  {
-   "id": "ridgera",
-   "sets": [
-    "ridgerac",
-    "ridgerac3m"
-   ],
-   "lightgun": false,
-   "note": "ridgerac3m (three-monitor version) shares this port set verbatim via PORT_INCLUDE; MACHINE_NOT_WORKING.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Clutch Pedal"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "Y": "Clutch Pedal",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "UP": "Shift Down",
-    "DOWN": "Shift Up",
-    "LEFT": "Shift Left",
-    "RIGHT": "Shift Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move / Steering Wheel",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "ridgera2",
-   "sets": [
-    "ridgera2"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Clutch Pedal"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "Y": "Clutch Pedal",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "UP": "Shift Down",
-    "DOWN": "Shift Up",
-    "LEFT": "Shift Left",
-    "RIGHT": "Shift Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move / Steering Wheel",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "ridgeracf",
-   "sets": [
-    "ridgeracf"
-   ],
-   "lightgun": false,
-   "note": "Ridge Racer Full Scale \u2014 as ridgerac (MACHINE_NOT_WORKING, no local ROM to dump) plus a cockpit ignition/AT/MT switch trio; read from source, not a live dump.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Clutch Pedal"
-    },
-    {
-     "source": "X",
-     "label": "Ignition Key"
-    },
-    {
-     "source": "R",
-     "label": "AT Switch"
-    },
-    {
-     "source": "L",
-     "label": "MT Switch"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "Y": "Clutch Pedal",
-    "X": "Ignition Key",
-    "R": "AT Switch",
-    "L": "MT Switch",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "UP": "Shift Down",
-    "DOWN": "Shift Up",
-    "LEFT": "Shift Left",
-    "RIGHT": "Shift Right",
-    "LSTICK_X": "Move / Steering Wheel",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "schamp",
-   "sets": [
-    "schamp"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Punch"
-    },
-    {
-     "source": "A",
-     "label": "Kick"
-    },
-    {
-     "source": "Y",
-     "label": "Barrier"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Punch",
-    "A": "Kick",
-    "Y": "Barrier",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "sgt24h",
-   "sets": [
-    "sgt24h"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "R",
-     "label": "Shift Up"
-    },
-    {
-     "source": "L",
-     "label": "Shift Down"
-    },
-    {
-     "source": "Y",
-     "label": "View 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "Y": "View 1",
-    "L": "Shift Down",
-    "R": "Shift Up",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering Wheel"
-   }
-  },
-  {
-   "id": "skisuprg",
-   "sets": [
-    "skisuprg"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Select 1"
-    },
-    {
-     "source": "A",
-     "label": "Select 2"
-    },
-    {
-     "source": "Y",
-     "label": "Select 3"
-    },
-    {
-     "source": "X",
-     "label": "Zoom Out"
-    },
-    {
-     "source": "R",
-     "label": "Zoom In"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Select 1",
-    "A": "Select 2",
-    "Y": "Select 3",
-    "X": "Zoom Out",
-    "R": "Zoom In",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Foot Sensor (L)",
-    "RIGHT": "Foot Sensor (R)",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move / Inclining",
-    "LSTICK_Y": "Move / Swing"
-   }
-  },
-  {
-   "id": "srallyc",
-   "sets": [
-    "srallyc"
-   ],
-   "lightgun": false,
-   "note": "gears on the face diamond by position \u2014 GEAR 1 south (B), 2 west (Y), 3 north (X), 4 east (A); GEAR N / hand brake on R, VR on L.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "R",
-     "label": "GEAR N"
-    },
-    {
-     "source": "B",
-     "label": "GEAR 1"
-    },
-    {
-     "source": "Y",
-     "label": "GEAR 2"
-    },
-    {
-     "source": "X",
-     "label": "GEAR 3"
-    },
-    {
-     "source": "A",
-     "label": "GEAR 4"
-    },
-    {
-     "source": "L",
-     "label": "VR"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "GEAR 1",
-    "Y": "GEAR 2",
-    "X": "GEAR 3",
-    "A": "GEAR 4",
-    "L": "VR",
-    "R": "Hand Brake / GEAR N",
-    "L2": "Brake Pedal",
-    "R2": "Accelerate Pedal",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering Wheel"
-   }
-  },
-  {
-   "id": "vcop",
-   "sets": [
-    "vcop"
-   ],
-   "lightgun": true,
-   "note": "lightgun cabinet; on a port left as a pad the trigger is button 1 and aim is the left stick",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Trigger"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Trigger",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Aim X",
-    "LSTICK_Y": "Aim Y"
-   }
-  },
-  {
-   "id": "vcop2",
-   "sets": [
-    "vcop2"
-   ],
-   "lightgun": true,
-   "note": "lightgun cabinet, same shape as vcop",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Trigger"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Trigger",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Aim X",
-    "LSTICK_Y": "Aim Y"
-   }
-  },
-  {
-   "id": "vf2",
-   "sets": [
-    "vf2",
-    "hpyagu98",
-    "fvipers",
-    "lastbrnx"
-   ],
-   "lightgun": false,
-   "note": "three-button fighter on a four-way stick; shared by fvipers, lastbrnx and hpyagu98",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Punch"
-    },
-    {
-     "source": "A",
-     "label": "Kick"
-    },
-    {
-     "source": "Y",
-     "label": "Guard"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Punch",
-    "A": "Kick",
-    "Y": "Guard",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "victlap",
-   "sets": [
-    "victlap"
-   ],
-   "lightgun": false,
-   "note": "",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Dev Service Enter"
-    },
-    {
-     "source": "NONE",
-     "label": "Dev Service Exit"
-    },
-    {
-     "source": "Y",
-     "label": "View Change"
-    },
-    {
-     "source": "X",
-     "label": "Motion-Stop"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "Y": "View Change",
-    "X": "Motion-Stop",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "UP": "Dev Service Up",
-    "DOWN": "Dev Service Down",
-    "LEFT": "Dev Service Left",
-    "RIGHT": "Dev Service Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move / Steering Wheel",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "vstriker",
-   "sets": [
-    "vstriker"
-   ],
-   "lightgun": false,
-   "note": "three buttons. The driver's bit order is not its button order; these are by button number",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Short Pass"
-    },
-    {
-     "source": "A",
-     "label": "Long Pass"
-    },
-    {
-     "source": "Y",
-     "label": "Shoot"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Short Pass",
-    "A": "Long Pass",
-    "Y": "Shoot",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "zerogun",
-   "sets": [
-    "zerogun"
-   ],
-   "lightgun": false,
-   "note": "two buttons only",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "A",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "B": "Button 1",
-    "A": "Button 2",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "winrun",
-   "sets": [
-    "winrun",
-    "winrungp"
-   ],
-   "lightgun": false,
-   "note": "Winning Run \u2014 wheel, gas/brake pedals, up/down gearshift on the d-pad.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "R2": "Gas Pedal",
-    "L2": "Brake Pedal",
-    "LSTICK_X": "Steering Wheel",
-    "UP": "Shift Down",
-    "DOWN": "Shift Up",
-    "L3": "Service Coin"
-   }
-  },
-  {
-   "id": "starblad",
-   "sets": [
-    "starblad"
-   ],
-   "lightgun": false,
-   "note": "Star Blade \u2014 analog aim on the left stick, fire on B.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Fire"
-    },
-    {
-     "source": "A",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Button 3"
-    },
-    {
-     "source": "X",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "B": "Fire",
-    "A": "Button 2",
-    "Y": "Button 3",
-    "X": "Button 4",
-    "LSTICK_X": "Aim",
-    "LSTICK_Y": "Aim",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin"
-   }
-  },
-  {
-   "id": "cybsled",
-   "sets": [
-    "cybsled"
-   ],
-   "lightgun": false,
-   "note": "Cyber Sled \u2014 twin-stick tank; left stick aims. Main gun on R2, missile on L2 for a pad player.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "L2",
-     "label": "Missile"
-    },
-    {
-     "source": "R2",
-     "label": "Gun"
-    },
-    {
-     "source": "Y",
-     "label": "Viewport Change"
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "L2": "Missile",
-    "R2": "Gun",
-    "Y": "Viewport Change",
-    "LSTICK_X": "Move / Aim",
-    "LSTICK_Y": "Move / Aim",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin"
-   },
-   "twin_ad_stick": true
-  },
-  {
-   "id": "adillor",
-   "sets": [
-    "adillor"
-   ],
-   "lightgun": false,
-   "note": "Armadillo Racing \u2014 trackball cabinet; the two dev-service buttons are a CUSTOM port, not player controls.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Dev Service Enter"
-    },
-    {
-     "source": "NONE",
-     "label": "Dev Service Exit"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move / Trackball",
-    "LSTICK_Y": "Move / Trackball"
-   }
-  },
-  {
-   "id": "airco22",
-   "sets": [
-    "airco22b"
-   ],
-   "lightgun": false,
-   "note": "Air Combat 22 \u2014 flight stick + throttle; the throttle (AD_STICK_Z) defaults onto the right stick's X axis, not a trigger.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Gun Trigger"
-    },
-    {
-     "source": "A",
-     "label": "Missile Button"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Gun Trigger",
-    "A": "Missile Button",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move",
-    "RSTICK_X": "Throttle Stick"
-   }
-  },
-  {
-   "id": "alpiner",
-   "sets": [
-    "alpinerd",
-    "alpinr2b"
-   ],
-   "lightgun": false,
-   "twin_ad_stick": true,
-   "note": "Alpine Racer / Alpine Racer 2 \u2014 two independent leg-lean axes (Steps Swing / Steps Edge), tagged P1/P2 like Cyber Sled's treads; reuses the single-pad twin-stick binding so the second leg lands on the right stick's X axis. P1 Left/Right are unnamed digital fields on the same port.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "LSTICK_X": "Steps Swing",
-    "RSTICK_X": "Steps Edge"
-   }
-  },
-  {
-   "id": "alpines",
-   "sets": [
-    "alpines"
-   ],
-   "lightgun": false,
-   "twin_ad_stick": true,
-   "note": "Alpine Surfer \u2014 same leg-lean pair as Alpine Racer.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "LSTICK_X": "Steps Swing",
-    "RSTICK_X": "Steps Edge"
-   }
-  },
-  {
-   "id": "aquajet",
-   "sets": [
-    "aquajet"
-   ],
-   "lightgun": false,
-   "note": "Aqua Jet \u2014 MAME gives no PORT_NAME for the paddle, pedal or AD_STICK_Y fields; labelled by best-guess function pending a hand-check.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering",
-    "LSTICK_Y": "Lean",
-    "R2": "Throttle"
-   }
-  },
-  {
-   "id": "cybrcomm",
-   "sets": [
-    "cybrcomm"
-   ],
-   "lightgun": false,
-   "twin_ad_stick": true,
-   "note": "Cyber Commando \u2014 twin-stick mech cabinet, same shape as Cyber Sled (System 21); trigger/missile/view are placed on both physical sticks so either hand fires. Main gun on R2, missile on L2 for a pad player.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "R2",
-     "label": "Gun Trigger"
-    },
-    {
-     "source": "L2",
-     "label": "Missile Button"
-    },
-    {
-     "source": "Y",
-     "label": "View Change"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "R2": "Gun Trigger",
-    "L2": "Missile Button",
-    "Y": "View Change",
-    "LSTICK_X": "Move / Aim",
-    "LSTICK_Y": "Move / Aim",
-    "RSTICK_X": "Move / Aim",
-    "RSTICK_Y": "Move / Aim"
-   }
-  },
-  {
-   "id": "cybrcycc",
-   "sets": [
-    "cybrcycc"
-   ],
-   "lightgun": false,
-   "note": "Cyber Cycles \u2014 leaning-motorcycle cabinet; throttle grip and brake lever share the pedal axes.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "L2": "Brake Lever",
-    "R2": "Throttle Grip",
-    "LSTICK_X": "Steering / Bike Bank"
-   }
-  },
-  {
-   "id": "propcycl",
-   "sets": [
-    "propcycl"
-   ],
-   "lightgun": false,
-   "note": "Prop Cycle \u2014 flying-bicycle cabinet; the pedal axis (AD_STICK_Z) defaults onto the right stick's X axis.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move",
-    "RSTICK_X": "Cycle Pedal"
-   }
-  },
-  {
-   "id": "raverace",
-   "sets": [
-    "raverace"
-   ],
-   "lightgun": false,
-   "note": "as ridgerac, with an added View Change button",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Clutch Pedal"
-    },
-    {
-     "source": "X",
-     "label": "View Change"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "Y": "Clutch Pedal",
-    "X": "View Change",
-    "L2": "Brake Pedal",
-    "R2": "Gas Pedal",
-    "UP": "Shift Down",
-    "DOWN": "Shift Up",
-    "LEFT": "Shift Left",
-    "RIGHT": "Shift Right",
-    "LSTICK_X": "Move / Steering Wheel",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "timecris",
-   "sets": [
-    "timecris"
-   ],
-   "lightgun": true,
-   "note": "lightgun cabinet, same shape as vcop; Foot Pedal is Time Crisis's cover/reload pedal, put on A for a pad player",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Gun Trigger"
-    },
-    {
-     "source": "A",
-     "label": "Foot Pedal"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Gun Trigger",
-    "A": "Foot Pedal",
-    "LSTICK_X": "Aim X",
-    "LSTICK_Y": "Aim Y"
-   }
-  },
-  {
-   "id": "tokyowar",
-   "sets": [
-    "tokyowar"
-   ],
-   "lightgun": false,
-   "note": "Tokyo Wars \u2014 tank sim: wheel + two pedals (forward/backward) + twin cannon triggers; not a lightgun cabinet despite the name.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": "Button 1"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "X",
-     "label": "Left Trigger"
-    },
-    {
-     "source": "R",
-     "label": "Right Trigger"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "X": "Left Trigger",
-    "R": "Right Trigger",
-    "L2": "Backward Pedal",
-    "R2": "Forward Pedal",
-    "LSTICK_X": "Move / Steering Wheel"
-   }
-  },
-  {
-   "id": "skytargt",
-   "sets": [
-    "skytargt"
-   ],
-   "lightgun": false,
-   "note": "Sky Target \u2014 flight shooter; machine gun and missile on the face buttons, view change on X, aim on the left stick.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Machine Gun"
-    },
-    {
-     "source": "A",
-     "label": "Missile"
-    },
-    {
-     "source": "X",
-     "label": "View Change"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Machine Gun",
-    "A": "Missile",
-    "X": "View Change",
-    "LSTICK_X": "Aim",
-    "LSTICK_Y": "Aim"
-   }
-  },
-  {
-   "id": "topskatr",
-   "sets": [
-    "topskatr"
-   ],
-   "lightgun": false,
-   "note": "Top Skater \u2014 skateboard cabinet; jumps on the face buttons, board slide on the left stick.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Jump Front"
-    },
-    {
-     "source": "A",
-     "label": "Jump Tail"
-    },
-    {
-     "source": "Y",
-     "label": "Select Left"
-    },
-    {
-     "source": "X",
-     "label": "Select Right"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Jump Front",
-    "A": "Jump Tail",
-    "Y": "Select Left",
-    "X": "Select Right",
-    "LSTICK_X": "Slide"
-   }
-  },
-  {
-   "id": "bel",
-   "sets": [
-    "bel"
-   ],
-   "lightgun": false,
-   "note": "two-player simultaneous cabinet; aim on the left stick, fire on B, missile on A. MAME leaves button 1 unnamed. Player 2 uses its own pad.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "A",
-     "label": "Missile"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Button 1",
-    "A": "Missile",
-    "LSTICK_X": "Aim",
-    "LSTICK_Y": "Aim"
-   }
-  },
-  {
-   "id": "segawski",
-   "sets": [
-    "segawski"
-   ],
-   "lightgun": false,
-   "note": "Sega Water Ski \u2014 slide on the left stick; Pitch Left/Right on the shoulders (natural L/R), Set on B, Select Up/Down on Y/X. No single clear primary action \u2014 outlier.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "L",
-     "label": "Pitch Left"
-    },
-    {
-     "source": "R",
-     "label": "Pitch Right"
-    },
-    {
-     "source": "Y",
-     "label": "Select Up"
-    },
-    {
-     "source": "B",
-     "label": "Set"
-    },
-    {
-     "source": "X",
-     "label": "Select Down"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "L": "Pitch Left",
-    "R": "Pitch Right",
-    "Y": "Select Up",
-    "B": "Set",
-    "X": "Select Down",
-    "LSTICK_X": "Slide"
-   }
-  },
-  {
-   "id": "aircomb",
-   "sets": [
-    "aircomb"
-   ],
-   "lightgun": false,
-   "note": "Air Combat (System 21) \u2014 flight stick on the left stick, throttle (AD_STICK_Z) on the right stick X (as airco22). MAME names none of the six buttons; placed by number (btn1\u2192B, btn2\u2192A \u2026). By airco22's shape btn1 is likely Gun and btn2 Missile \u2014 needs a hand-check.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "A",
-     "label": "Button 2"
-    },
-    {
-     "source": "Y",
-     "label": "Button 3"
-    },
-    {
-     "source": "X",
-     "label": "Button 4"
-    },
-    {
-     "source": "R",
-     "label": "Button 5"
-    },
-    {
-     "source": "L",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Button 1",
-    "A": "Button 2",
-    "Y": "Button 3",
-    "X": "Button 4",
-    "R": "Button 5",
-    "L": "Button 6",
-    "LSTICK_X": "Aim",
-    "LSTICK_Y": "Aim",
-    "RSTICK_X": "Throttle"
-   }
-  },
-  {
-   "id": "waverunr",
-   "sets": [
-    "waverunr"
-   ],
-   "lightgun": false,
-   "note": "Wave Runner \u2014 jet-ski racer; handlebar steering on the left stick, View on X. Throttle is an analog lever (AD_STICK_Y), not a pedal, so it routes to the left-stick Y and cannot honour accelerator-on-R2. Only one button on the cabinet.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "X",
-     "label": "View"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "X": "View",
-    "LSTICK_X": "Handle Bar",
-    "LSTICK_Y": "Throttle"
-   }
-  },
-  {
-   "id": "von",
-   "sets": [
-    "von"
-   ],
-   "lightgun": false,
-   "note": "Cyber Troopers Virtual-On \u2014 twin DIGITAL sticks (both analog sticks drive them). Left/Right Shot on the shoulders, Left/Right Dash on the triggers (no pedals on this set, so the trigger axes are free). Symmetric twin-stick, so the single action/secondary rule doesn't apply \u2014 outlier.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "L",
-     "label": "Left Shot"
-    },
-    {
-     "source": "L2_AXIS",
-     "label": "Left Dash"
-    },
-    {
-     "source": "R",
-     "label": "Right Shot"
-    },
-    {
-     "source": "R2_AXIS",
-     "label": "Right Dash"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "L": "Left Shot",
-    "L2": "Left Dash",
-    "R": "Right Shot",
-    "R2": "Right Dash"
-   }
-  },
-  {
-   "id": "hotd",
-   "sets": [
-    "hotd"
-   ],
-   "lightgun": true,
-   "note": "The House of the Dead \u2014 lightgun cabinet, same shape as vcop. On a pad the trigger is button 1 and aim is the left stick. Two players; player 2 uses its own gun/pad.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Trigger"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Trigger",
-    "LSTICK_X": "Aim X",
-    "LSTICK_Y": "Aim Y"
-   }
-  },
-  {
-   "id": "dynabb",
-   "sets": [
-    "dynabb"
-   ],
-   "lightgun": false,
-   "note": "Dynamite Baseball \u2014 digital stick for movement, two buttons on B/A, and the analog Bat Swing pedal (IPT_PEDAL), which lands on R2 as every pedal does. Two-player; player 2 uses its own pad. MAME leaves the two buttons unnamed.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Button 1"
-    },
-    {
-     "source": "A",
-     "label": "Button 2"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 4"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Button 1",
-    "A": "Button 2",
-    "R2": "Bat Swing"
-   }
-  },
-  {
-   "id": "powsled",
-   "sets": [
-    "powsled"
-   ],
-   "lightgun": false,
-   "note": "Power Sled \u2014 networked sled racer (two-player master/slave cabinet; the network is not emulated). Gas/brake pedals land on R2/L2 as every driving game's do. The four buttons are the cabinet's network/entry controls, not gameplay actions: Entry on B, Call on A, the two Cancel buttons on Y/X. No steering axis is declared.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Entry"
-    },
-    {
-     "source": "A",
-     "label": "Call"
-    },
-    {
-     "source": "Y",
-     "label": "Cancel Network Check"
-    },
-    {
-     "source": "X",
-     "label": "Cancel Error"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 5"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 6"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 7"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 8"
-    },
-    {
-     "source": "NONE",
-     "label": "Button 9"
-    }
-   ],
-   "labels": {
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "B": "Entry",
-    "A": "Call",
-    "Y": "Cancel Network Check",
-    "X": "Cancel Error",
-    "R2": "Accelerator",
-    "L2": "Brake"
-   }
-  },
-  {
-   "id": "vf",
-   "sets": [
-    "vf"
-   ],
-   "lightgun": false,
-   "note": "Virtua Fighter \u2014 three-button fighter (Guard/Punch/Kick) on an 8-way stick; mirrors the vf2 pad layout.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Punch"
-    },
-    {
-     "source": "A",
-     "label": "Kick"
-    },
-    {
-     "source": "Y",
-     "label": "Guard"
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "B": "Punch",
-    "A": "Kick",
-    "Y": "Guard",
-    "UP": "Up",
-    "DOWN": "Down",
-    "LEFT": "Left",
-    "RIGHT": "Right",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Move",
-    "LSTICK_Y": "Move"
-   }
-  },
-  {
-   "id": "vr",
-   "sets": [
-    "vr",
-    "vformula"
-   ],
-   "lightgun": false,
-   "note": "Virtua Racing \u2014 wheel, accelerator/brake pedals, VR1-4 view buttons on the d-pad (clockwise from Up), shift down/up on B/A.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "UP",
-     "label": "VR1 (Red)"
-    },
-    {
-     "source": "RIGHT",
-     "label": "VR2 (Blue)"
-    },
-    {
-     "source": "DOWN",
-     "label": "VR3 (Yellow)"
-    },
-    {
-     "source": "LEFT",
-     "label": "VR4 (Green)"
-    },
-    {
-     "source": "B",
-     "label": "Shift Down"
-    },
-    {
-     "source": "A",
-     "label": "Shift Up"
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "B": "Shift Down",
-    "A": "Shift Up",
-    "UP": "VR1 (Red)",
-    "RIGHT": "VR2 (Blue)",
-    "DOWN": "VR3 (Yellow)",
-    "LEFT": "VR4 (Green)",
-    "L2": "Brake",
-    "R2": "Accelerator",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Steering"
-   }
-  },
-  {
-   "id": "swa",
-   "sets": [
-    "swa",
-    "swaj"
-   ],
-   "lightgun": false,
-   "note": "Star Wars Arcade \u2014 analog aim on the left stick, twin fire triggers on B/A. Third button semantics unverified (MACHINE_IMPERFECT_CONTROLS).",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Fire"
-    },
-    {
-     "source": "A",
-     "label": "Fire (Right)"
-    },
-    {
-     "source": "Y",
-     "label": "Button 3"
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "B": "Fire",
-    "A": "Fire (Right)",
-    "Y": "Button 3",
-    "R2": "Throttle",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Aim",
-    "LSTICK_Y": "Aim"
-   }
-  },
-  {
-   "id": "wingwar",
-   "sets": [
-    "wingwar",
-    "wingwaru",
-    "wingwarj"
-   ],
-   "lightgun": false,
-   "note": "Wing War \u2014 analog aim on the left stick, throttle on R2, weapons on B/A/Y, four view buttons on the d-pad.",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Machine Gun"
-    },
-    {
-     "source": "A",
-     "label": "Missile"
-    },
-    {
-     "source": "Y",
-     "label": "Smoke"
-    },
-    {
-     "source": "UP",
-     "label": "View 1"
-    },
-    {
-     "source": "RIGHT",
-     "label": "View 2"
-    },
-    {
-     "source": "DOWN",
-     "label": "View 3"
-    },
-    {
-     "source": "LEFT",
-     "label": "View 4"
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "B": "Machine Gun",
-    "A": "Missile",
-    "Y": "Smoke",
-    "UP": "View 1",
-    "RIGHT": "View 2",
-    "DOWN": "View 3",
-    "LEFT": "View 4",
-    "R2": "Throttle",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Aim",
-    "LSTICK_Y": "Aim"
-   }
-  },
-  {
-   "id": "netmerc",
-   "sets": [
-    "netmerc"
-   ],
-   "lightgun": false,
-   "note": "Sega NetMerc \u2014 analog aim on the left stick, Trigger/Thumb/MVD Holder on B/A/Y (MACHINE_NOT_WORKING).",
-   "verified": "",
-   "buttons": [
-    {
-     "source": "B",
-     "label": "Trigger"
-    },
-    {
-     "source": "A",
-     "label": "Thumb"
-    },
-    {
-     "source": "Y",
-     "label": "MVD Holder"
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    },
-    {
-     "source": "NONE",
-     "label": ""
-    }
-   ],
-   "labels": {
-    "B": "Trigger",
-    "A": "Thumb",
-    "Y": "MVD Holder",
-    "SELECT": "Coin",
-    "START": "Start",
-    "L3": "Service Coin",
-    "LSTICK_X": "Aim",
-    "LSTICK_Y": "Aim"
-   }
-  }
- ]
+  ]
 }
