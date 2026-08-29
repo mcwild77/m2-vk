@@ -120,6 +120,18 @@ inline constexpr char const *KEY_S22_FOG = "system22_fog";
 // Vulkan only. s22::set_option_no_textures() parks it; M2VK_S22_NOTEX wins.
 inline constexpr char const *KEY_S22_NO_TEXTURES = "system22_no_textures";
 
+// Model 1 only — smooth (Phong) shading. An enhancement, off by default: Model 1 is flat-shaded hardware,
+// so this synthesises per-vertex normals and re-runs the lighting per pixel, adding a Blinn-Phong
+// specular. Hidden from every other family's menu. Vulkan only. m1::set_option_smooth() parks it;
+// M2VK_M1_SMOOTH wins. Applies live (a pipeline swap at draw time; no reload).
+inline constexpr char const *KEY_SMOOTH_SHADING = "model1_smooth_shading";
+
+// Model 2 only — smooth (Gouraud) shading. An enhancement, off by default: Model 2 bakes one flat luma
+// per polygon, so this welds a per-vertex luma and interpolates it, removing the faceted luma banding on
+// curved textured surfaces. Hidden from every other family's menu. Vulkan only. m2vk::set_option_smooth()
+// parks it; M2VK_M2_SMOOTH wins. Applies live (a vertex value, no reload).
+inline constexpr char const *KEY_M2_SMOOTH_SHADING = "model2_smooth_shading";
+
 // System 22 only — whether the 2D HUD/text overlay is drawn back over the GPU 3D. On by default (the
 // accurate picture); off hides the score/HUD/text layer, leaving the 3D above the 2D background. A
 // look, not an accuracy fix. Hidden from the Model 2 and System 21 menus. Vulkan only.
@@ -274,6 +286,13 @@ unsigned get_flat_shading(retro_environment_t environ_cb);
 // than against the default, which is get_transparency()'s rule and for the same reason: a value we do
 // not declare resolves to the accurate picture rather than to a guess.
 bool get_flat_luma(retro_environment_t environ_cb);
+
+// KEY_SMOOTH_SHADING resolved to the bool m1::set_option_smooth() takes. "on" tested, so an unreadable or
+// invented value lands on the accurate flat default.
+bool get_smooth_shading(retro_environment_t environ_cb);
+
+// KEY_M2_SMOOTH_SHADING resolved to the bool m2vk::set_option_smooth() takes. "on" tested, same reason.
+bool get_m2_smooth_shading(retro_environment_t environ_cb);
 
 // "on" tested rather than not "off": an unreadable value lands on the quiet answer.
 bool get_steering_display(retro_environment_t environ_cb);

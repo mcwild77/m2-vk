@@ -68,6 +68,7 @@
 
 #include <array>
 #include <cmath>
+#include <unordered_map>
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
@@ -121,9 +122,10 @@ struct gpu_vertex
 	float    rz;            // 1/z, ALWAYS — see normalise_rz below
 	float    uz, vz;        // u/z, v/z: MAME's uoz/voz
 	uint32_t poly;          // index into the parameter buffer
+	float    smooth_luma;   // model2_smooth_shading: welded per-vertex luma; = poly luma when the option is off
 };
 
-static_assert(sizeof(gpu_vertex) == 28, "the vertex attribute offsets below are written out by hand");
+static_assert(sizeof(gpu_vertex) == 32, "the vertex attribute offsets below are written out by hand");
 
 // std430, sixteen scalar words, so the array stride is a plain 64 bytes. Mirrors the poly_params
 // struct at the top of poly.frag, field for field and in order.
@@ -666,7 +668,7 @@ bool build_pipeline(VkRenderPass render_pass)
 		binding.stride = sizeof(gpu_vertex);
 		binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		VkVertexInputAttributeDescription attrs[3]{};
+		VkVertexInputAttributeDescription attrs[4]{};
 		attrs[0].location = 0;
 		attrs[0].binding = 0;
 		attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;   // x, y, draw-order depth
@@ -679,12 +681,16 @@ bool build_pipeline(VkRenderPass render_pass)
 		attrs[2].binding = 0;
 		attrs[2].format = VK_FORMAT_R32_UINT;           // parameter index
 		attrs[2].offset = 24;
+		attrs[3].location = 3;
+		attrs[3].binding = 0;
+		attrs[3].format = VK_FORMAT_R32_SFLOAT;         // model2_smooth_shading: welded per-vertex luma
+		attrs[3].offset = 28;
 
 		VkPipelineVertexInputStateCreateInfo vertex_input{};
 		vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertex_input.vertexBindingDescriptionCount = 1;
 		vertex_input.pVertexBindingDescriptions = &binding;
-		vertex_input.vertexAttributeDescriptionCount = 3;
+		vertex_input.vertexAttributeDescriptionCount = 4;
 		vertex_input.pVertexAttributeDescriptions = attrs;
 
 		// primitiveRestartEnable stays false and this implementation will say it cannot honour that.
@@ -957,6 +963,47 @@ void geom_forget()
 	s_iface = nullptr;
 }
 
+// model2_smooth_shading weld. Model 2 bakes one flat luma per face; to smooth it, average each vertex's
+// luma over the faces meeting there, keyed on the bit-exact screen position + depth. Two faces that share
+// a 3D vertex project to the identical (x, y, rz) bits (the geometry engine reuses the transformed
+// vertex), so equal keys are the same point; the raw record rz is used, not the renderer-normalised one,
+// so textured faces weld with each other (a solid/textured boundary just stays flat, which is fine).
+// The map is reused across frames (clear keeps its capacity), and the whole pass runs only when the
+// option is on.
+namespace {
+
+struct luma_key
+{
+	uint32_t a, b, c;
+	bool operator==(luma_key const &o) const { return a == o.a && b == o.b && c == o.c; }
+};
+
+struct luma_hash
+{
+	size_t operator()(luma_key const &k) const
+	{
+		uint64_t h = 1469598103934665603ull;
+		for (uint32_t w : { k.a, k.b, k.c })
+			h = (h ^ w) * 1099511628211ull;
+		return size_t(h);
+	}
+};
+
+struct luma_acc { float sum = 0.0f; uint32_t count = 0; };
+
+luma_key make_luma_key(float x, float y, float rz)
+{
+	luma_key k;
+	std::memcpy(&k.a, &x, 4);
+	std::memcpy(&k.b, &y, 4);
+	std::memcpy(&k.c, &rz, 4);
+	return k;
+}
+
+std::unordered_map<luma_key, luma_acc, luma_hash> s_luma_weld;
+
+} // anonymous namespace
+
 bool geom_upload(uint32_t slot_index, frame_record const &record)
 {
 	// All three pipelines or none: they come out of one vkCreateGraphicsPipelines call.
@@ -1053,6 +1100,41 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 	// scissor was before step 6. Only the counter uses it; the batches carry clip[] unaltered.
 	const int32_t visible_right = record.layer[LAYER_UNDER].width - 1;
 	const int32_t visible_bottom = record.layer[LAYER_UNDER].height - 1;
+
+	// model2_smooth_shading pre-pass: weld each vertex's luma from the OPAQUE faces meeting there, so the
+	// vertex loop below can read a smooth per-vertex value. Only opaque, non-stippled polygons take part —
+	// translucent-class polygons (renderer bit0) and checker-stipple ones (trees, glass, alpha-mask decals
+	// like eyes/lips) keep their flat per-face luma. Two reasons: their luma feeds a different path in
+	// poly.frag (a transparent texel borrows its neighbour's luma), where a smoothly-varying value produces
+	// the white blow-outs and streaks a flat one does not; and a billboard/decal welding its luma into the
+	// solid surface behind it — or borrowing that surface's — is wrong either direction. So they neither
+	// contribute here nor read below. Runs only when the option is on, so a default frame pays nothing.
+	const bool smoothing = m2vk::smooth();
+	auto const poly_smoothable = [](m2vk::poly const &p)
+	{
+		return ((p.renderer & 1) == 0) && !p.checker;
+	};
+	if (smoothing)
+	{
+		s_luma_weld.clear();
+		if (s_luma_weld.bucket_count() < record.poly_count * 4)
+			s_luma_weld.reserve(record.poly_count * 4);
+		for (uint32_t n = 0; n < record.poly_count; n++)
+		{
+			m2vk::poly const &p = record.polys[n];
+			if (!poly_smoothable(p))
+				continue;
+			const uint32_t nv = (p.num_verts > m2vk::MAX_VERTICES) ? uint32_t(m2vk::MAX_VERTICES) : p.num_verts;
+			if (nv < 3)
+				continue;
+			for (uint32_t i = 0; i < nv; i++)
+			{
+				luma_acc &a = s_luma_weld[make_luma_key(p.v[i].x, p.v[i].y, p.v[i].rz)];
+				a.sum += float(p.luma);
+				a.count++;
+			}
+		}
+	}
 
 	for (uint32_t n = 0; n < record.poly_count; n++)
 	{
@@ -1204,6 +1286,18 @@ bool geom_upload(uint32_t slot_index, frame_record const &record)
 			v.uz = p.v[i].uz;
 			v.vz = p.v[i].vz;
 			v.poly = n;
+			// model2_smooth_shading: the welded per-vertex luma, or the flat poly luma when off, on a
+			// transparent/alpha material (kept flat, see the pre-pass), or at a vertex that welded with
+			// nothing (a clip-edge point). The shader always reads this, so the flat value reproduces the
+			// pre-option path exactly.
+			float sl = float(p.luma);
+			if (smoothing && poly_smoothable(p))
+			{
+				auto const it = s_luma_weld.find(make_luma_key(p.v[i].x, p.v[i].y, p.v[i].rz));
+				if ((it != s_luma_weld.end()) && (it->second.count != 0))
+					sl = it->second.sum / float(it->second.count);
+			}
+			v.smooth_luma = sl;
 
 			bx0 = (v.x < bx0) ? v.x : bx0;
 			bx1 = (v.x > bx1) ? v.x : bx1;

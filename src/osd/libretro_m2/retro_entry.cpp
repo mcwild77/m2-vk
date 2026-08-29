@@ -389,6 +389,9 @@ void apply_family_cascade(family fam)
 		// the Model 2 polygon pass. System 22's pipeline hardcodes blendEnable=VK_TRUE (s22_geom.cpp) — it
 		// does real hardware transparency unconditionally — so the option would be a dead menu entry.
 		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
+		// The two Smooth Shading enhancements are each their own family's; neither belongs here.
+		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
+		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
 	}
 	else if (fam == family::system21)
 	{
@@ -407,13 +410,17 @@ void apply_family_cascade(family fam)
 		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
 		m2opt::hide_option(m2opt::KEY_FLAT_LUMA);
 		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
+		// Both Smooth Shading enhancements belong to other families; hide them here too.
+		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
+		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
 	}
 	else if (fam == family::model1)
 	{
 		// Model 1's visible area is the same 496x384 as Model 2, so it reuses the size but wants its own
-		// "(Native)" label. Its menu keeps No Lighting (model2_flat_luma, wired GPU-side in m1_geom) and
-		// Internal Resolution, plus the shared steering/analog block (vr/vformula/swa gate on the
-		// IPT_PADDLE/IPT_AD_STICK detectors, not on the family).
+		// "(Native)" label. Its menu keeps No Lighting (model2_flat_luma, wired GPU-side in m1_geom),
+		// Internal Resolution and its own Smooth Shading enhancement (model1_smooth_shading, left visible
+		// here — hidden by every other family), plus the shared steering/analog block (vr/vformula/swa gate
+		// on the IPT_PADDLE/IPT_AD_STICK detectors, not on the family).
 		m2opt::set_native_resolution("496x384", m2txt::RES_496x384_NATIVE_M1);
 		m2opt::hide_option(m2opt::KEY_S22_TEXTURE_FILTER);
 		m2opt::hide_option(m2opt::KEY_S22_FOG);
@@ -425,6 +432,9 @@ void apply_family_cascade(family fam)
 		// dead entry too. Hide both, as S21 does for the same reason.
 		m2opt::hide_option(m2opt::KEY_FLAT_SHADING);
 		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
+		// Model 1 keeps its own Smooth Shading (model1_smooth_shading, left visible above); the Model 2 one
+		// is not its menu's.
+		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
 	}
 	else
 	{
@@ -437,6 +447,8 @@ void apply_family_cascade(family fam)
 		m2opt::hide_option(m2opt::KEY_S22_FOG);
 		m2opt::hide_option(m2opt::KEY_S22_NO_TEXTURES);
 		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
+		// Smooth Shading is a Model 1-only enhancement; hide it from the Model 2 menu.
+		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
 	}
 }
 
@@ -793,7 +805,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			"M2VK_STEER_LINEAR", "M2VK_STEER_DEADZONE", "M2VK_STEER_GAMMA", "M2VK_STEER_RANGE",
 			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR",
 			"M2VK_ANALOG_LINEAR", "M2VK_ANALOG_DEADZONE", "M2VK_ANALOG_REACH", "M2VK_S22_FILTER",
-			"M2VK_S22_DEPTH", "M2VK_S22_FOG", "M2VK_S22_NOTEX", "M2VK_S22_HUD", "M2VK_POLYCOUNT" })
+			"M2VK_S22_DEPTH", "M2VK_S22_FOG", "M2VK_S22_NOTEX", "M2VK_S22_HUD", "M2VK_POLYCOUNT",
+			"M2VK_M1_SMOOTH", "M2VK_M2_SMOOTH" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -828,6 +841,9 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	m2vk::set_option_force_solid(flat_shading);
 	m2vk::set_option_flat_luma(flat_luma);
 	m2vk::set_option_blend(transparency);
+	// model2_smooth_shading (Model 2 only, enhancement; hidden and thus "off" on the other families). Read
+	// on the frontend thread in geom_upload; M2VK_M2_SMOOTH overrides inside set_option_smooth.
+	m2vk::set_option_smooth(m2opt::get_m2_smooth_shading(s_environ_cb));
 
 	// input_init() recomposes these against the M2VK_STEER_* switches once the machine exists.
 	m2vk::set_option_steering(steer_deadzone, m2opt::STEERING_RESPONSE_GAMMA[steer_response], steer_range);
@@ -873,8 +889,13 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		// pre-luma albedo instead of the lit colour (read live in geom_draw). The value was read as
 		// `flat_luma` above; the m2vk global is also set for the software fallback's benefit.
 		m1::set_option_no_lighting(flat_luma);
-		s_log_cb(RETRO_LOG_INFO, "[model1] options: %s=%s\n",
-				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off");
+		// Smooth Shading (model1_smooth_shading) — Model 1's own enhancement, read live in geom_draw as a
+		// pipeline swap. M2VK_M1_SMOOTH overrides it inside set_option_smooth.
+		const bool smooth_shading = m2opt::get_smooth_shading(s_environ_cb);
+		m1::set_option_smooth(smooth_shading);
+		s_log_cb(RETRO_LOG_INFO, "[model1] options: %s=%s %s=%s\n",
+				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
+				m2opt::KEY_SMOOTH_SHADING, smooth_shading ? "on" : "off");
 	}
 
 	// The 2D tilemap layers that sandwich the 3D are captured only for the Vulkan path, which
@@ -1221,6 +1242,8 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_force_solid(flat_shading);
 		m2vk::set_option_flat_luma(flat_luma);
 		m2vk::set_option_blend(transparency);
+		// model2_smooth_shading applies live too — geom_upload reads it next frame (a vertex value, no rebuild).
+		m2vk::set_option_smooth(m2opt::get_m2_smooth_shading(s_environ_cb));
 
 		// Recomposes against the switches, so a run pinned by M2VK_STEER_GAMMA stays pinned when the
 		// player touches an unrelated option.
@@ -1240,9 +1263,13 @@ RETRO_API void retro_run(void)
 			s22::set_option_no_lighting(flat_luma);
 			s22::set_option_hud(m2opt::get_s22_2d_overlay(s_environ_cb));
 		}
-		// Model 1 No Lighting applies live too — geom_draw reads it as a push-constant bit at the next draw.
+		// Model 1 No Lighting and Smooth Shading apply live too — geom_draw reads them at the next draw (a
+		// push-constant bit and a pipeline swap respectively).
 		else if (s_family == family::model1)
+		{
 			m1::set_option_no_lighting(flat_luma);
+			m1::set_option_smooth(m2opt::get_smooth_shading(s_environ_cb));
+		}
 
 		char res_text[32];
 		if ((res_width == 0) || (res_height == 0))

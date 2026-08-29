@@ -71,6 +71,7 @@ extern bool g_rasterize;
 // accessors because submit() reads them for every polygon on both renderers' paths.
 extern uint8_t  g_force_solid;      // 0 off, 1 clear the textured bit, 2 force renderer 0
 extern bool     g_flat_luma;        // every polygon's luma forced to full scale, i.e. lighting off
+extern bool     g_smooth;           // model2_smooth_shading: weld a smooth per-vertex luma (frontend read)
 extern bool     g_opaque_only;      // every translucent polygon rewritten to the class neither draws
 extern int32_t  g_only_poly;        // -1 draws every polygon, otherwise only this one
 extern int32_t  g_only_frame;       // -1 means every frame; only meaningful with g_only_poly
@@ -145,6 +146,12 @@ void set_rasterize(bool on);
 // None of them costs anything when unset: three predicates on an already-hot path.
 inline bool force_solid() { return detail::g_force_solid != 0; }
 inline bool flat_luma() { return detail::g_flat_luma; }
+
+// model2_smooth_shading (Model 2 only). Read on the frontend thread in geom_upload, not per-polygon at
+// the seam — an enhancement, off by default. Model 2 is flat-shaded per face; when on, the renderer welds
+// each vertex's luma from the faces meeting there and interpolates it, so curved textured surfaces stop
+// banding into facets.
+inline bool smooth() { return detail::g_smooth; }
 inline bool opaque_only() { return detail::g_opaque_only; }
 inline bool only_poly() { return detail::g_only_poly >= 0; }
 
@@ -174,6 +181,11 @@ inline constexpr uint8_t FLAT_LUMA = 0xff;
 // baseline. Takes a value rather than a presence for exactly that reason — M2VK_FLAT_LUMA=0 is a
 // request for "lighting on" and beats an option asking for it off.
 void set_option_flat_luma(bool on);
+
+// The core option model2_smooth_shading (Model 2 only). Enhancement, off by default; M2VK_M2_SMOOTH wins
+// when set, the same override rule as the two above. Applies live from retro_run — no rebuild, since the
+// smooth luma rides a vertex attribute the geom pass already emits.
+void set_option_smooth(bool on);
 
 // The core option model2_flat_shading, resolved to the same 0/1/2 M2VK_FORCE_SOLID takes. Call it
 // before sink_open(); retro_load_game does, which is the only place either input is read.

@@ -96,6 +96,12 @@ emit frag s22.frag         s22_frag
 emit vert m1.vert          m1_vert
 emit frag m1.frag          m1_frag
 
+# Sega Model 1 "Smooth Shading" enhancement (Model 1 only, opt-in): per-vertex welded normals + the
+# driver's own lighting maths re-run per pixel through a snapshot of the color_xlat LUT, plus a
+# Blinn-Phong specular the hardware parsed but never drew.
+emit vert m1_smooth.vert   m1_smooth_vert
+emit frag m1_smooth.frag   m1_smooth_frag
+
 # Namco System 21 flat untextured polygon pass (T2). s21.vert is shared by the pen-space geometry pass.
 emit vert s21.vert         s21_vert
 

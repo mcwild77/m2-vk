@@ -30,6 +30,7 @@ bool g_rasterize = true;
 
 uint8_t  g_force_solid = 0;
 bool     g_flat_luma = false;
+bool     g_smooth = false;
 bool     g_opaque_only = false;
 int32_t  g_only_poly = -1;
 int32_t  g_only_frame = -1;
@@ -90,10 +91,23 @@ void apply_flat_luma()
 	detail::g_flat_luma = (flat < 0) ? g_option_flat_luma : (flat > 0);
 }
 
+// model2_smooth_shading's value (Model 2 only), parked by retro_load_game and resolved against the
+// M2VK_M2_SMOOTH switch by the same switch-wins rule. Read on the frontend thread in vk_geom's
+// geom_upload — an enhancement that welds a smooth per-vertex luma; off by default (Model 2 is
+// flat-shaded hardware).
+bool g_option_smooth = false;
+
+void apply_smooth()
+{
+	const int32_t s = env_index("M2VK_M2_SMOOTH");
+	detail::g_smooth = (s < 0) ? g_option_smooth : (s > 0);
+}
+
 void read_debug_filter()
 {
 	apply_force_solid();
 	apply_flat_luma();
+	apply_smooth();
 	detail::g_opaque_only = (std::getenv("M2VK_OPAQUE_ONLY") != nullptr);
 	detail::g_only_poly = env_index("M2VK_ONLY_POLY");
 	detail::g_only_frame = env_index("M2VK_ONLY_FRAME");
@@ -197,6 +211,16 @@ void set_option_flat_luma(bool on)
 {
 	g_option_flat_luma = on;
 	apply_flat_luma();
+}
+
+// Model 2 Smooth Shading (model2_smooth_shading). Unlike the two above, g_smooth is read on the FRONTEND
+// thread in geom_upload, not per-polygon at the seam — it decides whether that frame's vertices carry a
+// welded per-vertex luma or the flat poly luma. Same store-and-apply shape; takes effect next frame with
+// no rebuild (the smooth luma rides an existing vertex attribute).
+void set_option_smooth(bool on)
+{
+	g_option_smooth = on;
+	apply_smooth();
 }
 
 void sink_open() { g_sink.open(); }

@@ -35,6 +35,11 @@
 layout(location = 0) in vec3 in_pos;
 layout(location = 1) in vec3 in_param;
 layout(location = 2) in uint in_poly;
+// model2_smooth_shading: the per-vertex luma the upload welded from adjacent faces. When the option is
+// off the upload writes the flat poly luma into all of a polygon's vertices, so this interpolates to a
+// constant and the fragment shader reproduces the flat path exactly. gl_Position.w is 1 everywhere, so
+// smooth (perspective-correct) interpolation equals screen-linear here — no qualifier needed.
+layout(location = 3) in float in_smooth_luma;
 
 // The visible picture's half-extent in pixels — the PICTURE's, never the attachment's, which is what
 // makes this shader indifferent to the internal resolution. A push constant rather than a constant so
@@ -52,10 +57,12 @@ layout(push_constant) uniform push_block
 
 layout(location = 0) noperspective out vec3 v_param;
 layout(location = 1) flat out uint v_poly;
+layout(location = 2) out float v_smooth_luma;
 
 void main()
 {
 	v_param = in_param;
 	v_poly = in_poly;
+	v_smooth_luma = in_smooth_luma;
 	gl_Position = vec4((in_pos.xy / pc.half_size) - 1.0, in_pos.z, 1.0);
 }

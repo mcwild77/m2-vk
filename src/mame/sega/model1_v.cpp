@@ -500,6 +500,7 @@ void model1_state::draw_quads(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 		{
 			const quad_t &q = *m_quadind[i];
 			float px[4], py[4];
+			float vx[4], vy[4], vz[4];
 			for (int j = 0; j < 4; j++)
 			{
 				// Recover the FLOAT projected pixel the software rounds to s.x/s.y, so the GPU pass
@@ -517,8 +518,13 @@ void model1_state::draw_quads(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 				const float dy = float(view->yc) - p->yy;
 				px[j] = (int32_t(rx) == p->s.x) ? rx : (int32_t(dx) == p->s.x) ? dx : float(p->s.x);
 				py[j] = (int32_t(ry) == p->s.y) ? ry : (int32_t(dy) == p->s.y) ? dy : float(p->s.y);
+				// The view-space point the renderer welds smooth normals by (Smooth Shading). Bit-exact per
+				// corner, so strip-shared vertices weld and coplanar decals do not.
+				vx[j] = p->x; vy[j] = p->y; vz[j] = p->z;
 			}
-			m1::submit_quad(px, py, q.z, uint32_t(q.col), q.albedo);
+			m1::submit_quad(px, py, vx, vy, vz, q.z, uint32_t(q.col), q.albedo,
+					q.fnx, q.fny, q.fnz, q.lx, q.ly, q.lz,
+					q.la, q.ld, q.ls, q.lp, q.has_normal ? 1u : 0u);
 		}
 
 		// When the GPU pass owns the 3D (set_gpu(true)), the software rasteriser stops drawing it — the
@@ -634,6 +640,17 @@ void model1_state::fclip_clip_right(view_t *view, point_t *pt, point_t *p1, poin
 void model1_state::fclip_push_quad_next(int level, quad_t& q, point_t *p1, point_t *p2, point_t *p3, point_t *p4)
 {
 	quad_t cquad(q.col, q.z, p1, p2, p3, p4);
+#ifdef M1VK
+	// The clip constructor copies only col/z/points, so carry the seam's per-quad fields onto the clipped
+	// piece too: the pre-luma albedo (No Lighting) and the Smooth Shading lighting inputs. The clipped
+	// corners are freshly interpolated points with their own view positions, so the renderer welds them by
+	// position like any other vertex; a clip-edge vertex that welds with nothing keeps this face's normal.
+	cquad.albedo = q.albedo;
+	cquad.fnx = q.fnx; cquad.fny = q.fny; cquad.fnz = q.fnz;
+	cquad.lx = q.lx; cquad.ly = q.ly; cquad.lz = q.lz;
+	cquad.la = q.la; cquad.ld = q.ld; cquad.ls = q.ls; cquad.lp = q.lp;
+	cquad.has_normal = q.has_normal;
+#endif
 	fclip_push_quad(level+1, cquad);
 }
 
@@ -957,6 +974,21 @@ void model1_state::push_object(uint32_t tex_adr, uint32_t poly_adr, uint32_t siz
 		cquad.p[1] = old_p0;
 		cquad.p[2] = p0;
 		cquad.p[3] = p1;
+
+#ifdef M1VK
+		// "Smooth Shading" capture (Model 1 only, opt-in). vn is the authored face normal, now in view
+		// space and normalised; stash it plus the view-space light and this face's light parameters so the
+		// renderer can re-run the lighting per pixel with a welded per-vertex normal. has_normal marks this
+		// the push_object path (the draw_direct path leaves it false and stays flat). The per-vertex
+		// positions the renderer welds by are the point_t x/y/z, read at the seam.
+		cquad.fnx = vn.x; cquad.fny = vn.y; cquad.fnz = vn.z;
+		cquad.lx = m_view->light.x; cquad.ly = m_view->light.y; cquad.lz = m_view->light.z;
+		cquad.la = m_view->lightparams[lightmode].a;
+		cquad.ld = m_view->lightparams[lightmode].d;
+		cquad.ls = m_view->lightparams[lightmode].s;
+		cquad.lp = float(m_view->lightparams[lightmode].p);
+		cquad.has_normal = true;
+#endif
 
 		switch ((flags >> 10) & 3)
 		{
@@ -1707,6 +1739,10 @@ uint32_t model1_state::screen_update_model1(screen_device &screen, bitmap_rgb32 
 	// capture has the bracket already in place. frame_begin() also performs the tap's one-time attach
 	// decision, so it must precede any submit_quad in draw_quads.
 	m1::frame_begin();
+	// Hand the seam this game's color_xlat luma LUT (RAM, so re-pointed each frame) for Smooth Shading to
+	// snapshot: the pixel-side lighting indexes the same table the driver's flat path does, so a flat quad
+	// reproduces the flat pass exactly. A plain snapshot on the emulation thread, race-free.
+	m1::set_color_xlat(&m_color_xlat[0], unsigned(m_color_xlat.length()));
 #endif
 
 	// draw tilemap B as opaque

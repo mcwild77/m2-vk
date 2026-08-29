@@ -97,6 +97,9 @@ layout(early_fragment_tests) in;
 
 layout(location = 0) noperspective in vec3 v_param;
 layout(location = 1) flat in uint v_poly;
+// model2_smooth_shading: the interpolated per-vertex luma. Off → a constant equal to the poly luma, so
+// the two luma sites below reproduce the flat path bit-for-bit; on → a smooth gradient across the face.
+layout(location = 2) in float v_smooth_luma;
 
 // Declared identically in poly.vert, because the push constant range covers both stages. This shader
 // reads only `stipple_div` and `blend`, the vertex shader only `half_size`; both must declare all
@@ -388,6 +391,11 @@ void main()
 {
 	poly_params p = polys[v_poly];
 
+	// The polygon luma the two shading sites below consume. model2_smooth_shading routes it through the
+	// interpolated per-vertex value instead of the flat p.luma; with the option off that varying is a
+	// constant equal to p.luma, so this is p.luma exactly and both paths stay bit-identical.
+	uint poly_luma = uint(clamp(v_smooth_luma + 0.5, 0.0, 255.0));
+
 #ifndef EARLY_Z
 	// pc.blend is the model2_transparency option, and a checkered polygon under it is not stippled at
 	// all: it is deferred to the renderer's second pass and blended there, so the screen door has to be
@@ -423,7 +431,7 @@ void main()
 
 	if ((p.flags & FLAG_TEXTURED) == 0u)
 	{
-		luma = p.luma >> 2u;
+		luma = poly_luma >> 2u;
 	}
 	else
 	{
@@ -486,7 +494,7 @@ void main()
 		// The filtered texel has 8 bits of precision and the translator map has 128 entries, hence the
 		// shift — it is not an off-by-one waiting to be fixed. lumabase + (t >> 1) is exactly 15 bits
 		// with nothing to spare: lumabase maxes at 0x7f80, t >> 1 at 0x7f, and lumaram is 0x8000.
-		luma = (fetch_luma(p.lumabase + (t >> 1u)) * p.luma) / 256u;
+		luma = (fetch_luma(p.lumabase + (t >> 1u)) * poly_luma) / 256u;
 
 		// Virtua Striker sets up a luma of 0x40 for national flags on bleachers. Load-bearing: without
 		// it the index runs past the end of the 64-entry ramp.

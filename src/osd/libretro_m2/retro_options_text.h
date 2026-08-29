@@ -77,6 +77,16 @@ inline constexpr char const *FLAT_LUMA_LABEL = "Unlit";
 inline constexpr char const *FLAT_LUMA_INFO =
 	"Disable lighting for fullbright textures.";
 
+// --- Smooth Shading (Model 1) ------------------------------------------------
+inline constexpr char const *SMOOTH_SHADING_LABEL = "Smooth Shading";
+inline constexpr char const *SMOOTH_SHADING_INFO =
+	"Phong-shade Model 1's flat-shaded polygons. Enhancement, not accurate.";
+
+// --- Smooth Shading (Model 2) ------------------------------------------------
+inline constexpr char const *M2_SMOOTH_SHADING_LABEL = "Smooth Shading";
+inline constexpr char const *M2_SMOOTH_SHADING_INFO =
+	"Smooth Model 2's flat per-face shading across surfaces. Enhancement, not accurate.";
+
 // --- Polygon Count -----------------------------------------------------------
 inline constexpr char const *POLY_COUNTER_LABEL = "Polygon Count";
 inline constexpr char const *POLY_COUNTER_INFO =

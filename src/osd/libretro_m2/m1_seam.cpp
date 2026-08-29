@@ -50,6 +50,70 @@ bool g_no_lighting = false;
 void set_option_no_lighting(bool on) { g_no_lighting = on; }
 bool no_lighting() { return g_no_lighting; }
 
+// "Smooth Shading" (Model 1 only, opt-in). The core option's value, plus the M2VK_M1_SMOOTH switch that
+// overrides it for the harness (unset = follow the option, 0 = force off, non-zero = force on) — the same
+// switch-wins-over-option rule the m2vk options follow. Read live on the frontend thread in geom_draw.
+namespace {
+bool g_option_smooth = false;
+
+bool resolve_smooth()
+{
+	char const *const v = std::getenv("M2VK_M1_SMOOTH");
+	return (v != nullptr) ? (std::strtoul(v, nullptr, 10) != 0) : g_option_smooth;
+}
+
+bool g_smooth = false;
+}
+
+void set_option_smooth(bool on)
+{
+	g_option_smooth = on;
+	g_smooth = resolve_smooth();
+}
+
+bool smooth() { return g_smooth; }
+
+// The color_xlat luma LUT, and the snapshot Smooth Shading uploads. set_color_xlat parks the driver's live
+// pointer each frame (emulation thread); the snapshot is taken at record_end (also the emulation thread,
+// while the frontend is parked on the baton), so m1_geom reads a stable copy. Only the low byte of each
+// entry carries the LUT value the shader uses, so the snapshot is one byte per entry.
+namespace {
+uint16_t const *g_xlat_src = nullptr;
+unsigned        g_xlat_count = 0;
+std::vector<uint8_t> g_xlat_snap;
+}
+
+void set_color_xlat(uint16_t const *data, unsigned count)
+{
+	g_xlat_src = data;
+	g_xlat_count = count;
+}
+
+uint8_t const *color_xlat_snapshot(unsigned &count)
+{
+	if (g_xlat_snap.empty())
+	{
+		count = 0;
+		return nullptr;
+	}
+	count = unsigned(g_xlat_snap.size());
+	return g_xlat_snap.data();
+}
+
+namespace {
+// Copy the driver's live LUT into the snapshot. Called at record_end on the emulation thread, and only
+// while Smooth Shading is on, so a default run pays nothing.
+void snapshot_color_xlat()
+{
+	if ((g_xlat_src == nullptr) || (g_xlat_count == 0))
+		return;
+	if (g_xlat_snap.size() != g_xlat_count)
+		g_xlat_snap.resize(g_xlat_count);
+	for (unsigned i = 0; i < g_xlat_count; i++)
+		g_xlat_snap[i] = uint8_t(g_xlat_src[i] & 0xff);
+}
+}
+
 namespace {
 
 // The two independent reasons active() is true: the M1-1 diagnostic tap (env) and the M1-2 GPU path.
@@ -192,7 +256,13 @@ void frame_end()
 {
 	g_tap.end();
 	if (g_gpu_capture)
+	{
+		// Snapshot the LUT for Smooth Shading before releasing the frame — on this (emulation) thread, so
+		// the frontend reads a stable copy. Only when the toggle is on, so a default run pays nothing.
+		if (g_smooth)
+			snapshot_color_xlat();
 		record_end();
+	}
 }
 
 void submit(quad const &q)

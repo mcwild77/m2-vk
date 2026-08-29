@@ -157,6 +157,34 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		"off"
 	},
 	{
+		m2opt::KEY_SMOOTH_SHADING,
+		m2txt::SMOOTH_SHADING_LABEL,
+		nullptr,
+		m2txt::SMOOTH_SHADING_INFO,
+		nullptr,
+		nullptr,
+		{
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_M2_SMOOTH_SHADING,
+		m2txt::M2_SMOOTH_SHADING_LABEL,
+		nullptr,
+		m2txt::M2_SMOOTH_SHADING_INFO,
+		nullptr,
+		nullptr,
+		{
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
 		m2opt::KEY_POLY_COUNTER,
 		m2txt::POLY_COUNTER_LABEL,
 		nullptr,
@@ -656,6 +684,16 @@ unsigned m2opt::get_flat_shading(retro_environment_t environ_cb)
 bool m2opt::get_flat_luma(retro_environment_t environ_cb)
 {
 	return get(environ_cb, KEY_FLAT_LUMA) == "on";
+}
+
+bool m2opt::get_smooth_shading(retro_environment_t environ_cb)
+{
+	return get(environ_cb, KEY_SMOOTH_SHADING) == "on";
+}
+
+bool m2opt::get_m2_smooth_shading(retro_environment_t environ_cb)
+{
+	return get(environ_cb, KEY_M2_SMOOTH_SHADING) == "on";
 }
 
 bool m2opt::get_steering_display(retro_environment_t environ_cb)

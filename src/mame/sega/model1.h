@@ -97,6 +97,21 @@ public:
 		// runs — the input the "No Lighting" toggle (model2_flat_luma) emits instead of the lit `col`. Only
 		// the Modelizer build (M1VK) reads it; a plain MAME build never sets or reads this field.
 		uint32_t albedo = 0;
+
+		// "Smooth Shading" (Model 1 only, opt-in) capture. Model 1 lights per FACE: push_object resolves one
+		// authored normal to one colour per quad. To smooth-shade, the renderer needs the raw lighting inputs
+		// so it can re-run the maths per pixel with a per-vertex normal it welds from the face normals of
+		// adjacent quads (m1_geom.cpp). Captured here alongside `col`, carried across the seam by draw_quads.
+		//   fn*    the authored face normal, view space, normalised (push_object's `vn`).
+		//   l*     the view-space light direction (m_view->light), normalised.
+		//   la/ld/ls/lp  this face's light parameters (ambient/diffuse/specular/power) for lightmode.
+		//   has_normal  true only on the push_object path; the draw_direct path carries a precomputed
+		//               luminosity and no normal, so those quads stay flat under Smooth Shading.
+		// Only M1VK reads these; a plain MAME build neither sets nor reads them.
+		float fnx = 0, fny = 0, fnz = 0;
+		float lx = 0, ly = 0, lz = 0;
+		float la = 0, ld = 0, ls = 0, lp = 0;
+		bool has_normal = false;
 #endif
 	};
 

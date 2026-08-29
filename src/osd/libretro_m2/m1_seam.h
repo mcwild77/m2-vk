@@ -72,7 +72,21 @@ struct quad
 	float    z;            // the per-quad view-space sort key (quad_t::z), for reference; depth is order
 	uint32_t col;          // resolved: bits 0..23 = 0x00RRGGBB, bit 24 (0x01000000) = MOIRE translucency
 	uint32_t albedo;       // pre-luma palette albedo (0x00RRGGBB), the "No Lighting" colour; no MOIRE bit
+
+	// "Smooth Shading" (Model 1 only, opt-in) inputs — see model1.h quad_t. The renderer welds a per-vertex
+	// normal from the face normals of adjacent quads (keyed on the view-space corner positions vx/vy/vz) and
+	// re-runs the driver's lighting per pixel. has_normal is 0 on the draw_direct path (no normal → stays
+	// flat). Ignored entirely when Smooth Shading is off.
+	float    vx[4], vy[4], vz[4];   // view-space corner positions (the weld key)
+	float    fnx, fny, fnz;         // authored face normal, view space, normalised
+	float    lx, ly, lz;            // view-space light direction, normalised
+	float    la, ld, ls, lp;        // light params: ambient, diffuse, specular, power
+	uint32_t has_normal;            // 1 = push_object (smooth-capable), 0 = draw_direct (flat)
 };
+
+// The HAS_NORMAL flag the renderer folds into the GPU vertex's colour word (bit 25), so the smooth
+// fragment can tell a smooth-capable quad from a flat draw_direct one. Bit 24 is MOIRE (COL_MOIRE).
+constexpr uint32_t COL_HAS_NORMAL = 0x02000000u;
 
 // The MOIRE translucency flag folded into `col` by push_object (model1_v.cpp `enum { MOIRE = 0x01000000 }`).
 constexpr uint32_t COL_MOIRE = 0x01000000u;
@@ -120,6 +134,24 @@ void set_no_3d();
 // 1's lighting is baked at geometry time, so unlike Model 2's per-seam luma this is purely a display pick.
 void set_option_no_lighting(bool on);
 bool no_lighting();
+
+// "Smooth Shading" (Model 1 only, opt-in; default off). When on, m1_geom draws the polygon pass through
+// the smooth pipeline: a per-vertex normal welded from adjacent face normals, the driver's lighting maths
+// re-run per pixel, plus a Blinn-Phong specular. Set by retro_entry when the option/M2VK_M1_SMOOTH switch
+// is resolved; read live on the frontend thread in geom_draw, so the toggle takes effect next frame with
+// no reload. An enhancement, not accuracy — Model 1 is flat-shaded hardware.
+void set_option_smooth(bool on);
+bool smooth();
+
+// The game's color_xlat luma LUT, handed over each frame by the driver (screen_update, emulation thread)
+// so Smooth Shading's per-pixel lighting can index the exact table the flat path does. The seam keeps a
+// snapshot (taken on the emulation thread at record time, race-free) that m1_geom reads while the
+// emulation thread is parked. count is the entry count; each entry's low byte is what the LUT uses.
+void set_color_xlat(uint16_t const *data, unsigned count);
+
+// The snapshot m1_geom uploads into the LUT storage buffer. Returns the low byte of each entry (one byte
+// per entry) and sets count; returns nullptr with count 0 when no snapshot has been taken yet.
+uint8_t const *color_xlat_snapshot(unsigned &count);
 
 // The 2D-over overlay (m1_seam.cpp). Model 1's tile layers are RGB (segas24_tile_device draws resolved
 // 0xffRRGGBB pens straight into the bitmap_rgb32), NOT the pen-index composite S21 needs — so unlike
@@ -181,7 +213,11 @@ void record_end();
 // The seam helper for the quad site: the driver hook recomputes the float projected pixel (M1-3) and
 // hands it here, so the GPU rasterises at sub-pixel precision and scales cleanly to any internal size.
 // A plain forwarder, inert unless a consumer is attached.
-inline void submit_quad(float const x[4], float const y[4], float z, uint32_t col, uint32_t albedo)
+inline void submit_quad(float const x[4], float const y[4],
+		float const vx[4], float const vy[4], float const vz[4],
+		float z, uint32_t col, uint32_t albedo,
+		float fnx, float fny, float fnz, float lx, float ly, float lz,
+		float la, float ld, float ls, float lp, uint32_t has_normal)
 {
 	if (!active())
 		return;
@@ -191,10 +227,17 @@ inline void submit_quad(float const x[4], float const y[4], float z, uint32_t co
 	{
 		q.x[i] = x[i];
 		q.y[i] = y[i];
+		q.vx[i] = vx[i];
+		q.vy[i] = vy[i];
+		q.vz[i] = vz[i];
 	}
 	q.z = z;
 	q.col = col;
 	q.albedo = albedo;
+	q.fnx = fnx; q.fny = fny; q.fnz = fnz;
+	q.lx = lx; q.ly = ly; q.lz = lz;
+	q.la = la; q.ld = ld; q.ls = ls; q.lp = lp;
+	q.has_normal = has_normal;
 	submit(q);
 }
 
