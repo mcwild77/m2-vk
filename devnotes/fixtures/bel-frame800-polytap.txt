@@ -1,0 +1,37 @@
+# Model 2 polygon dump, rendered frame 800
+P	seq=0	verts=4	bucket=4836	window=2	renderer=2	tex=1	trans=0	hdr=4009,0000,18bc,2740	luma=255	lumabase=0	colorbase=157	checker=0	texlod=1183	vp=0,128,497,512	clip=0,0,495,383	center=249,320	texsize=64x64	texpos=1920,64	wrap=0,0	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=279.093323	y=226.940674	rz=0.211761668	uz=13.5527468	vz=1.98526561
+V	1	x=279.093323	y=153.566086	rz=0.211761668	uz=0	vz=1.98526561
+V	2	x=296.663086	y=153.252579	rz=0.213488996	uz=0	vz=6.83164787
+V	3	x=296.663086	y=227.225677	rz=0.213488996	uz=13.6632957	vz=6.83164787
+P	seq=1	verts=4	bucket=4839	window=2	renderer=2	tex=1	trans=0	hdr=4009,0000,18bc,2440	luma=176	lumabase=0	colorbase=145	checker=0	texlod=1165	vp=0,128,497,512	clip=0,0,495,383	center=249,320	texsize=64x64	texpos=1920,64	wrap=0,0	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=382.644775	y=227.063950	rz=0.212508753	uz=13.6005602	vz=1.99226952
+V	1	x=382.644775	y=153.430496	rz=0.212508753	uz=0	vz=1.99226952
+V	2	x=398.538879	y=153.591904	rz=0.211619437	uz=0	vz=6.77182198
+V	3	x=398.538879	y=226.917206	rz=0.211619437	uz=13.543644	vz=6.77182198
+P	seq=2	verts=4	bucket=4947	window=2	renderer=2	tex=1	trans=0	hdr=4009,0000,18bc,2740	luma=255	lumabase=0	colorbase=157	checker=0	texlod=1128	vp=0,128,497,512	clip=0,0,495,383	center=249,320	texsize=64x64	texpos=1920,64	wrap=0,0	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=296.663086	y=227.225677	rz=0.213488996	uz=13.6632957	vz=6.83164787
+V	1	x=296.663086	y=153.252579	rz=0.213488996	uz=0	vz=6.83164787
+V	2	x=308.959961	y=154.427582	rz=0.207015067	uz=0	vz=11.308198
+V	3	x=308.959961	y=226.157486	rz=0.207015067	uz=13.2489643	vz=11.308198
+P	seq=3	verts=4	bucket=4975	window=2	renderer=2	tex=1	trans=0	hdr=4009,0000,18bc,2440	luma=176	lumabase=0	colorbase=145	checker=0	texlod=1177	vp=0,128,497,512	clip=0,0,495,383	center=249,320	texsize=64x64	texpos=1920,64	wrap=0,0	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=366.194519	y=225.960098	rz=0.205818802	uz=13.1724033	vz=0
+V	1	x=366.194519	y=154.644684	rz=0.205818802	uz=0	vz=0
+V	2	x=382.644775	y=153.430496	rz=0.212508753	uz=0	vz=1.99226952
+V	3	x=382.644775	y=227.063950	rz=0.212508753	uz=13.6005602	vz=1.99226952
+P	seq=4	verts=4	bucket=5024	window=2	renderer=2	tex=1	trans=0	hdr=4009,0000,18bc,2440	luma=176	lumabase=0	colorbase=145	checker=0	texlod=952	vp=0,128,497,512	clip=0,0,495,383	center=249,320	texsize=64x64	texpos=1920,64	wrap=0,0	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=398.538879	y=226.917206	rz=0.211619437	uz=13.543644	vz=6.77182198
+V	1	x=398.538879	y=153.591904	rz=0.211619437	uz=0	vz=6.77182198
+V	2	x=403.330627	y=155.003479	rz=0.20384194	uz=0	vz=11.1348658
+V	3	x=403.330627	y=225.633911	rz=0.20384194	uz=13.0458841	vz=11.1348658
+P	seq=5	verts=4	bucket=5042	window=2	renderer=2	tex=1	trans=0	hdr=4009,0000,18bc,2740	luma=255	lumabase=0	colorbase=157	checker=0	texlod=1110	vp=0,128,497,512	clip=0,0,495,383	center=249,320	texsize=64x64	texpos=1920,64	wrap=0,0	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=268.045135	y=225.513840	rz=0.203114152	uz=12.9993057	vz=0
+V	1	x=268.045135	y=155.135574	rz=0.203114152	uz=0	vz=0
+V	2	x=279.093323	y=153.566086	rz=0.211761668	uz=0	vz=1.98526561
+V	3	x=279.093323	y=226.940674	rz=0.211761668	uz=13.5527468	vz=1.98526561
+P	seq=6	verts=4	bucket=5216	window=2	renderer=2	tex=1	trans=0	hdr=4009,0000,18bc,2440	luma=238	lumabase=0	colorbase=145	checker=0	texlod=1026	vp=0,128,497,512	clip=0,0,495,383	center=249,320	texsize=64x64	texpos=1920,64	wrap=0,0	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=359.495117	y=224.390305	rz=0.196304902	uz=12.5635138	vz=10.723155
+V	1	x=359.495117	y=156.371429	rz=0.196304902	uz=0	vz=10.723155
+V	2	x=366.194519	y=154.644684	rz=0.205818802	uz=0	vz=13.1724033
+V	3	x=366.194519	y=225.960098	rz=0.205818802	uz=13.1724033	vz=13.1724033
+# 7 polygons tapped, 7 submitted by the geometry engine

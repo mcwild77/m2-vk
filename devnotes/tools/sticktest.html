@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Analog Stick Tester</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f25; --line: #2c313a; --fg: #e6e9ef;
+    --dim: #8b94a3; --accent: #5ec2ff; --warn: #ffb454; --bad: #ff6b6b; --good: #6ee787;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, sans-serif;
+    padding: 16px;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+  .sub { color: var(--dim); margin: 0 0 14px; }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  select, button {
+    background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 10px; font: inherit;
+  }
+  button:hover { border-color: var(--accent); cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+              color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+  canvas { display: block; image-rendering: auto; }
+  .sticks { display: flex; gap: 14px; flex-wrap: wrap; }
+  .stick { flex: 0 0 auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  td, th { padding: 2px 6px; text-align: right; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: 500; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .axisrow { display: grid; grid-template-columns: 34px 1fr 62px; gap: 8px;
+             align-items: center; margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+  .track { position: relative; height: 12px; background: #0e1013;
+           border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .fill { position: absolute; top: 0; bottom: 0; background: var(--accent); }
+  .mid { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #3a414d; }
+  .btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .btn { min-width: 30px; text-align: center; padding: 3px 5px; border-radius: 4px;
+         background: #0e1013; border: 1px solid var(--line); color: var(--dim);
+         font-variant-numeric: tabular-nums; }
+  .btn.on { background: var(--accent); color: #0b0d10; border-color: var(--accent); }
+  .verdict { margin-top: 8px; font-size: 12px; }
+  .verdict div { margin-bottom: 3px; }
+  .ok { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  code { background: #0e1013; padding: 1px 5px; border-radius: 4px; color: var(--dim); }
+</style>
+</head>
+<body>
+
+<h1>Analog Stick Tester</h1>
+<p class="sub">Press any button on the controller to wake it up. Then roll each stick slowly around
+its full rim a few times, and let it fall back to centre.</p>
+
+<div class="bar">
+  <select id="pad"><option>waiting for a gamepad…</option></select>
+  <button id="reset">Reset samples</button>
+  <button id="clearTrail">Clear trail</button>
+  <label><input type="checkbox" id="raw" checked> show raw (no deadzone)</label>
+  <span id="rate" style="color:var(--dim)"></span>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Sticks — trail + envelope</h2>
+    <div class="sticks" id="sticks"></div>
+    <p class="sub" style="margin:10px 0 0">
+      Grey circle = perfect unit circle. Orange outline = the furthest you have pushed at each
+      angle. A round orange ring means even output; flat sides, notches or a squashed axis mean
+      it is not.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>Axes</h2>
+    <div id="axes"></div>
+    <h2 style="margin-top:14px">Per-axis statistics</h2>
+    <table id="stats"><thead><tr>
+      <th>axis</th><th>now</th><th>min</th><th>max</th><th>rest</th><th>steps</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h2>Evenness report</h2>
+    <div id="verdict" class="verdict"><div style="color:var(--dim)">Roll the sticks first.</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Value distribution (per axis)</h2>
+    <div id="hists"></div>
+    <p class="sub" style="margin:8px 0 0">
+      Spikes = values the stick lands on unusually often (sticky spots / snapping).
+      A gap in the middle of the sweep = a flat spot.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>Buttons</h2>
+    <div class="btns" id="btns"></div>
+  </div>
+</div>
+
+<script>
+const NBINS = 72;          // polar envelope bins (5 degrees each)
+const HBINS = 65;          // histogram bins per axis
+const TRAIL = 600;
+
+let padIndex = null;
+let state = null;
+let frames = 0, lastRateT = performance.now();
+
+function freshState(nAxes, nButtons) {
+  const nSticks = Math.floor(nAxes / 2);
+  return {
+    nAxes, nButtons,
+    axis: Array.from({length: nAxes}, () => ({
+      min: Infinity, max: -Infinity, rest: null, seen: new Set(),
+      hist: new Uint32Array(HBINS)
+    })),
+    stick: Array.from({length: nSticks}, () => ({
+      env: new Float32Array(NBINS), trail: [], maxR: 0
+    })),
+    samples: 0
+  };
+}
+
+/* ---------- DOM building ---------- */
+const elSticks = document.getElementById('sticks');
+const elAxes   = document.getElementById('axes');
+const elStats  = document.querySelector('#stats tbody');
+const elBtns   = document.getElementById('btns');
+const elHists  = document.getElementById('hists');
+const elVerd   = document.getElementById('verdict');
+
+let stickCanvases = [], axisEls = [], statEls = [], btnEls = [], histCanvases = [];
+
+function buildUI(s) {
+  elSticks.innerHTML = ''; elAxes.innerHTML = ''; elStats.innerHTML = '';
+  elBtns.innerHTML = '';   elHists.innerHTML = '';
+  stickCanvases = []; axisEls = []; statEls = []; btnEls = []; histCanvases = [];
+
+  s.stick.forEach((_, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'stick';
+    const c = document.createElement('canvas');
+    const px = 240, dpr = window.devicePixelRatio || 1;
+    c.width = px * dpr; c.height = px * dpr;
+    c.style.width = px + 'px'; c.style.height = px + 'px';
+    const lab = document.createElement('div');
+    lab.style.cssText = 'color:var(--dim);margin-top:4px';
+    lab.textContent = `stick ${i}  (axes ${i*2}/${i*2+1})`;
+    wrap.append(c, lab); elSticks.append(wrap);
+    stickCanvases.push(c);
+  });
+
+  for (let i = 0; i < s.nAxes; i++) {
+    const row = document.createElement('div');
+    row.className = 'axisrow';
+    row.innerHTML = `<span style="color:var(--dim)">a${i}</span>
+      <div class="track"><div class="mid"></div><div class="fill"></div></div>
+      <span class="val" style="text-align:right"></span>`;
+    elAxes.append(row);
+    axisEls.push({ fill: row.querySelector('.fill'), val: row.querySelector('.val') });
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>a${i}</td><td></td><td></td><td></td><td></td><td></td>`;
+    elStats.append(tr);
+    statEls.push(tr.querySelectorAll('td'));
+
+    const hc = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    hc.width = 300 * dpr; hc.height = 46 * dpr;
+    hc.style.width = '100%'; hc.style.height = '46px';
+    hc.style.marginBottom = '6px';
+    elHists.append(hc); histCanvases.push(hc);
+  }
+
+  for (let i = 0; i < s.nButtons; i++) {
+    const b = document.createElement('div');
+    b.className = 'btn'; b.textContent = i;
+    elBtns.append(b); btnEls.push(b);
+  }
+}
+
+/* ---------- sampling ---------- */
+function sample(gp) {
+  const s = state;
+  const raw = document.getElementById('raw').checked;
+
+  for (let i = 0; i < s.nAxes && i < gp.axes.length; i++) {
+    let v = gp.axes[i];
+    if (!raw && Math.abs(v) < 0.08) v = 0;
+    const a = s.axis[i];
+    if (v < a.min) a.min = v;
+    if (v > a.max) a.max = v;
+    if (a.seen.size < 4000) a.seen.add(Math.round(v * 100000) / 100000);
+    a.hist[Math.min(HBINS - 1, Math.max(0, Math.round((v + 1) / 2 * (HBINS - 1))))]++;
+    a.now = v;
+    if (Math.abs(v) < 0.25) a.rest = a.rest === null ? v : a.rest * 0.98 + v * 0.02;
+  }
+
+  for (let i = 0; i < s.stick.length; i++) {
+    const x = s.axis[i*2]?.now ?? 0, y = s.axis[i*2+1]?.now ?? 0;
+    const st = s.stick[i];
+    const r = Math.hypot(x, y);
+    if (r > 0.15) {
+      let ang = Math.atan2(y, x);
+      if (ang < 0) ang += Math.PI * 2;
+      const b = Math.min(NBINS - 1, Math.floor(ang / (Math.PI * 2) * NBINS));
+      if (r > st.env[b]) st.env[b] = r;
+      if (r > st.maxR) st.maxR = r;
+    }
+    st.trail.push([x, y]);
+    if (st.trail.length > TRAIL) st.trail.shift();
+  }
+  s.samples++;
+}
+
+/* ---------- drawing ---------- */
+function drawStick(c, st, x, y) {
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height, cx = W/2, cy = H/2, R = W/2 - 14*dpr;
+  ctx.clearRect(0, 0, W, H);
+
+  // frame + gridlines
+  ctx.strokeStyle = '#2c313a'; ctx.lineWidth = 1*dpr;
+  ctx.strokeRect(cx - R, cy - R, R*2, R*2);
+  ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+  ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
+
+  // unit circle reference
+  ctx.strokeStyle = '#3a414d'; ctx.setLineDash([3*dpr, 3*dpr]);
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.5, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // trail
+  ctx.strokeStyle = 'rgba(94,194,255,0.30)'; ctx.lineWidth = 1*dpr;
+  ctx.beginPath();
+  st.trail.forEach(([tx, ty], i) => {
+    const px = cx + tx*R, py = cy + ty*R;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  });
+  ctx.stroke();
+
+  // polar envelope
+  ctx.strokeStyle = '#ffb454'; ctx.lineWidth = 1.5*dpr;
+  ctx.beginPath();
+  let started = false;
+  for (let b = 0; b <= NBINS; b++) {
+    const bb = b % NBINS, r = st.env[bb];
+    if (r <= 0) { started = false; continue; }
+    const a = (bb + 0.5) / NBINS * Math.PI*2;
+    const px = cx + Math.cos(a)*r*R, py = cy + Math.sin(a)*r*R;
+    started ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    started = true;
+  }
+  ctx.stroke();
+
+  // current position
+  ctx.fillStyle = '#e6e9ef';
+  ctx.beginPath(); ctx.arc(cx + x*R, cy + y*R, 4*dpr, 0, Math.PI*2); ctx.fill();
+}
+
+function drawHist(c, a) {
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  let m = 0; for (const v of a.hist) if (v > m) m = v;
+  if (!m) return;
+  const bw = W / HBINS;
+  for (let i = 0; i < HBINS; i++) {
+    const h = (a.hist[i] / m) * (H - 2);
+    ctx.fillStyle = i === (HBINS - 1) / 2 ? '#5ec2ff' : '#48505d';
+    ctx.fillRect(i * bw, H - h, bw - 1, h);
+  }
+}
+
+/* ---------- report ---------- */
+function report() {
+  const s = state;
+  const out = [];
+  s.stick.forEach((st, i) => {
+    const filled = [...st.env].filter(v => v > 0);
+    if (filled.length < NBINS * 0.6) {
+      out.push(`<div style="color:var(--dim)">stick ${i}: roll it all the way around
+        (${filled.length}/${NBINS} sectors seen)</div>`);
+      return;
+    }
+    const min = Math.min(...filled), max = Math.max(...filled);
+    const mean = filled.reduce((p, v) => p + v, 0) / filled.length;
+    const sd = Math.sqrt(filled.reduce((p, v) => p + (v - mean) ** 2, 0) / filled.length);
+    const round = min / max;                       // 1.0 = perfect circle
+    const cls = round > 0.92 ? 'ok' : round > 0.80 ? 'warn' : 'bad';
+    const word = round > 0.92 ? 'even' : round > 0.80 ? 'slightly uneven' : 'UNEVEN';
+
+    // per-axis reach symmetry
+    const ax = s.axis[i*2], ay = s.axis[i*2+1];
+    const sym = (v) => {
+      const l = Math.abs(v.min), r = Math.abs(v.max);
+      const q = Math.min(l, r) / Math.max(l, r);
+      return { l, r, q };
+    };
+    const sx = sym(ax), sy = sym(ay);
+    const symCls = (q) => q > 0.95 ? 'ok' : q > 0.88 ? 'warn' : 'bad';
+
+    const drift = Math.hypot(ax.rest ?? 0, ay.rest ?? 0);
+    const dCls = drift < 0.03 ? 'ok' : drift < 0.08 ? 'warn' : 'bad';
+
+    out.push(`<div style="margin-top:8px"><b>stick ${i}</b></div>
+      <div>roundness <span class="${cls}">${round.toFixed(3)} — ${word}</span>
+        &nbsp;<span style="color:var(--dim)">min ${min.toFixed(3)} · max ${max.toFixed(3)}
+        · mean ${mean.toFixed(3)} · sd ${sd.toFixed(3)}</span></div>
+      <div>X reach <span class="${symCls(sx.q)}">−${sx.l.toFixed(3)} / +${sx.r.toFixed(3)}
+        (${(sx.q*100).toFixed(1)}% matched)</span></div>
+      <div>Y reach <span class="${symCls(sy.q)}">−${sy.l.toFixed(3)} / +${sy.r.toFixed(3)}
+        (${(sy.q*100).toFixed(1)}% matched)</span></div>
+      <div>centre drift <span class="${dCls}">${drift.toFixed(4)}</span>
+        <span style="color:var(--dim)">(rest x ${(ax.rest ?? 0).toFixed(4)},
+        y ${(ay.rest ?? 0).toFixed(4)})</span></div>
+      <div>resolution <span style="color:var(--dim)">${ax.seen.size} / ${ay.seen.size}
+        distinct values seen — 8-bit hardware tops out near 256</span></div>`);
+  });
+  elVerd.innerHTML = out.join('');
+}
+
+/* ---------- loop ---------- */
+function pads() {
+  return [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean);
+}
+
+function refreshList() {
+  const sel = document.getElementById('pad');
+  const list = pads();
+  const keep = sel.value;
+  sel.innerHTML = list.length
+    ? list.map(p => `<option value="${p.index}">#${p.index} ${p.id}</option>`).join('')
+    : '<option>press a button on the controller…</option>';
+  if (list.length) {
+    if (list.some(p => String(p.index) === keep)) sel.value = keep;
+    const idx = parseInt(sel.value, 10);
+    if (idx !== padIndex) {
+      padIndex = idx;
+      const p = list.find(q => q.index === idx);
+      state = freshState(p.axes.length, p.buttons.length);
+      buildUI(state);
+    }
+  }
+}
+
+document.getElementById('pad').addEventListener('change', e => {
+  padIndex = parseInt(e.target.value, 10);
+  const p = pads().find(q => q.index === padIndex);
+  if (p) { state = freshState(p.axes.length, p.buttons.length); buildUI(state); }
+});
+document.getElementById('reset').onclick = () => {
+  const p = pads().find(q => q.index === padIndex);
+  if (p) { state = freshState(p.axes.length, p.buttons.length); buildUI(state); }
+};
+document.getElementById('clearTrail').onclick = () => {
+  state && state.stick.forEach(s => s.trail.length = 0);
+};
+window.addEventListener('gamepadconnected', refreshList);
+window.addEventListener('gamepaddisconnected', refreshList);
+
+let listTick = 0, reportTick = 0;
+function frame() {
+  requestAnimationFrame(frame);
+  if (++listTick % 30 === 0) refreshList();
+
+  const gp = pads().find(p => p.index === padIndex);
+  if (!gp || !state) return;
+  if (gp.axes.length !== state.nAxes) { state = freshState(gp.axes.length, gp.buttons.length); buildUI(state); }
+
+  sample(gp);
+
+  for (let i = 0; i < state.nAxes; i++) {
+    const v = state.axis[i].now, a = axisEls[i];
+    if (!a) continue;
+    const pct = Math.abs(v) * 50;
+    a.fill.style.left  = (v < 0 ? 50 - pct : 50) + '%';
+    a.fill.style.width = pct + '%';
+    a.val.textContent  = v.toFixed(4);
+    const st = state.axis[i], td = statEls[i];
+    td[1].textContent = v.toFixed(4);
+    td[2].textContent = st.min === Infinity ? '—' : st.min.toFixed(4);
+    td[3].textContent = st.max === -Infinity ? '—' : st.max.toFixed(4);
+    td[4].textContent = st.rest === null ? '—' : st.rest.toFixed(4);
+    td[5].textContent = st.seen.size;
+    drawHist(histCanvases[i], st);
+  }
+
+  state.stick.forEach((st, i) =>
+    drawStick(stickCanvases[i], st, state.axis[i*2].now, state.axis[i*2+1].now));
+
+  gp.buttons.forEach((b, i) => {
+    const e = btnEls[i]; if (!e) return;
+    e.classList.toggle('on', b.pressed || b.value > 0.5);
+    e.textContent = b.value > 0 && b.value < 1 ? b.value.toFixed(2) : i;
+  });
+
+  frames++;
+  const now = performance.now();
+  if (now - lastRateT > 500) {
+    document.getElementById('rate').textContent =
+      `${Math.round(frames / ((now - lastRateT) / 1000))} Hz · ${state.samples} samples`;
+    frames = 0; lastRateT = now;
+  }
+  if (++reportTick % 15 === 0) report();
+}
+refreshList();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

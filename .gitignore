@@ -17,6 +17,7 @@
 !/benchmarks/
 !/artwork/
 !/bgfx/
+!/devnotes/
 !/docs/
 !/hash/
 !/hlsl/
@@ -49,3 +50,10 @@ regtests/chdman/temp
 regtests/jedutil/output
 /CMakeLists.txt
 /samples
+# devnotes/ is tracked, minus bulk and generated artifacts
+/devnotes/roms/
+/devnotes/screenshots/
+/devnotes/shortcuts/
+/devnotes/__pycache__/
+/devnotes/retrohost
+*.bak

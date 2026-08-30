@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model 2 — RetroPad layout editor</title>
+<!--
+  devnotes/tools/padmap.html — the per-game RetroPad layout editor.
+
+  Authors src/osd/libretro_m2/input_layouts.json, which padmap-gen.py turns into input_layouts.ipp.
+  Its data source is padmap-data.js, written by padmap-sweep.sh: the machine's own description of every
+  control it declares, including the driver's own PORT_NAME for each one. That is the whole point —
+  nobody has to be told which button does which, because model2.cpp already says.
+
+  Offline by construction: no network of any kind, one file, and the data arrives through a <script src>
+  rather than fetch() because this runs from file://, where fetch is blocked by CORS and a script tag is
+  not. devnotes/ is gitignored, so this never ships.
+
+  Works per PORT SET, not per game. A port set is what MAME's INPUT_PORTS_START blocks actually are —
+  32 of them across 90 GAME entries — and the sets[] list a row needs is computed from the driver table
+  rather than typed, so a row cannot name a set that does not exist or miss a parent that needs it.
+-->
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #fff; --ink: #14161a; --dim: #666e7a; --line: #d8dce3;
+  --accent: #2563eb; --ok: #15803d; --warn: #a16207; --err: #b91c1c;
+  --chip: #eef2f8; --assigned: #dbeafe; --bad: #fee2e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a; --panel: #1c1f25; --ink: #e8eaed; --dim: #98a0ac; --line: #30353d;
+    --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --err: #f87171;
+    --chip: #262b33; --assigned: #1e3a5f; --bad: #4c1d1d;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161a; --panel: #1c1f25; --ink: #e8eaed; --dim: #98a0ac; --line: #30353d;
+  --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --err: #f87171;
+  --chip: #262b33; --assigned: #1e3a5f; --bad: #4c1d1d;
+}
+:root[data-theme="light"] {
+  --bg: #f6f7f9; --panel: #fff; --ink: #14161a; --dim: #666e7a; --line: #d8dce3;
+  --accent: #2563eb; --ok: #15803d; --warn: #a16207; --err: #b91c1c;
+  --chip: #eef2f8; --assigned: #dbeafe; --bad: #fee2e2;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+header h1 { font-size: 14px; margin: 0 12px 0 0; font-weight: 650; }
+header .grow { flex: 1; }
+button, .fakebtn {
+  font: inherit; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--chip); color: var(--ink); cursor: pointer;
+}
+button:hover, .fakebtn:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+input[type=text] {
+  font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px;
+  background: var(--bg); color: var(--ink); width: 100%;
+}
+main { display: grid; grid-template-columns: 250px minmax(560px, 1fr) 330px; gap: 12px; padding: 12px; align-items: start; }
+@media (max-width: 1180px) { main { grid-template-columns: 1fr; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+.panel > h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--dim); margin: 0 0 8px; }
+aside.panel { max-height: calc(100vh - 90px); overflow-y: auto; position: sticky; top: 62px; }
+.tier { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--dim); margin: 10px 0 4px; }
+.tabs { display: flex; gap: 4px; margin: 0 0 10px; }
+.tab {
+  flex: 1; text-align: center; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--chip); color: var(--dim); cursor: pointer; font-weight: 600; user-select: none;
+}
+.tab:hover { border-color: var(--accent); }
+.tab.sel { background: var(--assigned); border-color: var(--accent); color: var(--ink); }
+.tab .ct { font-weight: 400; color: var(--dim); font-size: 11px; margin-left: 4px; }
+.setrow {
+  display: flex; align-items: baseline; gap: 6px; padding: 4px 6px; border-radius: 5px; cursor: pointer;
+  border: 1px solid transparent;
+}
+.setrow:hover { background: var(--chip); }
+.setrow.sel { background: var(--assigned); border-color: var(--accent); }
+.setrow .nm { font-weight: 600; font-family: ui-monospace, monospace; }
+.setrow .ct { color: var(--dim); font-size: 11px; margin-left: auto; }
+.badge {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .04em; padding: 1px 4px;
+  border-radius: 3px; border: 1px solid var(--line); color: var(--dim);
+}
+.badge.nw { color: var(--warn); border-color: var(--warn); }
+.badge.au { color: var(--ok); border-color: var(--ok); }
+.badge.no { color: var(--err); border-color: var(--err); }
+svg { width: 100%; height: auto; display: block; }
+.ctl { cursor: pointer; }
+.ctl .shape { fill: var(--chip); stroke: var(--line); stroke-width: 1.5; }
+.ctl:hover .shape { stroke: var(--accent); stroke-width: 2.5; }
+.ctl.has .shape { fill: var(--assigned); stroke: var(--accent); }
+.ctl.bad .shape { fill: var(--bad); stroke: var(--err); stroke-width: 2.5; }
+.ctl.drop .shape { stroke: var(--ok); stroke-width: 3; stroke-dasharray: 4 3; }
+.ctl.forbid { cursor: not-allowed; opacity: .45; }
+.ctl .cn { font: 600 10px ui-monospace, monospace; fill: var(--dim); text-anchor: middle; pointer-events: none; }
+.ctl.has .cn { fill: var(--ink); }
+.ctl .cl { font: 11px ui-sans-serif, system-ui, sans-serif; fill: var(--ink); text-anchor: middle; pointer-events: none; }
+.ctl .cb { font: 600 9px ui-monospace, monospace; fill: var(--accent); text-anchor: middle; pointer-events: none; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 3px 5px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); font-weight: 600; }
+td.mono, .mono { font-family: ui-monospace, monospace; }
+td.tgt { font-size: 11px; color: var(--accent); font-family: ui-monospace, monospace; white-space: nowrap; }
+tr.dim td { color: var(--dim); }
+.chip {
+  display: flex; align-items: center; gap: 6px; padding: 5px 7px; margin-bottom: 5px;
+  background: var(--chip); border: 1px solid var(--line); border-radius: 6px; cursor: grab;
+}
+.chip:hover { border-color: var(--accent); }
+.chip.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.chip.done { background: transparent; }
+.chip .nm { font-weight: 600; flex: 1; }
+.chip .ty { font-size: 10px; font-family: ui-monospace, monospace; color: var(--dim); }
+.chip .src { font-size: 10px; font-family: ui-monospace, monospace; color: var(--accent); }
+.chip .x { color: var(--dim); padding: 0 3px; }
+.chip .x:hover { color: var(--err); }
+.msg { padding: 5px 8px; border-radius: 5px; margin-bottom: 5px; border-left: 3px solid; font-size: 12px; }
+.msg.e { border-color: var(--err); background: color-mix(in srgb, var(--err) 12%, transparent); }
+.msg.w { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.msg.i { border-color: var(--dim); background: var(--chip); }
+.msg .why { color: var(--dim); font-size: 11px; display: block; margin-top: 2px; }
+.msg.ok { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.hint { color: var(--dim); font-size: 11px; margin: 0 0 8px; }
+.diff { font-size: 11px; font-family: ui-monospace, monospace; }
+.diff .was { color: var(--dim); text-decoration: line-through; }
+.diff .now { color: var(--ok); }
+details summary { cursor: pointer; color: var(--dim); font-size: 11px; }
+#empty { padding: 40px; text-align: center; color: var(--dim); }
+.note { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.note label { font-size: 11px; color: var(--dim); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Model 2 — RetroPad layout editor</h1>
+  <label class="fakebtn">Load input_layouts.json<input type="file" id="load" accept=".json,application/json" hidden></label>
+  <button id="save" class="primary">Download input_layouts.json</button>
+  <button id="tocore" class="primary" hidden>Save to core</button>
+  <button id="build" hidden>Rebuild core</button>
+  <button id="play" hidden title="launch RetroArch on this game, with the core built from this repo">▶ Play</button>
+  <button id="quit" hidden title="stop padmap-serve.py">Stop server</button>
+  <span id="status" class="mono" style="font-size:11px"></span>
+  <span class="grow"></span>
+  <span id="stamp" class="mono" style="color:var(--dim);font-size:11px"></span>
+  <button id="theme" title="Toggle light/dark">◐</button>
+</header>
+
+<main>
+  <aside class="panel" id="library"><h2>Port sets</h2></aside>
+
+  <section class="panel" id="center">
+    <div id="empty">Pick a port set on the left.</div>
+    <div id="editor" hidden>
+      <h2 id="title"></h2>
+      <p class="hint" id="hint"></p>
+      <div id="padwrap"></div>
+      <h2 style="margin-top:14px">Controls and their frontend labels</h2>
+      <p class="hint">These strings are what RetroArch's Controls menu shows. Blank means no descriptor
+        is sent for that control. The generator turns them into the label array the core reads, so this
+        table and the assignments above cannot disagree.</p>
+      <table id="labels"><tbody></tbody></table>
+      <div class="note">
+        <label for="rownote">Row note</label>
+        <input type="text" id="rownote" placeholder="what this cabinet is — goes into the generated .ipp as a comment">
+      </div>
+      <div class="note">
+        <label for="rowverified">Verified</label>
+        <input type="text" id="rowverified" placeholder="e.g. 2026-07-30, daytona INPUT TEST — blank until measured">
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel" id="right">
+    <h2>What this game declares</h2>
+    <div id="declared"></div>
+    <h2 style="margin-top:14px">Checks</h2>
+    <div id="validation"></div>
+    <div id="diffwrap"></div>
+  </aside>
+</main>
+
+<script src="padmap-data.js"></script>
+<script>
+"use strict";
+
+//==================================================================================================
+//  the RetroPad
+//==================================================================================================
+
+// Every control, its shape, and where its two text lines go. One table so a position cannot drift
+// between the picture and the hit target — the SVG is generated from this and nothing else.
+//
+// `src` is the token the layout row stores. It is exactly the vocabulary read_source() in
+// libretro_m2_input.cpp already understands: a RetroPad id, one of the two tagged trigger thresholds,
+// or NONE. No new mechanism enters the core because the tool cannot express one.
+const CONTROLS = [
+  { id:"L2",     src:"L2",     kind:"trigger", label:"L2", x: 62, y: 14, w:116, h:30, tx:120, ty:  8 },
+  { id:"R2",     src:"R2",     kind:"trigger", label:"R2", x:462, y: 14, w:116, h:30, tx:520, ty:  8 },
+  { id:"L",      src:"L",      kind:"digital", label:"L",  x: 62, y: 50, w:116, h:30, tx:120, ty:100 },
+  { id:"R",      src:"R",      kind:"digital", label:"R",  x:462, y: 50, w:116, h:30, tx:520, ty:100 },
+
+  { id:"UP",     src:"UP",     kind:"dpad", label:"Up",    x:112, y:128, w:44, h:44, tx:134, ty:120 },
+  { id:"LEFT",   src:"LEFT",   kind:"dpad", label:"Left",  x: 66, y:174, w:44, h:44, tx: 46, ty:200, anchor:"end" },
+  { id:"RIGHT",  src:"RIGHT",  kind:"dpad", label:"Right", x:158, y:174, w:44, h:44, tx:208, ty:200, anchor:"start" },
+  { id:"DOWN",   src:"DOWN",   kind:"dpad", label:"Down",  x:112, y:220, w:44, h:44, tx:134, ty:280 },
+
+  { id:"SELECT", src:"SELECT", kind:"system", label:"Select", x:248, y:150, w:60, h:26, tx:278, ty:143 },
+  { id:"START",  src:"START",  kind:"system", label:"Start",  x:332, y:150, w:60, h:26, tx:362, ty:143 },
+
+  { id:"X",      src:"X",      kind:"face", label:"X", cx:520, cy:150, r:22, tx:520, ty:120 },
+  { id:"Y",      src:"Y",      kind:"face", label:"Y", cx:474, cy:196, r:22, tx:452, ty:200, anchor:"end" },
+  { id:"A",      src:"A",      kind:"face", label:"A", cx:566, cy:196, r:22, tx:592, ty:200, anchor:"start" },
+  { id:"B",      src:"B",      kind:"face", label:"B", cx:520, cy:242, r:22, tx:520, ty:280 },
+
+  { id:"L3",     src:"L3",     kind:"stick", label:"L3 / Left stick",  cx:252, cy:250, r:40, tx:252, ty:302 },
+  { id:"R3",     src:"R3",     kind:"stick", label:"R3 / Right stick", cx:388, cy:250, r:40, tx:388, ty:302 },
+];
+
+// The label slots the frontend can be told about: the sixteen digital ids plus the four stick axes.
+// The two trigger axes share L2/R2's slot, because a libretro descriptor is per (port, device, index,
+// id) and the pedal and the button are the same id — which is also why the core's own descriptor for
+// L2 has always read "Brake / Button 7" rather than carrying two entries.
+const LABEL_SLOTS = [
+  { id:"B", g:"face" }, { id:"A", g:"face" }, { id:"Y", g:"face" }, { id:"X", g:"face" },
+  { id:"L", g:"shoulder" }, { id:"R", g:"shoulder" },
+  { id:"L2", g:"shoulder" }, { id:"R2", g:"shoulder" },
+  { id:"UP", g:"dpad" }, { id:"DOWN", g:"dpad" }, { id:"LEFT", g:"dpad" }, { id:"RIGHT", g:"dpad" },
+  { id:"SELECT", g:"system" }, { id:"START", g:"system" },
+  { id:"L3", g:"stick" }, { id:"R3", g:"stick" },
+  { id:"LSTICK_X", g:"analog" }, { id:"LSTICK_Y", g:"analog" },
+  { id:"RSTICK_X", g:"analog" }, { id:"RSTICK_Y", g:"analog" },
+];
+
+// Sources a numbered-button slot may name. SELECT and START are absent on purpose and the tool refuses
+// them outright: they carry COIN1/START1 through MAME's own indexed defaults, so pointing a numbered
+// button at one is a guaranteed double press — taking a credit every time you punch.
+const BUTTON_SOURCES = [
+  "B","A","Y","X","L","R","L2","R2","L3","R3","UP","DOWN","LEFT","RIGHT","L2_AXIS","R2_AXIS","NONE"
+];
+
+// Today's Classic row, and the fallback for every port set with no row of its own. Read-only here: the
+// regression check for this whole change is that the unauthored sets stay byte-identical, and that rests
+// on this being exactly BUTTON_LAYOUTS[LAYOUT_CLASSIC] as it stands in libretro_m2_input.cpp.
+const GENERIC_SOURCES = ["B","A","Y","X","R","L","L2_AXIS","R2_AXIS","R3"];
+const GENERIC_LABELS = {
+  B:"Button 1", A:"Button 2", Y:"Button 3", X:"Button 4", R:"Button 5", L:"Button 6",
+  L2:"Brake / Button 7", R2:"Accelerator / Button 8", SELECT:"Coin", START:"Start", R3:"Button 9",
+  // L3 had no descriptor at all before this work — input-map.md §4's first gap. It carries IPT_SERVICE1
+  // whenever model2_diagnostic_input is not None, and the core suppresses the string when it is, so the
+  // label is never shown for a control that does nothing.
+  L3:"Service Coin", UP:"Up", DOWN:"Down", LEFT:"Left", RIGHT:"Right",
+  LSTICK_X:"Steering / Stick X", LSTICK_Y:"Stick Y", RSTICK_X:"Right Stick X", RSTICK_Y:"Right Stick Y",
+};
+
+// Friendlier defaults for analog fields the driver never named — MAME falls back to the type's own name
+// ("Paddle", "Pedal 1"), which is accurate and useless to a player.
+const ANALOG_DEFAULT_LABEL = {
+  PADDLE:"Steering", PADDLE_V:"Steering", PEDAL:"Accelerator", PEDAL2:"Brake", PEDAL3:"Hand Brake",
+  AD_STICK_X:"Stick X", AD_STICK_Y:"Stick Y", AD_STICK_Z:"Stick Z",
+  LIGHTGUN_X:"Aim X", LIGHTGUN_Y:"Aim Y", DIAL:"Dial", DIAL_V:"Dial", POSITIONAL:"Wheel",
+  TRACKBALL_X:"Trackball X", TRACKBALL_Y:"Trackball Y",
+};
+
+// Which analog label slot MAME's stock assignments land each analog type on. Informational only in this
+// step — analog ROUTING is a later step, and until then this table is just how the tool knows which row
+// of the label table an analog field's name belongs in.
+const ANALOG_SLOT = {
+  PADDLE:"LSTICK_X", PADDLE_V:"LSTICK_Y", DIAL:"LSTICK_X", DIAL_V:"LSTICK_Y", POSITIONAL:"LSTICK_X",
+  AD_STICK_X:"LSTICK_X", AD_STICK_Y:"LSTICK_Y", AD_STICK_Z:"RSTICK_X",
+  LIGHTGUN_X:"LSTICK_X", LIGHTGUN_Y:"LSTICK_Y",
+  TRACKBALL_X:"LSTICK_X", TRACKBALL_Y:"LSTICK_Y",
+  PEDAL:"R2", PEDAL2:"L2", PEDAL3:"R",
+};
+
+// Grouped by port set (the `input` field), one block per driver family. The family tab shows only its
+// own family's tiers; a port set present in the data but named in no tier below falls to "unclassified"
+// so nothing is ever hidden.
+const TIERS = {
+  // Sega Model 1: six port sets across five GAME entries (vformula/swaj/wingwaru/wingwarj/wingwar360
+  // are clones sharing a parent's port set except wingwar360, which has its own). vf is a fighter on
+  // numbered buttons + a digital stick; vr steers on IPT_PADDLE + two pedals; the rest sit on
+  // IPT_AD_STICK_X/Y like model2's own adstick tier.
+  model1: {
+    buttons:   ["vf"],
+    driving:   ["vr"],
+    adstick:   ["swa", "wingwar", "wingwar360", "netmerc"],
+  },
+  model2: {
+    buttons:   ["vf2","doa","dynamcop","schamp","vstriker","zerogun","pltkids","airwlkrs","model2crx"],
+    driving:   ["daytona","srallyc","indy500","sgt24h","overrev","manxtt","motoraid"],
+    adstick:   ["skytargt","rchase2","rchase2a","gunblade","bel","waverunr","desert"],
+    lightgun:  ["vcop","vcop2","hotd"],
+    twinstick: ["von"],
+    exotic:    ["dynabb","topskatr","segawski","skisuprg","powsled"],
+  },
+  system22: {
+    driving:   ["ridgera","ridgera2","ridgerac3m","ridgeracf","raverace","acedrive","victlap","dirtdash"],
+    lightgun:  ["timecris","tokyowar"],
+    flight:    ["cybrcomm","airco22","aquajet"],
+    exotic:    ["propcycl","alpiner","alpines","cybrcycc","adillor"],
+  },
+  // System 21 members are filled from the port set names the sweep produces (they key on `input`, not the
+  // GAME set); a set present in the data but named in no tier here falls to "unclassified", never hidden.
+  system21: {
+    driving:   ["winrun","winrungp","driveyes"],
+    flight:    ["aircomb","solvalou"],
+    twinstick: ["cybsled"],
+    exotic:    ["starblad"],
+  },
+};
+
+// Which family a driver row belongs to. The field arrived with the System 22 sweep; a data file from
+// before it (or a hand-written stub) has none, and everything in it is Model 2 — so that is the default.
+const familyOf = (d) => d.driver || "model2";
+
+// The tab order and their display names. System 22 is first and is the default (below), by request.
+const FAMILIES = [
+  { id: "system22", label: "System 22" },
+  { id: "system21", label: "System 21" },
+  { id: "model2",   label: "Model 2" },
+  { id: "model1",   label: "Model 1" },
+];
+
+const STORE_KEY = "m2-padmap-doc-v1";
+
+//==================================================================================================
+//  state
+//==================================================================================================
+
+const DATA = window.M2_PADMAP_DATA || { drivers: [], dumps: {}, generated: "(no padmap-data.js)" };
+const DRIVERS = DATA.drivers || [];
+const DUMPS = DATA.dumps || {};
+
+let doc = { schema: 1, rows: {} };   // rows keyed by port set
+let baseline = {};                   // rows as loaded from disk, for the diff
+let current = null;                  // selected port set
+let picked = null;                   // MAME button number awaiting a control click
+let currentFamily = "system22";      // which driver's port sets the library shows; System 22 by default
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt !== undefined) n.textContent = txt; return n; };
+
+//==================================================================================================
+//  the driver table, read the way the core reads it
+//==================================================================================================
+
+// The set names a row has to name so that every GAME entry using this port set finds it.
+//
+// The core looks a row up by the machine's own name and then by its parent's (cabinet_layout_for), so a
+// parent's row covers its clones for free. A name is therefore needed when the entry is a parent, and
+// when it is a clone whose parent uses a DIFFERENT port set — which is real: rchase2a is a clone of
+// rchase2 and has its own INPUT_PORTS. Computed rather than typed, so a row cannot miss one.
+function setsForPortSet(portset) {
+  const byName = {};
+  for (const d of DRIVERS) byName[d.set] = d;
+  const out = [];
+  for (const d of DRIVERS) {
+    if (d.input !== portset) continue;
+    const parent = (d.parent && d.parent !== "0") ? byName[d.parent] : null;
+    if (!parent || parent.input !== portset) out.push(d.set);
+  }
+  return out;
+}
+
+function entriesForPortSet(portset) { return DRIVERS.filter((d) => d.input === portset); }
+
+// The dump to author against: the first entry of the port set that actually got one. Named in the UI,
+// because "authored against vf2" and "authored against lastbrnx" are the same ports but a reader
+// checking the row wants to know which machine said so.
+function dumpForPortSet(portset) {
+  for (const d of entriesForPortSet(portset)) if (DUMPS[d.set]) return DUMPS[d.set];
+  return null;
+}
+
+//==================================================================================================
+//  rows
+//==================================================================================================
+
+function declaredButtons(dump) { return dump ? (dump.buttons || []) : []; }
+
+// The name to put on MAME button n — player 0's field if there is one, with the player prefix stripped.
+// field.name() prepends "P1 " (ioport.cpp), and "P1 Punch" is a label about a port rather than about a
+// button; the frontend already knows which port it is showing.
+function buttonName(dump, n) {
+  if (!dump) return "Button " + n;
+  const token = "P1_BUTTON" + n;
+  let f = dump.fields.find((x) => x.token === token);
+  if (!f) f = dump.fields.find((x) => x.token === "P2_BUTTON" + n);
+  if (!f) return "Button " + n;
+  return f.named ? f.name.replace(/^P\d+\s+/, "") : "Button " + n;
+}
+
+function analogFields(dump) {
+  return dump ? dump.fields.filter((f) => f.analog) : [];
+}
+
+// A new row starts as the generic layout, but only for the buttons the set actually declares — the rest
+// are NONE. That keeps a row minimal and honest: motoraid has two buttons, and seeding all nine would
+// leave slots 7 and 8 sitting on the trigger thresholds it also uses for its throttle and brake, i.e. it
+// would report two collisions that cannot happen because there is no button 7 to collide.
+function seedRow(portset) {
+  const dump = dumpForPortSet(portset);
+  const declared = declaredButtons(dump);
+  const buttons = GENERIC_SOURCES.map((src, i) => ({
+    source: (!declared.length || declared.includes(i + 1)) ? src : "NONE",
+    label: buttonName(dump, i + 1),
+    why: "",
+  }));
+  const row = { id: portset, sets: setsForPortSet(portset), note: "", verified: "", buttons, labels: {} };
+  relabelFromRow(row, dump);
+  return row;
+}
+
+// Rewrites every label the row's own assignments determine. Called on seed and after every assignment
+// change, so a label can never go on describing a control the row has since moved off.
+//
+// This IS the inversion padmap-gen.py performs — "MAME button n comes from control c" becoming "control
+// c is labelled L" — done live so the author sees exactly what will be emitted. Two hand-maintained
+// copies of that relationship is what put GEAR 4 and VR1 the wrong way round for months (input-map.md
+// §5.1); this one is safe because it derives from the same array, in the same order, on every call.
+//
+// 🚨 It MUST clear every non-manual slot first, and that includes the analog ones. Skipping the analog
+// slots was the first version and it was wrong in a way that only shows up on the second call: the
+// analog pass appends, so a re-render turned daytona's steering label into
+// "Steering / Steering / Steering / Stick X". Found by the headless test, not by looking.
+function relabelFromRow(row, dump) {
+  const declared = declaredButtons(dump);
+  const manual = row.labels.__manual || {};
+
+  // Appends rather than overwrites, because one control legitimately carries two meanings — a pedal
+  // axis and a numbered button on the same trigger — and dedupes, because the same name arriving twice
+  // is a bug in the caller rather than something to render.
+  const put = (slot, txt, before) => {
+    if (manual[slot] || !txt) return;
+    const cur = (row.labels[slot] || "").trim();
+    if (!cur) { row.labels[slot] = txt; return; }
+    if (cur.split(" / ").includes(txt)) return;
+    row.labels[slot] = before ? txt + " / " + cur : cur + " / " + txt;
+  };
+
+  for (const s of LABEL_SLOTS) if (!manual[s.id]) row.labels[s.id] = "";
+
+  // The fixed functions. They are not layout slots — coin and start come from MAME's own indexed
+  // defaults and L3 from the diagnostic option — but they are the two controls a player looks for first,
+  // and today's descriptors already name them.
+  put("SELECT", "Coin");
+  put("START", "Start");
+  put("L3", "Service Coin");
+
+  // A digital joystick means the d-pad and the left stick both move the player. The d-pad takes the
+  // driver's own direction names; the stick has no field of its own to be named from, so it gets a word.
+  if (dump && dump.flags.joystick) {
+    for (const [slot, tok] of [["UP", "UP"], ["DOWN", "DOWN"], ["LEFT", "LEFT"], ["RIGHT", "RIGHT"]]) {
+      const f = dump.fields.find((x) => x.token.replace(/^P\d+_/, "") === "JOYSTICK_" + tok);
+      put(slot, f ? (f.named ? f.name.replace(/^P\d+\s+/, "") : slot[0] + slot.slice(1).toLowerCase())
+                  : slot[0] + slot.slice(1).toLowerCase());
+    }
+    put("LSTICK_X", "Move");
+    put("LSTICK_Y", "Move");
+
+    // The gear shift ALSO lands on the shoulders. On the racers whose shift is on the joystick the core
+    // routes IPT_JOYSTICK_DOWN→R1 and IPT_JOYSTICK_UP→L1 (shippable-plan R4.5, auto-detected by
+    // padmap-gen.py — the same P1 up+down both PORT_NAMEd "Shift …" checked here). Shown so the mapping
+    // is visible in the tool; it is not editable, because the shift is a joystick direction, not a
+    // numbered-button slot. R1 is the upshift ("Shift Up" = IPT_JOYSTICK_DOWN), L1 the downshift.
+    const shiftField = (tok) => dump.fields.find(
+        (x) => x.token === "P1_JOYSTICK_" + tok && x.named && /shift/i.test(x.name));
+    const shUp = shiftField("UP"), shDown = shiftField("DOWN");
+    if (shUp && shDown) {
+      put("R", shDown.name.replace(/^P\d+\s+/, ""));
+      put("L", shUp.name.replace(/^P\d+\s+/, ""));
+    }
+  }
+
+  // The analog fields, before the buttons, so that a shared trigger reads pedal-first — which is what
+  // today's "Accelerator / Button 8" descriptor does and what a driver expects to find under that
+  // finger.
+  for (const f of analogFields(dump)) {
+    const bare = f.token.replace(/^P\d+_/, "");
+    const slot = ANALOG_SLOT[bare];
+    if (!slot) continue;
+    put(slot, f.named ? f.name.replace(/^P\d+\s+/, "") : (ANALOG_DEFAULT_LABEL[bare] || bare));
+  }
+
+  // The numbered buttons.
+  row.buttons.forEach((b, i) => {
+    const n = i + 1;
+    if (b.source === "NONE") return;
+    if (declared.length && !declared.includes(n)) return;      // a slot this set does not use
+    const slot = (b.source === "L2_AXIS") ? "L2" : (b.source === "R2_AXIS") ? "R2" : b.source;
+    put(slot, b.label || buttonName(dump, n));
+  });
+}
+
+// The index of the one button feeding a control, or -1 — where "one" also means no analog field lands
+// there. A trigger carrying both a pedal and a numbered button reads "Accelerator / Button 8", and that
+// whole string belongs to neither of them.
+function soleButtonFor(row, slot, dump) {
+  const feeds = [];
+  row.buttons.forEach((b, i) => {
+    if (b.source === "NONE") return;
+    const c = b.source === "L2_AXIS" ? "L2" : b.source === "R2_AXIS" ? "R2" : b.source;
+    if (c === slot) feeds.push(i);
+  });
+  if (feeds.length !== 1) return -1;
+  for (const f of analogFields(dump)) {
+    if (ANALOG_SLOT[f.token.replace(/^P\d+_/, "")] === slot) return -1;
+  }
+  return feeds[0];
+}
+
+function rowFor(portset) {
+  if (!doc.rows[portset]) doc.rows[portset] = seedRow(portset);
+  return doc.rows[portset];
+}
+
+//==================================================================================================
+//  validation
+//==================================================================================================
+
+function validate(portset) {
+  const row = rowFor(portset);
+  const dump = dumpForPortSet(portset);
+  const out = [];
+  const add = (level, text, why) => out.push({ level, text, why });
+
+  if (!dump) {
+    add("w", "No dump for any set in this port set.",
+      "padmap-sweep.sh could not boot one — usually absent ROMs. The row can still be authored, but every " +
+      "label is a guess and no rule below can be checked.");
+  }
+
+  const declared = declaredButtons(dump);
+
+  // Both hard rules are about a real double-press, so both only apply to a button the set DECLARES. A
+  // slot pointing somewhere for a button that does not exist binds to nothing and cannot collide with
+  // anything — reporting it as an error would have made motoraid, which has two buttons and two pedals,
+  // fail on slots 7 and 8 that are not connected to the machine at all.
+  const live = (n) => !declared.length || declared.includes(n);
+
+  // rule: a numbered button may name a D-pad control only on a set with no digital joystick
+  // (per-game-input.md §2.3). The D-pad slots keep their ITEM_ID_HAT1* items and the IPT_JOYSTICK_*
+  // assignments add_directional_assignments() gives them, so on a set with a stick one press feeds two.
+  if (dump && dump.flags.joystick) {
+    row.buttons.forEach((b, i) => {
+      if (live(i + 1) && ["UP","DOWN","LEFT","RIGHT"].includes(b.source))
+        add("e", `Button ${i + 1} is on D-pad ${b.source}, and this set declares a joystick.`,
+          "The D-pad already feeds IPT_JOYSTICK_* — one press would fire the stick and the button. per-game-input.md §2.3");
+    });
+  }
+
+  // rule: the trigger thresholds are unavailable on a set with pedals — this IS the daytona collision
+  if (dump && dump.flags.pedals) {
+    row.buttons.forEach((b, i) => {
+      if (live(i + 1) && (b.source === "L2_AXIS" || b.source === "R2_AXIS"))
+        add("e", `Button ${i + 1} is on the ${b.source === "L2_AXIS" ? "L2" : "R2"} trigger threshold, and this set has pedals.`,
+          `Flooring the ${b.source === "R2_AXIS" ? "accelerator" : "brake"} would also press it. This is the collision the per-game table exists to kill. input-map.md §3.2`);
+    });
+  }
+
+  // rule: one control, one MAME button
+  const seen = {};
+  row.buttons.forEach((b, i) => {
+    if (b.source === "NONE") return;
+    if (declared.length && !declared.includes(i + 1)) return;
+    (seen[b.source] = seen[b.source] || []).push(i + 1);
+  });
+  for (const [src, list] of Object.entries(seen)) {
+    if (list.length > 1)
+      add("e", `${src} feeds MAME buttons ${list.join(" and ")}.`, "One press, two buttons.");
+  }
+
+  // rule: coin and start are not layout slots
+  row.buttons.forEach((b, i) => {
+    if (b.source === "SELECT" || b.source === "START")
+      add("e", `Button ${i + 1} is on ${b.source}, which carries ${b.source === "SELECT" ? "COIN" : "START"}.`,
+        "MAME's own indexed defaults put the arcade coin/start there; this would double-press every time.");
+  });
+
+  // an unreachable declared button
+  for (const n of declared) {
+    const b = row.buttons[n - 1];
+    if (!b || b.source !== "NONE") continue;
+    if (b.why) add("i", `Button ${n} (${buttonName(dump, n)}) has no control, deliberately.`, b.why);
+    else add("w", `Button ${n} (${buttonName(dump, n)}) is declared but unreachable.`,
+      "Give it a control, or write a note saying why not — daytona's GEAR N is the precedent.");
+  }
+
+  // a slot pointing somewhere for a button the set does not have
+  if (declared.length) {
+    row.buttons.forEach((b, i) => {
+      if (b.source !== "NONE" && !declared.includes(i + 1))
+        add("i", `Button ${i + 1} is mapped to ${b.source} but this set does not declare it.`,
+          "Harmless — the item simply binds to nothing — but that control could be doing something.");
+    });
+  }
+
+  // labels
+  for (const s of LABEL_SLOTS) {
+    const v = row.labels[s.id] || "";
+    if (v.length > 24)
+      add("w", `Label for ${s.id} is ${v.length} characters.`, "RetroArch's Controls list truncates long strings.");
+  }
+  const assignedControls = new Set(row.buttons.filter((b) => b.source !== "NONE")
+    .map((b) => b.source === "L2_AXIS" ? "L2" : b.source === "R2_AXIS" ? "R2" : b.source));
+  for (const c of assignedControls) {
+    if (!(row.labels[c] || "").trim())
+      add("w", `${c} does something but has no label.`, "It appears in the frontend's Controls menu unnamed.");
+  }
+
+  // the off-by-one that has already been written down twice
+  if (dump && dump.fields.some((f) => /^GEAR/.test(f.name)))
+    add("i", "This set's gears are offset by one: GEAR N is IPT_BUTTON1, so the player's gear 1 is button 2.",
+      "The chips on the right are in MAME's numbering and carry the driver's own names, so following them is correct. per-game-input.md §2.1");
+
+  if (!out.some((m) => m.level === "e")) add("ok", "No errors.", "");
+  return out;
+}
+
+//==================================================================================================
+//  rendering
+//==================================================================================================
+
+function renderLibrary() {
+  const lib = $("#library");
+  lib.innerHTML = "<h2>Port sets</h2>";
+
+  // The family tabs. Same style as a set row's selection: the active one is filled, the others dim.
+  // Switching family drops the current selection, because a port set belongs to exactly one family and
+  // the editor to its right would otherwise be showing a set the list no longer contains.
+  const tabs = el("div", "tabs");
+  for (const fam of FAMILIES) {
+    const count = new Set(DRIVERS.filter((d) => familyOf(d) === fam.id).map((d) => d.input)).size;
+    const t = el("div", "tab" + (fam.id === currentFamily ? " sel" : ""));
+    t.appendChild(document.createTextNode(fam.label));
+    t.appendChild(el("span", "ct", String(count)));
+    t.onclick = () => {
+      if (currentFamily === fam.id) return;
+      currentFamily = fam.id;
+      current = null; picked = null;
+      render();
+    };
+    tabs.appendChild(t);
+  }
+  lib.appendChild(tabs);
+
+  const allSets = [...new Set(DRIVERS.filter((d) => familyOf(d) === currentFamily).map((d) => d.input))];
+  const tiers = TIERS[currentFamily] || {};
+
+  let shown = 0;
+  for (const [tier, members] of Object.entries(tiers)) {
+    const present = members.filter((m) => allSets.includes(m));
+    if (!present.length) continue;
+    lib.appendChild(el("div", "tier", tier));
+    for (const ps of present) { lib.appendChild(libRow(ps)); shown++; }
+  }
+  const claimed = Object.values(tiers).flat();
+  const stray = allSets.filter((s) => !claimed.includes(s));
+  if (stray.length) {
+    lib.appendChild(el("div", "tier", "unclassified"));
+    for (const ps of stray) { lib.appendChild(libRow(ps)); shown++; }
+  }
+  if (!shown) lib.appendChild(el("p", "hint",
+    "No port sets for this family — run padmap-sweep.sh with that driver's ROMs reachable."));
+}
+
+function libRow(ps) {
+  const entries = entriesForPortSet(ps);
+  const working = entries.filter((e) => e.working).length;
+  const dump = dumpForPortSet(ps);
+
+  const r = el("div", "setrow" + (ps === current ? " sel" : ""));
+  r.appendChild(el("span", "nm", ps));
+  if (!working) r.appendChild(el("span", "badge nw", "not working"));
+  if (!dump) r.appendChild(el("span", "badge no", "no dump"));
+  if (doc.rows[ps]) r.appendChild(el("span", "badge au", "row"));
+  r.appendChild(el("span", "ct", `${entries.length} set${entries.length === 1 ? "" : "s"}`));
+  r.onclick = () => { current = ps; picked = null; render(); };
+  return r;
+}
+
+// The pad, generated from CONTROLS so that the picture, the hit target and the label can only ever be
+// the same control.
+function renderPad() {
+  const row = rowFor(current);
+  const dump = dumpForPortSet(current);
+  const declared = declaredButtons(dump);
+
+  // control -> the MAME buttons it feeds
+  const feeds = {};
+  row.buttons.forEach((b, i) => {
+    if (b.source === "NONE") return;
+    const c = b.source === "L2_AXIS" ? "L2" : b.source === "R2_AXIS" ? "R2" : b.source;
+    (feeds[c] = feeds[c] || []).push(i + 1);
+  });
+
+  const bad = new Set();
+  row.buttons.forEach((b, i) => {
+    const c = b.source === "L2_AXIS" ? "L2" : b.source === "R2_AXIS" ? "R2" : b.source;
+    if (b.source === "NONE") return;
+    if (dump && dump.flags.joystick && ["UP","DOWN","LEFT","RIGHT"].includes(b.source)) bad.add(c);
+    if (dump && dump.flags.pedals && (b.source === "L2_AXIS" || b.source === "R2_AXIS")) bad.add(c);
+    if (feeds[c] && feeds[c].length > 1) bad.add(c);
+  });
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 640 320");
+  svg.setAttribute("role", "group");
+  svg.setAttribute("aria-label", "RetroPad layout");
+
+  for (const c of CONTROLS) {
+    const g = document.createElementNS(ns, "g");
+    const forbidden = (c.id === "SELECT" || c.id === "START");
+    let cls = "ctl";
+    if (feeds[c.id]) cls += " has";
+    if (bad.has(c.id)) cls += " bad";
+    if (forbidden) cls += " forbid";
+    g.setAttribute("class", cls);
+    g.dataset.ctl = c.id;
+
+    let shape;
+    if (c.r !== undefined) {
+      shape = document.createElementNS(ns, "circle");
+      shape.setAttribute("cx", c.cx); shape.setAttribute("cy", c.cy); shape.setAttribute("r", c.r);
+    } else {
+      shape = document.createElementNS(ns, "rect");
+      shape.setAttribute("x", c.x); shape.setAttribute("y", c.y);
+      shape.setAttribute("width", c.w); shape.setAttribute("height", c.h);
+      shape.setAttribute("rx", 6);
+    }
+    shape.setAttribute("class", "shape");
+    g.appendChild(shape);
+
+    const cn = document.createElementNS(ns, "text");
+    cn.setAttribute("class", "cn");
+    cn.setAttribute("x", c.r !== undefined ? c.cx : c.x + c.w / 2);
+    cn.setAttribute("y", (c.r !== undefined ? c.cy : c.y + c.h / 2) + 4);
+    cn.textContent = c.r !== undefined && c.kind === "stick" ? c.id : c.label;
+    g.appendChild(cn);
+
+    const anchor = c.anchor || "middle";
+    if (feeds[c.id]) {
+      const cb = document.createElementNS(ns, "text");
+      cb.setAttribute("class", "cb"); cb.setAttribute("x", c.tx); cb.setAttribute("y", c.ty);
+      cb.setAttribute("text-anchor", anchor);
+      cb.textContent = "B" + feeds[c.id].join("+B");
+      g.appendChild(cb);
+    }
+    const lab = (row.labels[c.id] || "").trim();
+    if (lab) {
+      const cl = document.createElementNS(ns, "text");
+      cl.setAttribute("class", "cl"); cl.setAttribute("x", c.tx);
+      cl.setAttribute("y", c.ty + (feeds[c.id] ? 12 : 0));
+      cl.setAttribute("text-anchor", anchor);
+      cl.textContent = lab.length > 22 ? lab.slice(0, 21) + "…" : lab;
+      g.appendChild(cl);
+    }
+
+    if (!forbidden) {
+      g.addEventListener("click", () => {
+        if (picked === null) return;
+        assign(picked, c.src);
+        picked = null;
+        render();
+      });
+      g.addEventListener("dragover", (e) => { e.preventDefault(); g.classList.add("drop"); });
+      g.addEventListener("dragleave", () => g.classList.remove("drop"));
+      g.addEventListener("drop", (e) => {
+        e.preventDefault(); g.classList.remove("drop");
+        const n = parseInt(e.dataTransfer.getData("text/plain"), 10);
+        if (n >= 1 && n <= 9) { assign(n, c.src); render(); }
+      });
+    }
+    svg.appendChild(g);
+  }
+
+  const wrap = $("#padwrap");
+  wrap.innerHTML = "";
+  wrap.appendChild(svg);
+
+  const tip = el("p", "hint");
+  tip.textContent = picked !== null
+    ? `Click a control to give MAME button ${picked} (${buttonName(dump, picked)}) to it — or press Escape to cancel.`
+    : "Drag a button from the right onto a control, or click the button then the control. Select and Start are not assignable: they carry the arcade coin and start.";
+  wrap.appendChild(tip);
+}
+
+// Dropping a button on an OCCUPIED control SWAPS the two, it does not stack them.
+//
+// 🚨 It used to just write the new source in, leaving both buttons pointing at one control — a state the
+// validator flags ("one press, two buttons") and the generator refuses, but which on the pad reads as the
+// drop having been ignored: doa's Y went on saying Kick because the label is derived from the row and
+// the row now had two claims on it. Reported as "it's stuck on Kick", which is the correct reading of what
+// it looked like.
+//
+// A swap rather than an eviction, because the displaced button then still has somewhere to be: it takes
+// the control the dragged one came from. If the dragged button had none, the displaced one becomes NONE
+// and asks for a reason, which is the honest outcome — nothing is ever silently unassigned.
+//
+// Legality survives the swap for free: both rules are properties of the CONTROL (a D-pad on a set with a
+// joystick, a trigger threshold on a set with pedals), never of the button, so a control that was legal
+// for the dragged button is legal for the displaced one.
+function assign(n, src) {
+  const row = rowFor(current);
+  const from = row.buttons[n - 1].source;
+  if (src !== "NONE") {
+    // Re-dropping a button on the control it already holds is how you resolve a stacked pair that is
+    // already in the document — from a hand-edited file, or from work saved before this was fixed. There
+    // is no old control to hand back in that case, so the other claim goes to NONE: the drop wins.
+    const dest = (from === src) ? "NONE" : from;
+    row.buttons.forEach((b, i) => { if (i !== n - 1 && b.source === src) b.source = dest; });
+  }
+  row.buttons[n - 1].source = src;
+  if (src === "NONE" && !row.buttons[n - 1].why) row.buttons[n - 1].why = "";
+  relabelFromRow(row, dumpForPortSet(current));
+  persist();
+}
+
+function renderDeclared() {
+  const dump = dumpForPortSet(current);
+  const row = rowFor(current);
+  const box = $("#declared");
+  box.innerHTML = "";
+
+  if (!dump) {
+    box.appendChild(el("p", "hint", "No dump for this port set — run padmap-sweep.sh with reachable ROMs."));
+    return;
+  }
+
+  const declared = declaredButtons(dump);
+  if (!declared.length) box.appendChild(el("p", "hint", "This set declares no numbered buttons."));
+
+  for (const n of declared) {
+    const b = row.buttons[n - 1];
+    const chip = el("div", "chip" + (picked === n ? " sel" : "") + (b.source === "NONE" ? "" : " done"));
+    chip.draggable = true;
+    chip.appendChild(el("span", "nm", buttonName(dump, n)));
+    chip.appendChild(el("span", "ty", "BUTTON" + n));
+    chip.appendChild(el("span", "src", b.source === "NONE" ? "—" : b.source));
+    if (b.source !== "NONE") {
+      const x = el("span", "x", "✕");
+      x.title = "unassign";
+      x.onclick = (e) => { e.stopPropagation(); assign(n, "NONE"); render(); };
+      chip.appendChild(x);
+    }
+    chip.onclick = () => { picked = (picked === n) ? null : n; render(); };
+    chip.addEventListener("dragstart", (e) => e.dataTransfer.setData("text/plain", String(n)));
+    box.appendChild(chip);
+
+    if (b.source === "NONE") {
+      const why = el("div");
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.value = b.why || "";
+      inp.placeholder = "why this button has no control (required to clear the warning)";
+      inp.style.marginBottom = "5px";
+      inp.oninput = () => { b.why = inp.value; persist(); renderValidation(); };
+      why.appendChild(inp);
+      box.appendChild(why);
+    }
+  }
+
+  const analog = analogFields(dump);
+  if (analog.length) {
+    const d = el("details");
+    d.appendChild(el("summary", null, `${analog.length} analog field(s) — routed by MAME's own defaults`));
+    for (const f of analog) {
+      const bare = f.token.replace(/^P\d+_/, "");
+      const chip = el("div", "chip");
+      chip.draggable = false;
+      chip.style.cursor = "default";
+      chip.appendChild(el("span", "nm", f.named ? f.name.replace(/^P\d+\s+/, "") : (ANALOG_DEFAULT_LABEL[bare] || bare)));
+      chip.appendChild(el("span", "ty", bare));
+      chip.appendChild(el("span", "src", ANALOG_SLOT[bare] || "?"));
+      chip.title = `range ${f.analog.min}..${f.analog.max}, sensitivity ${f.analog.sens}` +
+        (f.analog.reverse ? ", reversed" : "");
+      d.appendChild(chip);
+    }
+    d.appendChild(el("p", "hint", "Analog routing is a later step; these are shown so their names can be used as labels."));
+    box.appendChild(d);
+  }
+
+  const misc = dump.fields.filter((f) => f.class === "misc");
+  if (misc.length) {
+    const d = el("details");
+    d.appendChild(el("summary", null, `${misc.length} field(s) handled automatically`));
+    for (const f of misc) {
+      const chip = el("div", "chip");
+      chip.style.cursor = "default";
+      chip.appendChild(el("span", "nm", f.name));
+      chip.appendChild(el("span", "ty", f.token));
+      d.appendChild(chip);
+    }
+    d.appendChild(el("p", "hint", "Coin, start and the service switches come from MAME's own indexed defaults " +
+      "and the diagnostic combo. Listed so they do not read as missing."));
+    box.appendChild(d);
+  }
+}
+
+function renderLabels() {
+  const row = rowFor(current);
+  const tb = $("#labels").querySelector("tbody");
+  tb.innerHTML = "";
+  const head = document.createElement("tr");
+  for (const h of ["Control", "Feeds", "Label shown in the frontend"]) head.appendChild(el("th", null, h));
+  tb.appendChild(head);
+
+  const feeds = {};
+  row.buttons.forEach((b, i) => {
+    if (b.source === "NONE") return;
+    const c = b.source === "L2_AXIS" ? "L2" : b.source === "R2_AXIS" ? "R2" : b.source;
+    (feeds[c] = feeds[c] || []).push("BUTTON" + (i + 1));
+  });
+
+  row.labels.__manual = row.labels.__manual || {};
+
+  for (const s of LABEL_SLOTS) {
+    const tr = document.createElement("tr");
+    const idle = !feeds[s.id] && !(row.labels[s.id] || "").trim();
+    if (idle) tr.className = "dim";
+    tr.appendChild(el("td", "mono", s.id));
+    tr.appendChild(el("td", "tgt", feeds[s.id] ? feeds[s.id].join(" + ") : ""));
+    const td = document.createElement("td");
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = row.labels[s.id] || "";
+    inp.placeholder = s.g === "analog" ? "(no descriptor)" : "";
+    // Typing a label for a control ONE button feeds edits that BUTTON's wording, not the control's, so
+    // the wording travels when the button is moved. Anything else is a second place for the same fact to
+    // live, which is the whole thing §1.1 exists to prevent — and "Punch" describes the button, not the
+    // patch of plastic it is currently under. A slot fed by nothing, or by a button sharing it with a
+    // pedal axis, keeps the old per-control behaviour: there the typed string is not any one button's.
+    const solo = soleButtonFor(row, s.id, dumpForPortSet(current));
+    inp.oninput = () => {
+      row.labels[s.id] = inp.value;
+      if (solo >= 0) { row.buttons[solo].label = inp.value; row.labels.__manual[s.id] = false; }
+      else row.labels.__manual[s.id] = inp.value.trim().length > 0;
+      persist(); renderPad(); renderValidation();
+    };
+    td.appendChild(inp);
+    tr.appendChild(td);
+    tb.appendChild(tr);
+  }
+}
+
+function renderValidation() {
+  const box = $("#validation");
+  box.innerHTML = "";
+  for (const m of validate(current)) {
+    const d = el("div", "msg " + m.level);
+    d.appendChild(document.createTextNode(m.text));
+    if (m.why) d.appendChild(el("span", "why", m.why));
+    box.appendChild(d);
+  }
+}
+
+function renderDiff() {
+  const wrap = $("#diffwrap");
+  wrap.innerHTML = "";
+  const base = baseline[current];
+  const row = doc.rows[current];
+  if (!base || !row) return;
+
+  const lines = [];
+  row.buttons.forEach((b, i) => {
+    const was = base.buttons[i] || {};
+    if (was.source !== b.source) lines.push([`BUTTON${i + 1}`, was.source || "—", b.source]);
+  });
+  for (const s of LABEL_SLOTS) {
+    const a = (base.labels && base.labels[s.id]) || "";
+    const c = row.labels[s.id] || "";
+    if (a !== c) lines.push([s.id, a || "(none)", c || "(none)"]);
+  }
+  if (!lines.length) return;
+
+  wrap.appendChild(el("h2", null, "Changed since the file was loaded"));
+  for (const [what, was, now] of lines) {
+    const d = el("div", "diff");
+    d.appendChild(el("strong", null, what + " "));
+    d.appendChild(el("span", "was", was));
+    d.appendChild(document.createTextNode(" → "));
+    d.appendChild(el("span", "now", now));
+    wrap.appendChild(d);
+  }
+}
+
+function render() {
+  $("#stamp").textContent = "data " + (DATA.generated || "?");
+  renderLibrary();
+  renderPlay();
+  if (!current) { $("#empty").hidden = false; $("#editor").hidden = true; return; }
+  $("#empty").hidden = true; $("#editor").hidden = false;
+
+  const row = rowFor(current);
+  const dump = dumpForPortSet(current);
+  const entries = entriesForPortSet(current);
+  $("#title").textContent = current;
+  $("#hint").textContent =
+    `${entries.length} GAME entr${entries.length === 1 ? "y" : "ies"} ` +
+    `(${entries.filter((e) => e.working).length} working) · row covers ${row.sets.join(", ")}` +
+    (dump ? ` · authored against ${dump.set}, ${dump.players} player(s)` +
+      (dump.flags.joystick ? ", has joystick" : ", no joystick") +
+      (dump.flags.pedals ? ", has pedals" : "") : " · no dump");
+
+  $("#rownote").value = row.note || "";
+  $("#rowverified").value = row.verified || "";
+  renderPad(); renderDeclared(); renderLabels(); renderValidation(); renderDiff();
+}
+
+//==================================================================================================
+//  persistence
+//==================================================================================================
+
+function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(doc)); } catch (e) {} }
+
+function restore() {
+  try {
+    const s = localStorage.getItem(STORE_KEY);
+    if (s) doc = JSON.parse(s);
+  } catch (e) {}
+  if (!doc || !doc.rows) doc = { schema: 1, rows: {} };
+  // Scratch work saved before the 2026-07-31 fix carries the bad manual flags with it, so a reload alone
+  // would not clear the drift — the browser would go on editing a row whose labels are frozen. Normalise
+  // on the way in, and relabel, which is a no-op on a row that was already consistent.
+  for (const [ps, row] of Object.entries(doc.rows)) {
+    normaliseManual(row);
+    relabelFromRow(row, dumpForPortSet(ps));
+  }
+}
+
+// A label for a control a button feeds is derived, never a manual override — see adoptParsed. One
+// function, because the two ways a row enters the editor (a file, the browser's scratch) must agree.
+function normaliseManual(row) {
+  const fed = new Set();
+  (row.buttons || []).forEach((b) => {
+    if (!b || b.source === "NONE") return;
+    fed.add(b.source === "L2_AXIS" ? "L2" : b.source === "R2_AXIS" ? "R2" : b.source);
+  });
+  row.labels = row.labels || {};
+  const manual = row.labels.__manual || {};
+  for (const k of Object.keys(manual)) if (fed.has(k)) manual[k] = false;
+  row.labels.__manual = manual;
+}
+
+// The export is the whole file, not one row, and the generic row rides along read-only: it is the
+// fallback for every port set with no row, and the regression check for this change is that those sets
+// stay byte-identical to today — which only holds if this stays exactly BUTTON_LAYOUTS[LAYOUT_CLASSIC].
+function exportDoc() {
+  const rows = Object.keys(doc.rows).sort().map((k) => {
+    const r = doc.rows[k];
+    const labels = {};
+    for (const s of LABEL_SLOTS) if ((r.labels[s.id] || "").trim()) labels[s.id] = r.labels[s.id].trim();
+    // Whether the set declares IPT_LIGHTGUN_X/Y, carried into the row because the core needs it at load
+    // time and cannot ask: descriptors go out from retro_load_game(), before there is a machine.
+    //
+    // 🚨 Without it the gun descriptors were emitted on EVERY set, so daytona's remap screen listed a
+    // lightgun trigger called "GEAR 1" and vf2's listed one called "Punch". Measured, not foreseen —
+    // M2VK_HOST_DESCRIPTORS printed it.
+    const dump = dumpForPortSet(r.id);
+    return {
+      id: r.id,
+      sets: setsForPortSet(r.id),
+      lightgun: !!(dump && dump.flags && dump.flags.lightgun),
+      note: r.note || "",
+      verified: r.verified || "",
+      buttons: r.buttons.map((b) => {
+        const o = { source: b.source, label: b.label || "" };
+        if (b.source === "NONE" && b.why) o.why = b.why;
+        return o;
+      }),
+      labels,
+    };
+  });
+  return {
+    schema: 1,
+    generated_by: "devnotes/tools/padmap.html",
+    generic: { note: "the fallback for every port set with no row — today's Classic layout, unchanged",
+               buttons: GENERIC_SOURCES.map((s) => ({ source: s, label: "" })), labels: GENERIC_LABELS },
+    rows,
+  };
+}
+
+$("#save").onclick = () => {
+  const blob = new Blob([JSON.stringify(exportDoc(), null, 2) + "\n"], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "input_layouts.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// Turn a parsed input_layouts.json into rows. `adopt` replaces what is being edited; without it only the
+// baseline moves, which is what a save does — the diff panel then reads "changed since the file on disk"
+// rather than "changed since you last opened one", and those are the same sentence only until you save.
+function adoptParsed(parsed, adopt) {
+  const rows = {};
+  for (const r of parsed.rows || []) {
+    // seed first so a row from an older schema still has every slot, then overlay what it carries
+    const seeded = seedRow(r.id);
+    seeded.note = r.note || ""; seeded.verified = r.verified || "";
+    (r.buttons || []).forEach((b, i) => { if (seeded.buttons[i]) seeded.buttons[i] = { source: b.source, label: b.label || "", why: b.why || "" }; });
+    // 🚨 A LABEL FOR A SLOT A BUTTON FEEDS IS NEVER MANUAL, however it arrived. Marking every loaded
+    // label manual — which this did — freezes those labels at the file's values for the rest of the
+    // session, so the sources move with your drags and the labels do not. That is §1.1's two-views-of-
+    // one-fact drift, reintroduced by the loader, and it shipped: doa was authored, saved, built and
+    // played with BUTTON1 (Hold) bound to Y while the frontend called Y "Kick" (2026-07-31).
+    //
+    // A button's own wording lives in buttons[i].label and is loaded above, so nothing is lost by
+    // rederiving these; a slot no button feeds (coin, start, the d-pad, an analog axis) has nowhere else
+    // to keep a hand edit, so those stay manual.
+    seeded.labels.__manual = {};
+    for (const [k, v] of Object.entries(r.labels || {})) { seeded.labels[k] = v; seeded.labels.__manual[k] = true; }
+    normaliseManual(seeded);
+    relabelFromRow(seeded, dumpForPortSet(r.id));
+    rows[r.id] = seeded;
+  }
+  baseline = JSON.parse(JSON.stringify(rows));
+  if (adopt) { doc = { schema: parsed.schema || 1, rows }; persist(); }
+  render();
+}
+
+$("#load").onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try { adoptParsed(JSON.parse(fr.result), true); }
+    catch (err) { alert("Could not read that file: " + err.message); }
+  };
+  fr.readAsText(f);
+};
+
+//==================================================================================================
+//  served mode — padmap-serve.py is running, so the file on disk is reachable and so is the generator
+//
+//  Loaded from file:// this whole section does nothing: /api/state does not answer, the two buttons stay
+//  hidden, and the Download-and-move loop is unchanged. That fallback is deliberate — the editor has to
+//  keep working from a bare checkout with nothing running.
+//==================================================================================================
+
+let served = false;
+let canPlay = false;                 // RetroArch is installed and the server will launch it
+let romNames = null;                 // zips the server can see; null = it has not said, so do not guess
+
+function status(text, kind) {
+  const n = $("#status");
+  n.textContent = text;
+  n.style.color = kind === "err" ? "var(--err)" : kind === "ok" ? "var(--ok)" : "var(--dim)";
+}
+
+async function initServed() {
+  // `typeof` rather than a plain read: padmap-test.sh runs this script under jsc, where there is no
+  // location at all, and a ReferenceError at top level would take the whole test run with it.
+  if (typeof location === "undefined" || !location.protocol.startsWith("http")) return;
+  let state;
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    state = await r.json();
+  } catch (e) { return; }
+  if (!state || !state.served) return;
+
+  served = true;
+  canPlay = !!state.canplay;
+  romNames = state.roms || null;
+  $("#tocore").hidden = false;
+  $("#build").hidden = false;
+  $("#quit").hidden = false;
+  renderPlay();
+  $("#save").classList.remove("primary");
+  $("#save").textContent = "Download a copy";
+
+  if (state.error) { status(state.error, "err"); return; }
+  if (!state.doc) { status("no " + state.path + " yet — Save to core writes it", null); return; }
+
+  // Adopt the file on disk unless there is unsaved work in this browser, in which case only the baseline
+  // moves and the diff panel shows what would change. Silently overwriting a scratchpad is the one thing
+  // this must not do; localStorage is where a refresh-in-the-middle lives.
+  const scratch = localStorage.getItem(STORE_KEY);
+  adoptParsed(state.doc, !scratch);
+
+  // 🚨 THE SCRATCH IS NOT THE WHOLE FILE. A row is seeded the moment a port set is selected, so a
+  // browser that has only ever touched two of them holds a two-row document — and exportDoc() writes
+  // exactly the rows the document has. Left alone, the next Save to core would delete the other ten
+  // authored rows from input_layouts.json, quietly and with a 200 back. Measured 2026-07-31: the file
+  // held twelve rows and Chrome's scratch held doa and vf2.
+  //
+  // So a row that exists on disk and not in the scratch is pulled in. It cannot conflict with unsaved
+  // work by construction — the scratch has nothing to say about it — and it is a deep copy of the
+  // baseline, not the baseline itself, or an edit would move both sides and the diff panel would go
+  // blank while the row was being changed.
+  let merged = 0;
+  if (scratch) {
+    for (const [id, row] of Object.entries(baseline)) {
+      if (!doc.rows[id]) { doc.rows[id] = JSON.parse(JSON.stringify(row)); merged++; }
+    }
+    if (merged) { persist(); render(); }
+  }
+
+  status(scratch ? "editing local changes against " + state.path
+                   + (merged ? " (" + merged + " untouched row(s) taken from the file)" : "")
+                 : "loaded " + state.path + (state.generated ? "" : " (⚠ .ipp is stale)"), null);
+}
+
+$("#tocore").onclick = async () => {
+  const btn = $("#tocore");
+
+  // The belt to initServed's braces. The merge on load means this should never fire; it fires anyway if
+  // a row ever leaves the document by some other route, and what it is guarding is not a mistake anyone
+  // would notice — a save that drops a row takes an authored layout out of the core and reports success.
+  const dropped = Object.keys(baseline).filter((id) => !doc.rows[id]);
+  if (dropped.length && !confirm("This save would DELETE " + dropped.length + " row(s) that are in the file:\n\n"
+      + dropped.join(", ") + "\n\nThose sets would go back to the generic layout. Continue?")) return;
+
+  btn.disabled = true;
+  status("saving…", null);
+  try {
+    const r = await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Padmap": "1" },
+      body: JSON.stringify(exportDoc(), null, 2) + "\n",
+    });
+    const res = await r.json();
+    if (!r.ok) { status(res.error || "save refused", "err"); alert("padmap-gen.py refused it, so nothing was written:\n\n" + (res.error || "")); }
+    else {
+      // The saved document becomes the new baseline, so the diff panel empties — it is now telling the
+      // truth again ("changed since the file on disk") rather than still showing the change just written.
+      adoptParsed(exportDoc(), false);
+      status(res.output || ("wrote " + res.json), "ok");
+    }
+  } catch (e) {
+    status("could not reach padmap-serve.py: " + e.message, "err");
+  }
+  btn.disabled = false;
+};
+
+//--------------------------------------------------------------------------------------------------
+//  Play — the only way a mapping is ever checked
+//
+//  Scripted button-press testing is banned in this tree (CLAUDE.md, 2026-07-30), so every row's exit
+//  criterion is a person with a pad in a real game. This is that step, one click from the row: the
+//  repo's own dylib by path, so the RetroArch cores directory's symlink — which has twice reverted to a
+//  stale copy — is not in the loop at all, and the M2VK_/M2OPT_ environment stripped, so the options
+//  menu is in charge. Nothing is pinned and no config is written; it is ~/Desktop/Model 2.app with the
+//  game already loaded and the core known to be this one.
+//--------------------------------------------------------------------------------------------------
+
+// Which GAME entry to actually boot for a port set. The set's own name first (daytona -> daytona.zip),
+// then its entries with the working ones ahead of the flagged ones — so a port set whose own name has no
+// zip still reaches a playable clone, and a flagged parent does not shadow a sibling that runs.
+function playCandidates(ps) {
+  const entries = entriesForPortSet(ps);
+  return [ps, ...entries.filter((e) => e.working).map((e) => e.set),
+              ...entries.filter((e) => !e.working).map((e) => e.set)];
+}
+
+function playableFor(ps) {
+  if (!ps) return null;
+  const cand = playCandidates(ps);
+  if (!romNames) return cand[0];     // server did not list any; let it resolve and report
+  return cand.find((n) => romNames.includes(n)) || null;
+}
+
+function renderPlay() {
+  const btn = $("#play");
+  btn.hidden = !canPlay;
+  if (!canPlay) return;
+  const game = playableFor(current);
+  btn.disabled = !current || !game;
+  btn.textContent = !current ? "▶ Play"
+                  : game ? (game === current ? "▶ Play " + game : "▶ Play " + game + " (" + current + ")")
+                         : "▶ no ROM for " + current;
+  btn.title = !current ? "pick a port set on the left"
+            : game ? "launch RetroArch on " + game + " with the core built from this repo"
+                   : "no zip for " + current + " or any of its clones";
+}
+
+// 🚨 A launch that dies is NOT a failed click, and reporting one as "playing" is how this button lied
+// the first time it was used: RetroArch exits within a few seconds when the content will not load, and
+// the POST has long since returned 200 by then. So the page keeps asking for a while, and the commonest
+// answer by far is a ROM audit failure — which is a fact about the ROM set, not about the mapping.
+async function watchPlay(game) {
+  const deadline = Date.now() + 25000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 1200));
+    let s;
+    try { s = await (await fetch("/api/playing", { cache: "no-store" })).json(); }
+    catch (e) { return; }                       // server stopped; the game is not ours to report on
+    if (s.state === "running") { status("playing " + game + " — check the mapping, then fill in Verified", "ok"); continue; }
+    if (s.state !== "exited") return;
+    if (s.reason) {
+      status(game + " would not start — " + s.reason.split("\n")[0], "err");
+      alert("RetroArch quit straight away and " + game + " never started:\n\n" + s.reason +
+            "\n\nThat is the ROM set, not your layout. Full log: " + s.log);
+    } else {
+      status(game + " closed", null);
+    }
+    return;
+  }
+}
+
+$("#play").onclick = async () => {
+  const btn = $("#play");
+  const game = playableFor(current);
+  if (!game) return;
+  btn.disabled = true;
+  status("launching " + game + "…", null);
+  try {
+    for (const force of [false, true]) {
+      const r = await fetch("/api/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Padmap": "1" },
+        body: JSON.stringify({ set: current, candidates: playCandidates(current), force }),
+      });
+      const res = await r.json();
+      if (r.ok) { status("launching " + res.game + "…", null); watchPlay(res.game); break; }
+      // 409 is a refusal you are allowed to overrule: a stale core, or one already running. Anything
+      // else (no ROM, no RetroArch) is not a decision, so it is not offered as one.
+      if (r.status !== 409 || force) { status(res.error || "could not launch", "err"); break; }
+      if (!confirm(res.error + ".\n\nLaunch anyway?")) { status(res.error, "err"); break; }
+    }
+  } catch (e) {
+    status("could not reach padmap-serve.py: " + e.message, "err");
+  }
+  renderPlay();
+};
+
+// Launched from the .app there is no terminal to ctrl-c and no Dock icon to quit, so this is the way out.
+// Your work survives it — the doc is in localStorage and, if you saved, on disk.
+$("#quit").onclick = async () => {
+  if (!confirm("Stop padmap-serve.py?\n\nThe editor keeps working, but Save to core, Rebuild core and Play stop until you launch it again.")) return;
+  try { await fetch("/api/quit", { method: "POST", headers: { "X-Padmap": "1" } }); } catch (e) {}
+  canPlay = false;                   // or the next render() would put the Play button back
+  for (const id of ["#tocore", "#build", "#quit", "#play"]) $(id).hidden = true;
+  $("#save").classList.add("primary");
+  $("#save").textContent = "Download input_layouts.json";
+  status("server stopped", null);
+};
+
+$("#build").onclick = async () => {
+  const btn = $("#build");
+  btn.disabled = true;
+  status("building…", null);
+  try {
+    // Tell the server which set is selected so it builds that family's subtarget (System 22 sets rebuild
+    // namcos22_libretro.dylib, Model 2 sets the Model 2 core). With no selection it falls back to default.
+    const r = await fetch("/api/build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Padmap": "1" },
+      body: JSON.stringify({ set: current, family: currentFamily }),
+    });
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let tail = "", rc = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      tail += dec.decode(value, { stream: true });
+      const lines = tail.split("\n");
+      tail = lines.pop();
+      for (const line of lines) {
+        if (line.startsWith("__EXIT__")) rc = parseInt(line.split(" ")[1], 10);
+        else if (line.trim()) status(line.trim().slice(0, 90), null);
+      }
+    }
+    status(rc === 0 ? "build ok — now play it" : "build FAILED (rc " + rc + ") — see the terminal",
+           rc === 0 ? "ok" : "err");
+  } catch (e) {
+    status("could not reach padmap-serve.py: " + e.message, "err");
+  }
+  btn.disabled = false;
+};
+
+$("#rownote").oninput = (e) => { rowFor(current).note = e.target.value; persist(); };
+$("#rowverified").oninput = (e) => { rowFor(current).verified = e.target.value; persist(); };
+
+$("#theme").onclick = () => {
+  const r = document.documentElement;
+  const now = r.getAttribute("data-theme");
+  r.setAttribute("data-theme", now === "dark" ? "light" : "dark");
+};
+
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && picked !== null) { picked = null; render(); } });
+
+restore();
+render();
+initServed();
+</script>
+</body>
+</html>

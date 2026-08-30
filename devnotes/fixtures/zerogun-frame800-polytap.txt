@@ -1,0 +1,1194 @@
+# Model 2 polygon dump, rendered frame 800
+P	seq=0	verts=4	bucket=5381	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1443	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=251.484573	y=281.672546	rz=5.25488281	uz=0	vz=0
+V	1	x=245.248154	y=281.687134	rz=5.25463867	uz=0	vz=0
+V	2	x=245.348938	y=278.336792	rz=5.29675293	uz=0	vz=0
+V	3	x=251.339264	y=278.427002	rz=5.2956543	uz=0	vz=0
+P	seq=1	verts=4	bucket=5381	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1443	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=244.883804	y=281.684143	rz=5.25463867	uz=0	vz=0
+V	1	x=238.763687	y=281.314484	rz=5.25915527	uz=0	vz=0
+V	2	x=239.318390	y=277.985229	rz=5.30114746	uz=0	vz=0
+V	3	x=245.185333	y=278.442780	rz=5.29541016	uz=0	vz=0
+P	seq=2	verts=4	bucket=5402	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=488	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=266.760406	y=309.585114	rz=0.189200431	uz=5.03746128	vz=9.29447079
+V	1	x=249.153625	y=304.117737	rz=0.189568192	uz=4.26528454	vz=0
+V	2	x=249.073013	y=294.395355	rz=0.185414881	uz=0	vz=0
+V	3	x=266.450775	y=303.056458	rz=0.186448783	uz=2.19077325	vz=9.15929604
+P	seq=3	verts=4	bucket=5402	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=489	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=247.636459	y=304.123291	rz=0.189572588	uz=4.26538324	vz=0
+V	1	x=230.035019	y=309.676849	rz=0.189252883	uz=5.03885794	vz=9.29704762
+V	2	x=230.259583	y=303.145081	rz=0.186499715	uz=2.19137168	vz=9.16179848
+V	3	x=247.589081	y=294.398254	rz=0.185414881	uz=0	vz=0
+P	seq=4	verts=3	bucket=5405	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=1517	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=247.697189	y=298.330505	rz=0.188456148	uz=41.1776695	vz=3.95757914
+V	1	x=249.047989	y=298.325104	rz=0.188451812	uz=41.1767197	vz=3.95748806
+V	2	x=248.415131	y=317.164246	rz=0.189445451	uz=44.6144028	vz=8.66712952
+P	seq=5	verts=4	bucket=5405	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=-331	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=247.398193	y=295.064301	rz=0.18184644	uz=36.0055962	vz=7.25112677
+V	1	x=247.697189	y=298.330505	rz=0.188456148	uz=41.1776695	vz=3.95757914
+V	2	x=248.415131	y=317.164246	rz=0.189445451	uz=44.6144028	vz=8.66712952
+V	3	x=248.370407	y=314.902527	rz=0.185890302	uz=41.7556076	vz=10.2936754
+P	seq=6	verts=4	bucket=5413	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1445	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=251.023788	y=285.563019	rz=5.28637695	uz=0	vz=0
+V	1	x=245.695679	y=285.576202	rz=5.28613281	uz=0	vz=0
+V	2	x=245.765350	y=282.214935	rz=5.32824707	uz=0	vz=0
+V	3	x=250.909897	y=282.308350	rz=5.32714844	uz=0	vz=0
+P	seq=7	verts=4	bucket=5413	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1445	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=257.485260	y=285.202576	rz=5.29089355	uz=0	vz=0
+V	1	x=251.344101	y=285.566650	rz=5.28625488	uz=0	vz=0
+V	2	x=251.019196	y=282.211426	rz=5.32836914	uz=0	vz=0
+V	3	x=256.932678	y=281.967224	rz=5.33154297	uz=0	vz=0
+P	seq=8	verts=4	bucket=5423	window=1	renderer=2	tex=1	trans=0	hdr=40c1,0005,0d80,0c80	luma=255	lumabase=640	colorbase=50	checker=0	texlod=486	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=251.339264	y=278.427002	rz=0.188834086	uz=11.8257351	vz=0.165229827
+V	1	x=245.348938	y=278.336792	rz=0.188794911	uz=0.235993639	vz=0.165195554
+V	2	x=246.689117	y=233.797852	rz=0.168667257	uz=2.78300977	vz=2.69867611
+V	3	x=249.400269	y=235.123108	rz=0.169263199	uz=8.01884365	vz=2.6235795
+P	seq=9	verts=4	bucket=5423	window=1	renderer=2	tex=1	trans=0	hdr=c0c1,0005,0d80,0900	luma=255	lumabase=640	colorbase=36	checker=1	texlod=486	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=245.185333	y=278.442780	rz=0.188842788	uz=11.8734903	vz=0.165237442
+V	1	x=239.318390	y=277.985229	rz=0.188638404	uz=1.29688907	vz=0.165058598
+V	2	x=246.694061	y=233.723373	rz=0.168632537	uz=2.99322748	vz=2.67704153
+V	3	x=249.209412	y=235.192627	rz=0.16929467	uz=7.8722024	vz=2.62406731
+P	seq=10	verts=4	bucket=5434	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=1436	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.345230	y=271.455292	rz=0.175068915	uz=27.7703075	vz=4.88004589
+V	1	x=249.047989	y=298.325104	rz=0.188451812	uz=41.1767197	vz=3.95748806
+V	2	x=247.697189	y=298.330505	rz=0.188456148	uz=41.1776695	vz=3.95757914
+V	3	x=247.002441	y=271.461121	rz=0.175072655	uz=27.7709007	vz=4.88015032
+P	seq=11	verts=3	bucket=5434	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=261	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=252.615540	y=279.675446	rz=0.173089921	uz=27.5645695	vz=8.4597702
+V	1	x=249.047989	y=298.325104	rz=0.188451812	uz=41.1767197	vz=3.95748806
+V	2	x=249.345230	y=271.455292	rz=0.175068915	uz=27.7703075	vz=4.88004589
+P	seq=12	verts=3	bucket=5434	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=266	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=247.002441	y=271.461121	rz=0.175072655	uz=27.7709007	vz=4.88015032
+V	1	x=247.697189	y=298.330505	rz=0.188456148	uz=41.1776695	vz=3.95757914
+V	2	x=243.713470	y=279.695892	rz=0.173100904	uz=27.5663185	vz=8.46030712
+P	seq=13	verts=4	bucket=5455	window=1	renderer=2	tex=1	trans=0	hdr=40c1,0005,0d80,0cc0	luma=255	lumabase=640	colorbase=51	checker=0	texlod=489	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=250.909897	y=282.308350	rz=0.187717691	uz=0.351970673	vz=5.9131074
+V	1	x=245.765350	y=282.214935	rz=0.187678978	uz=0.351898074	vz=0.0703796148
+V	2	x=246.692078	y=237.500076	rz=0.167776018	uz=5.36883259	vz=1.15346014
+V	3	x=249.388855	y=238.831970	rz=0.168365672	uz=5.21933603	vz=4.20914173
+P	seq=14	verts=4	bucket=5456	window=1	renderer=2	tex=1	trans=0	hdr=c0c1,0005,0d80,0900	luma=255	lumabase=640	colorbase=36	checker=1	texlod=489	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=256.932678	y=281.967224	rz=0.187562957	uz=0.351680547	vz=5.88478756
+V	1	x=251.019196	y=282.211426	rz=0.187674686	uz=0.351890028	vz=0.0938373432
+V	2	x=246.696579	y=237.567841	rz=0.167803526	uz=5.36971283	vz=1.36340368
+V	3	x=249.552368	y=238.758865	rz=0.168334529	uz=5.21837044	vz=3.99794507
+P	seq=15	verts=4	bucket=5849	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0005,0f01,0c00	luma=255	lumabase=640	colorbase=48	checker=0	texlod=587	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=32,896	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.345230	y=271.455292	rz=0.175068915	uz=2.07894325	vz=6.23683023
+V	1	x=247.002441	y=271.461121	rz=0.175072655	uz=3.50145316	vz=6.23696327
+V	2	x=246.500488	y=262.219177	rz=0.172194898	uz=3.72371459	vz=5.48871231
+V	3	x=249.750244	y=262.212341	rz=0.172191277	uz=1.76496065	vz=5.48859692
+P	seq=16	verts=3	bucket=5849	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0005,0f01,0c00	luma=255	lumabase=640	colorbase=48	checker=0	texlod=461	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=32,896	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.572937	y=269.078278	rz=0.17059204	uz=5.45894527	vz=2.75079656
+V	1	x=247.002441	y=271.461121	rz=0.175072655	uz=3.50145316	vz=0.634638369
+V	2	x=243.713470	y=279.695892	rz=0.173100904	uz=5.43104076	vz=3.98132086
+P	seq=17	verts=3	bucket=5849	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0005,0f01,0c00	luma=255	lumabase=640	colorbase=48	checker=0	texlod=464	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=32,896	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.572937	y=269.078278	rz=0.17059204	uz=5.45894527	vz=8.20974159
+V	1	x=246.500488	y=262.219177	rz=0.172194898	uz=3.72371459	vz=5.48871231
+V	2	x=247.002441	y=271.461121	rz=0.175072655	uz=3.50145316	vz=6.23696327
+P	seq=18	verts=3	bucket=5849	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0005,0f01,0c00	luma=255	lumabase=640	colorbase=48	checker=0	texlod=458	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=32,896	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=252.663086	y=269.058807	rz=0.170581371	uz=0	vz=8.20922852
+V	1	x=249.345230	y=271.455292	rz=0.175068915	uz=2.07894325	vz=6.23683023
+V	2	x=249.750244	y=262.212341	rz=0.172191277	uz=1.76496065	vz=5.48859692
+P	seq=19	verts=3	bucket=5849	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0005,0f01,0c00	luma=255	lumabase=640	colorbase=48	checker=0	texlod=456	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=32,896	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=252.663086	y=269.058807	rz=0.170581371	uz=0	vz=2.75062466
+V	1	x=252.615540	y=279.675446	rz=0.173089921	uz=0.0865449607	vz=3.98106813
+V	2	x=249.345230	y=271.455292	rz=0.175068915	uz=2.07894325	vz=0.634624839
+P	seq=20	verts=3	bucket=5916	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0005,0f01,0c00	luma=255	lumabase=640	colorbase=48	checker=0	texlod=-434	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=32,896	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.572937	y=269.078278	rz=0.17059204	uz=5.45894527	vz=2.75079656
+V	1	x=243.713470	y=279.695892	rz=0.173100904	uz=5.43104076	vz=3.98132086
+V	2	x=243.667923	y=276.759155	rz=0.16947329	uz=5.38077688	vz=5.40196133
+P	seq=21	verts=4	bucket=5947	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=6	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=245.582520	y=234.704239	rz=0.163951486	uz=14.5506945	vz=1.55753911
+V	1	x=246.152283	y=245.679199	rz=0.168761075	uz=19.5551891	vz=1.60323024
+V	2	x=246.500488	y=262.219177	rz=0.172194898	uz=24.3871021	vz=4.0896287
+V	3	x=243.947174	y=233.659286	rz=0.161450535	uz=12.6133232	vz=2.8455658
+P	seq=22	verts=4	bucket=5947	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=304	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.750244	y=262.212341	rz=0.172191277	uz=24.3865891	vz=4.08954287
+V	1	x=249.964523	y=245.670410	rz=0.168754116	uz=19.5543823	vz=1.60316408
+V	2	x=250.387009	y=234.694839	rz=0.16394493	uz=14.5501127	vz=1.55747688
+V	3	x=251.960983	y=233.644211	rz=0.161440983	uz=12.6125765	vz=2.84539723
+P	seq=23	verts=4	bucket=5947	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=1513	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.750244	y=262.212341	rz=0.172191277	uz=24.3865891	vz=4.08954287
+V	1	x=246.500488	y=262.219177	rz=0.172194898	uz=24.3871021	vz=4.0896287
+V	2	x=246.152283	y=245.679199	rz=0.168761075	uz=19.5551891	vz=1.60323024
+V	3	x=249.964523	y=245.670410	rz=0.168754116	uz=19.5543823	vz=1.60316408
+P	seq=24	verts=3	bucket=5947	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=298	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.571259	y=257.343903	rz=0.166362047	uz=19.5475407	vz=6.42573404
+V	1	x=246.500488	y=262.219177	rz=0.172194898	uz=24.3871021	vz=4.0896287
+V	2	x=243.572937	y=269.078278	rz=0.17059204	uz=24.2453938	vz=7.05824566
+P	seq=25	verts=4	bucket=5947	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=158	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.686920	y=248.666504	rz=0.162038133	uz=15.2113295	vz=6.72458267
+V	1	x=243.947174	y=233.659286	rz=0.161450535	uz=12.6133232	vz=2.8455658
+V	2	x=246.500488	y=262.219177	rz=0.172194898	uz=24.3871021	vz=4.0896287
+V	3	x=243.571259	y=257.343903	rz=0.166362047	uz=19.5475407	vz=6.42573404
+P	seq=26	verts=4	bucket=5947	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=274	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=252.528458	y=257.324310	rz=0.166351914	uz=19.5463505	vz=6.42534256
+V	1	x=249.750244	y=262.212341	rz=0.172191277	uz=24.3865891	vz=4.08954287
+V	2	x=251.960983	y=233.644211	rz=0.161440983	uz=12.6125765	vz=2.84539723
+V	3	x=252.284348	y=248.647949	rz=0.162028521	uz=15.2104273	vz=6.72418356
+P	seq=27	verts=3	bucket=5947	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=293	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=252.663086	y=269.058807	rz=0.170581371	uz=24.2438774	vz=7.05780411
+V	1	x=249.750244	y=262.212341	rz=0.172191277	uz=24.3865891	vz=4.08954287
+V	2	x=252.528458	y=257.324310	rz=0.166351914	uz=19.5463505	vz=6.42534256
+P	seq=28	verts=4	bucket=6003	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=499	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=255.511612	y=270.011902	rz=0.170276448	uz=20.7311573	vz=1.80918729
+V	1	x=252.677994	y=269.058807	rz=0.170581371	uz=20.8322506	vz=0.959520221
+V	2	x=252.489212	y=256.653046	rz=0.166183189	uz=12.5260582	vz=0
+V	3	x=258.086731	y=261.654053	rz=0.166717544	uz=14.4627466	vz=1.85473263
+P	seq=29	verts=4	bucket=6003	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=669	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=255.511612	y=270.011902	rz=0.170276448	uz=20.7311573	vz=1.80918729
+V	1	x=257.617157	y=274.287994	rz=0.169652283	uz=21.1429157	vz=4.70785093
+V	2	x=252.646011	y=277.500946	rz=0.169382185	uz=21.6809196	vz=6.64825058
+V	3	x=252.677994	y=269.058807	rz=0.170581371	uz=20.8322506	vz=0.959520221
+P	seq=30	verts=4	bucket=6003	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=501	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.558029	y=269.078278	rz=0.17059204	uz=20.8335533	vz=0.959580243
+V	1	x=240.720093	y=270.043945	rz=0.170294151	uz=20.7333126	vz=1.80937541
+V	2	x=238.034729	y=261.699280	rz=0.166744694	uz=14.4651022	vz=1.85503471
+V	3	x=243.604401	y=256.672546	rz=0.166193292	uz=12.5268192	vz=0
+P	seq=31	verts=4	bucket=6003	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=671	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=238.613754	y=274.331726	rz=0.169676885	uz=21.1459827	vz=4.70853376
+V	1	x=240.720093	y=270.043945	rz=0.170294151	uz=20.7333126	vz=1.80937541
+V	2	x=243.558029	y=269.078278	rz=0.17059204	uz=20.8335533	vz=0.959580243
+V	3	x=243.590240	y=277.522125	rz=0.16939269	uz=21.6822643	vz=6.64866304
+P	seq=32	verts=4	bucket=6013	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=423	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=238.613754	y=274.331726	rz=0.169676885	uz=21.1459827	vz=4.70853376
+V	1	x=233.493927	y=269.224854	rz=0.165488258	uz=14.9973736	vz=7.15736723
+V	2	x=238.034729	y=261.699280	rz=0.166744694	uz=14.4651022	vz=1.85503471
+V	3	x=240.720093	y=270.043945	rz=0.170294151	uz=20.7333126	vz=1.80937541
+P	seq=33	verts=4	bucket=6014	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=427	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=262.621155	y=269.158295	rz=0.165448159	uz=14.9937391	vz=7.15563297
+V	1	x=257.617157	y=274.287994	rz=0.169652283	uz=21.1429157	vz=4.70785093
+V	2	x=255.511612	y=270.011902	rz=0.170276448	uz=20.7311573	vz=1.80918729
+V	3	x=258.086731	y=261.654053	rz=0.166717544	uz=14.4627466	vz=1.85473263
+P	seq=34	verts=4	bucket=6049	window=1	renderer=3	tex=1	trans=1	hdr=e0c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=1	texlod=467	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.209412	y=235.192627	rz=0.16929467	uz=3.9361012	vz=0
+V	1	x=246.694061	y=233.723373	rz=0.168632537	uz=1.49661374	vz=0
+V	2	x=246.696991	y=237.410431	rz=0.167745113	uz=1.48873782	vz=5.36784363
+V	3	x=249.199051	y=238.886322	rz=0.168400273	uz=3.91530633	vz=5.38880873
+P	seq=35	verts=4	bucket=6050	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=0	texlod=483	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.400269	y=235.123108	rz=0.169263199	uz=3.99884319	vz=0
+V	1	x=246.689117	y=233.797852	rz=0.168667257	uz=1.39150488	vz=0
+V	2	x=246.692062	y=237.485275	rz=0.167779461	uz=1.38418055	vz=5.36894274
+V	3	x=249.388885	y=238.815826	rz=0.168369129	uz=3.97772074	vz=5.38781214
+P	seq=36	verts=4	bucket=6068	window=1	renderer=2	tex=1	trans=0	hdr=40c2,0005,08c9,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=493	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x32	texpos=288,96	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=250.387009	y=234.694839	rz=0.16394493	uz=14.0787706	vz=1.065642
+V	1	x=249.964523	y=245.670410	rz=0.168754116	uz=21.2419243	vz=1.4555043
+V	2	x=246.152283	y=245.679199	rz=0.168761075	uz=21.2427998	vz=3.92369509
+V	3	x=245.582520	y=234.704239	rz=0.163951486	uz=14.0793343	vz=4.16026878
+P	seq=37	verts=4	bucket=6071	window=1	renderer=2	tex=1	trans=0	hdr=40c1,0005,0d80,0c80	luma=255	lumabase=640	colorbase=50	checker=0	texlod=486	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.372467	y=232.470886	rz=0.168065161	uz=7.96208715	vz=2.7730751
+V	1	x=246.689117	y=233.797852	rz=0.168667257	uz=2.78300977	vz=2.69867611
+V	2	x=245.349731	y=197.844269	rz=0.152417809	uz=0.152417809	vz=4.72495222
+V	3	x=250.231064	y=197.768311	rz=0.152380958	uz=9.58095264	vz=4.72380972
+P	seq=38	verts=4	bucket=6071	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=0	texlod=482	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=246.692062	y=237.485275	rz=0.167779461	uz=1.38418055	vz=5.36894274
+V	1	x=246.689117	y=233.797852	rz=0.168667257	uz=1.39150488	vz=0
+V	2	x=249.372467	y=232.470886	rz=0.168065161	uz=3.97053933	vz=0
+V	3	x=249.361313	y=236.152161	rz=0.167183667	uz=3.94971418	vz=5.34987736
+P	seq=39	verts=4	bucket=6072	window=1	renderer=2	tex=1	trans=0	hdr=c0c1,0005,0d80,0900	luma=255	lumabase=640	colorbase=36	checker=1	texlod=486	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.553162	y=232.548782	rz=0.168099642	uz=7.79562092	vz=2.77364397
+V	1	x=246.694061	y=233.723373	rz=0.168632537	uz=2.99322748	vz=2.67704153
+V	2	x=250.306641	y=197.834076	rz=0.152412131	uz=0.152412131	vz=4.70572472
+V	3	x=255.119202	y=197.999695	rz=0.152483061	uz=8.78683662	vz=4.72697496
+P	seq=40	verts=4	bucket=6072	window=1	renderer=3	tex=1	trans=1	hdr=e0c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=1	texlod=497	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=246.696991	y=237.410431	rz=0.167745113	uz=1.48873782	vz=5.36784363
+V	1	x=246.694061	y=233.723373	rz=0.168632537	uz=1.49661374	vz=0
+V	2	x=249.553162	y=232.548782	rz=0.168099642	uz=3.88730431	vz=0
+V	3	x=249.541092	y=236.230408	rz=0.167217806	uz=3.86691165	vz=5.35096979
+P	seq=41	verts=4	bucket=6082	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=0	texlod=483	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.388855	y=238.831970	rz=0.168365672	uz=4.20914173	vz=0
+V	1	x=246.692078	y=237.500076	rz=0.167776018	uz=1.15346014	vz=0
+V	2	x=246.694992	y=241.150024	rz=0.166897565	uz=1.14742076	vz=5.34072208
+V	3	x=249.377594	y=242.486374	rz=0.167481035	uz=4.18702602	vz=5.35939312
+P	seq=42	verts=4	bucket=6083	window=1	renderer=3	tex=1	trans=1	hdr=e0c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=1	texlod=496	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.552368	y=238.758865	rz=0.168334529	uz=3.99794507	vz=0
+V	1	x=246.696579	y=237.567841	rz=0.167803526	uz=1.36340368	vz=0
+V	2	x=246.699463	y=241.216721	rz=0.166924775	uz=1.35626376	vz=5.34159279
+V	3	x=249.540253	y=242.414291	rz=0.167450234	uz=3.97694302	vz=5.3584075
+P	seq=43	verts=4	bucket=6102	window=1	renderer=2	tex=1	trans=0	hdr=c0c1,0005,0d80,0900	luma=255	lumabase=640	colorbase=36	checker=1	texlod=489	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.189072	y=236.104874	rz=0.167152971	uz=5.51604795	vz=3.96988297
+V	1	x=246.696579	y=237.567841	rz=0.167803526	uz=5.36971283	vz=1.36340368
+V	2	x=240.841675	y=201.584915	rz=0.151790842	uz=9.41103268	vz=0.0758954212
+V	3	x=245.610931	y=201.290558	rz=0.151655957	uz=9.40266895	vz=4.75820589
+P	seq=44	verts=4	bucket=6102	window=1	renderer=3	tex=1	trans=1	hdr=e0c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=1	texlod=467	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=246.699463	y=241.216721	rz=0.166924775	uz=1.35626376	vz=5.34159279
+V	1	x=246.696579	y=237.567841	rz=0.167803526	uz=1.36340368	vz=0
+V	2	x=249.189072	y=236.104874	rz=0.167152971	uz=3.96988297	vz=0
+V	3	x=249.178940	y=239.747330	rz=0.166281	uz=3.94917369	vz=5.32099199
+P	seq=45	verts=4	bucket=6103	window=1	renderer=2	tex=1	trans=0	hdr=40c1,0005,0d80,0cc0	luma=255	lumabase=640	colorbase=51	checker=0	texlod=489	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x32	texpos=0,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.361282	y=236.166931	rz=0.167180255	uz=5.51694822	vz=4.1795063
+V	1	x=246.692078	y=237.500076	rz=0.167776018	uz=5.36883259	vz=1.15346014
+V	2	x=245.709808	y=201.363571	rz=0.151689664	uz=9.40475941	vz=0.0568836257
+V	3	x=249.865891	y=201.288162	rz=0.151653156	uz=9.40249538	vz=4.77707434
+P	seq=46	verts=4	bucket=6103	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0005,0edd,0980	luma=255	lumabase=640	colorbase=38	checker=0	texlod=482	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=928,864	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=246.694992	y=241.150024	rz=0.166897565	uz=1.14742076	vz=5.34072208
+V	1	x=246.692078	y=237.500076	rz=0.167776018	uz=1.15346014	vz=0
+V	2	x=249.361282	y=236.166931	rz=0.167180255	uz=4.1795063	vz=0
+V	3	x=249.350281	y=239.810959	rz=0.166308016	uz=4.15770054	vz=5.3218565
+P	seq=47	verts=3	bucket=6132	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=440	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=219.966003	y=270.145813	rz=0.166989416	uz=5.34366131	vz=8.85043907
+V	1	x=216.399185	y=273.119202	rz=0.165091395	uz=4.58128643	vz=10.5658493
+V	2	x=221.551346	y=265.625977	rz=0.166683629	uz=4.47962236	vz=8.10499191
+P	seq=48	verts=3	bucket=6135	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=436	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=274.594849	y=265.507324	rz=0.166612431	uz=4.47770929	vz=8.10152912
+V	1	x=279.729279	y=272.972290	rz=0.165004939	uz=4.57888699	vz=10.5603161
+V	2	x=276.199524	y=270.016632	rz=0.16691117	uz=5.34115744	vz=8.84629154
+P	seq=49	verts=3	bucket=6138	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=522	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=221.551346	y=265.625977	rz=0.166683629	uz=4.47962236	vz=8.10499191
+V	1	x=238.933746	y=258.176575	rz=0.165833309	uz=2.83989549	vz=0
+V	2	x=238.029495	y=261.453674	rz=0.166843176	uz=3.96252537	vz=0.396252543
+P	seq=50	verts=3	bucket=6139	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=522	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=258.116791	y=261.409790	rz=0.166815996	uz=3.96187997	vz=0.396187991
+V	1	x=257.178650	y=258.137390	rz=0.165809825	uz=2.83949327	vz=0
+V	2	x=274.594849	y=265.507324	rz=0.166612431	uz=4.47770929	vz=8.10152912
+P	seq=51	verts=3	bucket=6141	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=285	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=238.875336	y=258.529022	rz=0.165752783	uz=12.4936161	vz=1.45033681
+V	1	x=238.034729	y=261.699280	rz=0.166744694	uz=14.4651022	vz=1.85503471
+V	2	x=233.493927	y=269.224854	rz=0.165488258	uz=14.9973736	vz=7.15736723
+P	seq=52	verts=3	bucket=6141	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=491	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.604401	y=256.672546	rz=0.166193292	uz=12.5268192	vz=0
+V	1	x=238.034729	y=261.699280	rz=0.166744694	uz=14.4651022	vz=1.85503471
+V	2	x=238.875336	y=258.529022	rz=0.165752783	uz=12.4936161	vz=1.45033681
+P	seq=53	verts=3	bucket=6142	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=279	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=258.086731	y=261.654053	rz=0.166717544	uz=14.4627466	vz=1.85473263
+V	1	x=257.212860	y=258.488525	rz=0.165729314	uz=12.491847	vz=1.45013154
+V	2	x=262.621155	y=269.158295	rz=0.165448159	uz=14.9937391	vz=7.15563297
+P	seq=54	verts=3	bucket=6142	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=489	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=258.086731	y=261.654053	rz=0.166717544	uz=14.4627466	vz=1.85473263
+V	1	x=252.489212	y=256.653046	rz=0.166183189	uz=12.5260582	vz=0
+V	2	x=257.212860	y=258.488525	rz=0.165729314	uz=12.491847	vz=1.45013154
+P	seq=55	verts=4	bucket=6143	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=453	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=221.849579	y=261.092743	rz=0.164613679	uz=2.51035857	vz=8.00434017
+V	1	x=239.000854	y=255.147079	rz=0.164171621	uz=1.35441589	vz=0
+V	2	x=238.933746	y=258.176575	rz=0.165833309	uz=2.83989549	vz=0
+V	3	x=221.551346	y=265.625977	rz=0.166683629	uz=4.47962236	vz=8.10499191
+P	seq=56	verts=4	bucket=6143	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=406	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=221.551346	y=265.625977	rz=0.166683629	uz=4.47962236	vz=8.10499191
+V	1	x=216.399185	y=273.119202	rz=0.165091395	uz=4.58128643	vz=10.5658493
+V	2	x=216.767883	y=267.813599	rz=0.16299893	uz=2.48573375	vz=10.4115562
+V	3	x=221.849579	y=261.092743	rz=0.164613679	uz=2.51035857	vz=8.00434017
+P	seq=57	verts=4	bucket=6146	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=396	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=274.233887	y=260.977478	rz=0.164544255	uz=2.50929999	vz=8.00096416
+V	1	x=279.295502	y=267.672821	rz=0.162917882	uz=2.48449779	vz=10.4063797
+V	2	x=279.729279	y=272.972290	rz=0.165004939	uz=4.57888699	vz=10.5603161
+V	3	x=274.594849	y=265.507324	rz=0.166612431	uz=4.47770929	vz=8.10152912
+P	seq=58	verts=4	bucket=6146	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=450	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=274.594849	y=265.507324	rz=0.166612431	uz=4.47770929	vz=8.10152912
+V	1	x=257.178650	y=258.137390	rz=0.165809825	uz=2.83949327	vz=0
+V	2	x=257.062775	y=255.107452	rz=0.164145306	uz=1.35419881	vz=0
+V	3	x=274.233887	y=260.977478	rz=0.164544255	uz=2.50929999	vz=8.00096416
+P	seq=59	verts=4	bucket=6162	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=424	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=257.094452	y=255.447571	rz=0.164063126	uz=9.78226376	vz=1.92774177
+V	1	x=257.212860	y=258.488525	rz=0.165729314	uz=12.491847	vz=1.45013154
+V	2	x=252.489212	y=256.653046	rz=0.166183189	uz=12.5260582	vz=0
+V	3	x=252.315552	y=248.286987	rz=0.162006095	uz=5.54870892	vz=0.789779723
+P	seq=60	verts=4	bucket=6162	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=446	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=238.875336	y=258.529022	rz=0.165752783	uz=12.4936161	vz=1.45033681
+V	1	x=238.945282	y=255.488495	rz=0.164089411	uz=9.7838316	vz=1.92805064
+V	2	x=243.654053	y=248.304260	rz=0.162015706	uz=5.54903793	vz=0.789826572
+V	3	x=243.604401	y=256.672546	rz=0.166193292	uz=12.5268192	vz=0
+P	seq=61	verts=3	bucket=6178	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=313	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=238.875336	y=258.529022	rz=0.165752783	uz=12.4936161	vz=1.45033681
+V	1	x=233.493927	y=269.224854	rz=0.165488258	uz=14.9973736	vz=7.15736723
+V	2	x=238.945282	y=255.488495	rz=0.164089411	uz=9.7838316	vz=1.92805064
+P	seq=62	verts=3	bucket=6179	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=308	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=262.621155	y=269.158295	rz=0.165448159	uz=14.9937391	vz=7.15563297
+V	1	x=257.212860	y=258.488525	rz=0.165729314	uz=12.491847	vz=1.45013154
+V	2	x=257.094452	y=255.447571	rz=0.164063126	uz=9.78226376	vz=1.92774177
+P	seq=63	verts=4	bucket=6188	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=379	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=233.493927	y=269.224854	rz=0.165488258	uz=14.9973736	vz=7.15736723
+V	1	x=236.568771	y=249.187256	rz=0.159129754	uz=2.44661999	vz=4.71421909
+V	2	x=238.267700	y=251.500610	rz=0.161775738	uz=6.08681202	vz=2.68952155
+V	3	x=238.945282	y=255.488495	rz=0.164089411	uz=9.7838316	vz=1.92805064
+P	seq=64	verts=4	bucket=6189	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=355	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=259.334869	y=249.138855	rz=0.159098849	uz=2.44614482	vz=4.71330357
+V	1	x=262.621155	y=269.158295	rz=0.165448159	uz=14.9937391	vz=7.15563297
+V	2	x=257.094452	y=255.447571	rz=0.164063126	uz=9.78226376	vz=1.92774177
+V	3	x=257.705322	y=251.459625	rz=0.161750183	uz=6.08585072	vz=2.68909669
+P	seq=65	verts=4	bucket=6221	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=430	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=221.849579	y=261.092743	rz=0.164613679	uz=2.51035857	vz=8.00434017
+V	1	x=222.194595	y=259.417786	rz=0.163604409	uz=1.61559355	vz=7.8734622
+V	2	x=238.232269	y=252.793457	rz=0.162549362	uz=0	vz=0.386054724
+V	3	x=239.000854	y=255.147079	rz=0.164171621	uz=1.35441589	vz=0
+P	seq=66	verts=3	bucket=6221	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=323	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=221.849579	y=261.092743	rz=0.164613679	uz=2.51035857	vz=8.00434017
+V	1	x=216.767883	y=267.813599	rz=0.16299893	uz=2.48573375	vz=10.4115562
+V	2	x=222.194595	y=259.417786	rz=0.163604409	uz=1.61559355	vz=7.8734622
+P	seq=67	verts=3	bucket=6223	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=317	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=274.233887	y=260.977478	rz=0.164544255	uz=2.50929999	vz=8.00096416
+V	1	x=273.860382	y=259.303925	rz=0.163535818	uz=1.61491621	vz=7.87016106
+V	2	x=279.295502	y=267.672821	rz=0.162917882	uz=2.48449779	vz=10.4063797
+P	seq=68	verts=4	bucket=6223	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0005,0d89,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=429	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=288,704	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=274.233887	y=260.977478	rz=0.164544255	uz=2.50929999	vz=8.00096416
+V	1	x=257.062775	y=255.107452	rz=0.164145306	uz=1.35419881	vz=0
+V	2	x=257.785858	y=252.752075	rz=0.162523553	uz=0	vz=0.385993451
+V	3	x=273.860382	y=259.303925	rz=0.163535818	uz=1.61491621	vz=7.87016106
+P	seq=69	verts=3	bucket=6241	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=439	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=238.945282	y=255.488495	rz=0.164089411	uz=9.7838316	vz=1.92805064
+V	1	x=238.267700	y=251.500610	rz=0.161775738	uz=6.08681202	vz=2.68952155
+V	2	x=243.654053	y=248.304260	rz=0.162015706	uz=5.54903793	vz=0.789826572
+P	seq=70	verts=3	bucket=6242	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=437	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=257.705322	y=251.459625	rz=0.161750183	uz=6.08585072	vz=2.68909669
+V	1	x=257.094452	y=255.447571	rz=0.164063126	uz=9.78226376	vz=1.92774177
+V	2	x=252.315552	y=248.286987	rz=0.162006095	uz=5.54870892	vz=0.789779723
+P	seq=71	verts=4	bucket=6246	window=1	renderer=2	tex=1	trans=0	hdr=40c2,0005,08c9,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=209	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x32	texpos=288,96	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=245.582520	y=234.704239	rz=0.163951486	uz=14.0793343	vz=9.40671635
+V	1	x=243.947174	y=233.659286	rz=0.161450535	uz=11.3418999	vz=10.3328342
+V	2	x=251.960983	y=233.644211	rz=0.161440983	uz=11.3412294	vz=5.14593124
+V	3	x=250.387009	y=234.694839	rz=0.16394493	uz=14.0787706	vz=6.31187963
+P	seq=72	verts=4	bucket=6320	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=389	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.654053	y=248.304260	rz=0.162015706	uz=5.54903793	vz=0.789826572
+V	1	x=238.267700	y=251.500610	rz=0.161775738	uz=6.08681202	vz=2.68952155
+V	2	x=236.568771	y=249.187256	rz=0.159129754	uz=2.44661999	vz=4.71421909
+V	3	x=243.702332	y=243.385269	rz=0.158302575	uz=0	vz=2.77029514
+P	seq=73	verts=4	bucket=6320	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=-330	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=243.693939	y=243.386047	rz=0.158122301	uz=11.66152	vz=7.72822762
+V	1	x=244.447357	y=227.408844	rz=0.158320934	uz=9.49925613	vz=3.06746817
+V	2	x=243.947174	y=233.659286	rz=0.161450535	uz=12.6133232	vz=2.8455658
+V	3	x=243.686920	y=248.666504	rz=0.162038133	uz=15.2113295	vz=6.72458267
+P	seq=74	verts=4	bucket=6321	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0005,0959,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=386	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=800,160	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=257.705322	y=251.459625	rz=0.161750183	uz=6.08585072	vz=2.68909669
+V	1	x=252.315552	y=248.286987	rz=0.162006095	uz=5.54870892	vz=0.789779723
+V	2	x=252.165329	y=243.368683	rz=0.158293396	uz=0	vz=2.77013445
+V	3	x=259.334869	y=249.138855	rz=0.159098849	uz=2.44614482	vz=4.71330357
+P	seq=75	verts=4	bucket=6343	window=1	renderer=2	tex=1	trans=0	hdr=40c2,0005,08c9,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=473	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x32	texpos=288,96	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=251.960983	y=233.644211	rz=0.161440983	uz=11.3412294	vz=5.14593124
+V	1	x=243.947174	y=233.659286	rz=0.161450535	uz=11.3418999	vz=10.3328342
+V	2	x=244.447357	y=227.408844	rz=0.158320934	uz=6.88696051	vz=9.81589794
+V	3	x=251.368073	y=227.395050	rz=0.158311754	uz=6.88656139	vz=5.36281061
+P	seq=76	verts=4	bucket=6468	window=1	renderer=2	tex=1	trans=0	hdr=40c2,0005,08c9,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=303	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x32	texpos=288,96	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=251.368073	y=227.395050	rz=0.158311754	uz=6.88656139	vz=0.296834528
+V	1	x=244.447357	y=227.408844	rz=0.158320934	uz=6.88696051	vz=4.74962807
+V	2	x=244.708679	y=224.514526	rz=0.154237196	uz=2.17860031	vz=4.49215841
+V	3	x=251.003067	y=224.503052	rz=0.154231384	uz=2.1785183	vz=0.424136311
+P	seq=77	verts=4	bucket=6468	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=-85	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=252.169464	y=243.367249	rz=0.158110097	uz=11.6606197	vz=7.72763109
+V	1	x=251.368073	y=227.395050	rz=0.158311754	uz=9.49870491	vz=3.06729031
+V	2	x=251.003067	y=224.503052	rz=0.154231384	uz=6.16925526	vz=4.85828876
+V	3	x=252.009109	y=237.127792	rz=0.154196545	uz=7.979671	vz=8.44226074
+P	seq=78	verts=4	bucket=6639	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0005,0848,0bc0	luma=255	lumabase=640	colorbase=47	checker=0	texlod=-93	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=256,32	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=252.009109	y=237.127792	rz=0.154196545	uz=7.979671	vz=8.44226074
+V	1	x=251.003067	y=224.503052	rz=0.154231384	uz=6.16925526	vz=4.85828876
+V	2	x=250.941437	y=226.273651	rz=0.15221107	uz=5.00393915	vz=6.64020777
+V	3	x=251.922577	y=234.804840	rz=0.152038753	uz=6.11955976	vz=9.16033459
+P	seq=79	verts=4	bucket=6716	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1443	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=255.119202	y=197.999695	rz=6.55810547	uz=0	vz=0
+V	1	x=250.306641	y=197.834076	rz=6.56115723	uz=0	vz=0
+V	2	x=250.522873	y=195.685364	rz=6.60327148	uz=0	vz=0
+V	3	x=255.453751	y=195.923340	rz=6.59863281	uz=0	vz=0
+P	seq=80	verts=4	bucket=6718	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1443	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=250.231064	y=197.768311	rz=6.5625	uz=0	vz=0
+V	1	x=245.349731	y=197.844269	rz=6.56091309	uz=0	vz=0
+V	2	x=245.269547	y=195.692078	rz=6.60302734	uz=0	vz=0
+V	3	x=250.282654	y=195.683731	rz=6.60327148	uz=0	vz=0
+P	seq=81	verts=4	bucket=6746	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1445	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=245.610931	y=201.290558	rz=6.59387207	uz=0	vz=0
+V	1	x=240.841675	y=201.584915	rz=6.5880127	uz=0	vz=0
+V	2	x=240.490936	y=199.428497	rz=6.63000488	uz=0	vz=0
+V	3	x=245.395844	y=199.197784	rz=6.63452148	uz=0	vz=0
+P	seq=82	verts=4	bucket=6751	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,0c40	luma=255	lumabase=0	colorbase=49	checker=0	texlod=1445	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=249.865891	y=201.288162	rz=6.59399414	uz=0	vz=0
+V	1	x=245.709808	y=201.363571	rz=6.59240723	uz=0	vz=0
+V	2	x=245.650970	y=199.199112	rz=6.63452148	uz=0	vz=0
+V	3	x=249.896225	y=199.191940	rz=6.63476562	uz=0	vz=0
+P	seq=83	verts=4	bucket=8851	window=1	renderer=3	tex=1	trans=1	hdr=60d1,0000,1b00,80c0	luma=241	lumabase=0	colorbase=515	checker=0	texlod=952	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x128	texpos=0,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=90.601318	y=217.923645	rz=0.107687451	uz=20.7432957	vz=27.5679874
+V	1	x=61.322861	y=0.000031	rz=0.127718896	uz=24.6018524	vz=23.2595444
+V	2	x=434.677155	y=0.000000	rz=0.127718911	uz=0.079824321	vz=23.2595482
+V	3	x=405.398682	y=217.923645	rz=0.107687451	uz=0.0673046559	vz=27.5679874
+P	seq=84	verts=4	bucket=8851	window=1	renderer=3	tex=1	trans=1	hdr=60d1,0000,1b00,80c0	luma=209	lumabase=0	colorbase=515	checker=0	texlod=770	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x128	texpos=0,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=61.322845	y=0.000000	rz=0.127718911	uz=0.079824321	vz=23.2595482
+V	1	x=90.601318	y=217.923645	rz=0.107687451	uz=0.0673046559	vz=27.5679874
+V	2	x=0.000000	y=351.104797	rz=0.169674173	uz=20.4030247	vz=43.4365883
+V	3	x=0.000000	y=0.000015	rz=0.169674173	uz=11.5782108	vz=30.7405167
+P	seq=85	verts=4	bucket=8851	window=1	renderer=3	tex=1	trans=1	hdr=60d1,0000,1b00,80c0	luma=192	lumabase=0	colorbase=515	checker=0	texlod=770	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x128	texpos=0,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=496.000000	y=0.000015	rz=0.169674173	uz=21.2113228	vz=30.7405167
+V	1	x=496.000000	y=351.104797	rz=0.169674173	uz=12.3865089	vz=43.4365883
+V	2	x=405.398682	y=217.923645	rz=0.107687451	uz=20.7432957	vz=27.5679874
+V	3	x=434.677124	y=0.000031	rz=0.127718896	uz=24.6018524	vz=23.2595444
+P	seq=86	verts=4	bucket=15612	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=1060	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=0.000015	y=384.000031	rz=0.0670107305	uz=6.75902843	vz=4.88454247
+V	1	x=0.000015	y=115.891022	rz=0.0670109168	uz=3.9660604	vz=0
+V	2	x=52.936386	y=88.283302	rz=0.0527074337	uz=0	vz=0
+V	3	x=97.268280	y=384.000000	rz=0.0407286696	uz=0	vz=5.80872059
+P	seq=87	verts=4	bucket=15612	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=1048	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=388.165161	y=384.000000	rz=0.0407286696	uz=0	vz=5.80872059
+V	1	x=429.389343	y=88.283302	rz=0.0527074337	uz=0	vz=0
+V	2	x=496.000000	y=125.642067	rz=0.0720629096	uz=5.36687374	vz=0
+V	3	x=496.000000	y=383.999939	rz=0.0720629096	uz=8.05830765	vz=4.70688629
+P	seq=88	verts=4	bucket=17786	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c0a,15c0	luma=255	lumabase=0	colorbase=87	checker=0	texlod=1592	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=320,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=176.865784	y=384.000000	rz=0.0220097732	uz=0.566770911	vz=0.352156371
+V	1	x=189.945648	y=310.919861	rz=0.0179627072	uz=0	vz=0.287403315
+V	2	x=224.993134	y=310.919861	rz=0.0179627072	uz=0	vz=0.574806631
+V	3	x=219.809601	y=384.000000	rz=0.0220097732	uz=0.566770911	vz=0.704312742
+P	seq=89	verts=5	bucket=17786	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c0a,15c0	luma=255	lumabase=0	colorbase=87	checker=0	texlod=1592	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=320,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=136.651871	y=374.485779	rz=0.0214828178	uz=0.687450171	vz=0
+V	1	x=148.462845	y=333.332428	rz=0.0192040801	uz=0	vz=0
+V	2	x=189.945648	y=310.919861	rz=0.0179627072	uz=0	vz=0.287403315
+V	3	x=176.865784	y=384.000000	rz=0.0220097732	uz=0.566770911	vz=0.352156371
+V	4	x=147.219330	y=384.000000	rz=0.0220097229	uz=0.704311132	vz=0.109049171
+P	seq=90	verts=3	bucket=17788	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1824,2580	luma=214	lumabase=0	colorbase=150	checker=0	texlod=971	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=1152,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=137.694061	y=384.000000	rz=0.0212817434	uz=8.11366463	vz=0.394407511
+V	1	x=136.691559	y=374.855591	rz=0.0214751586	uz=8.18740463	vz=1.37441015
+V	2	x=146.841553	y=384.000000	rz=0.0219808463	uz=6.5074358	vz=1.40677416
+P	seq=91	verts=5	bucket=17788	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c07,0980	luma=255	lumabase=0	colorbase=38	checker=0	texlod=1081	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=224,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=148.496429	y=333.673492	rz=0.0191976	uz=3.47476554	vz=0
+V	1	x=189.962967	y=311.248047	rz=0.0179573521	uz=0	vz=3.4478116
+V	2	x=176.959503	y=384.000000	rz=0.0219807774	uz=11.273427	vz=4.22030926
+V	3	x=146.841553	y=384.000000	rz=0.0219808463	uz=11.2719707	vz=1.25668955
+V	4	x=136.691559	y=374.855591	rz=0.0214751586	uz=9.85441303	vz=0
+P	seq=92	verts=4	bucket=17788	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1824,2580	luma=209	lumabase=0	colorbase=150	checker=0	texlod=610	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=1152,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=219.846741	y=384.000000	rz=0.0219807774	uz=17.5164757	vz=1.40676975
+V	1	x=225.000000	y=311.248047	rz=0.0179573521	uz=3.28170609	vz=1.14927053
+V	2	x=225.243439	y=322.667297	rz=0.0177672897	uz=3.24697208	vz=0
+V	3	x=221.091049	y=384.000000	rz=0.0210092776	uz=14.8333941	vz=0
+P	seq=93	verts=4	bucket=17788	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c07,0980	luma=255	lumabase=0	colorbase=38	checker=0	texlod=1081	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=224,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=189.962967	y=311.248047	rz=0.0179573521	uz=0	vz=0
+V	1	x=225.000000	y=311.248047	rz=0.0179573521	uz=0	vz=3.4478116
+V	2	x=219.846741	y=384.000000	rz=0.0219807774	uz=11.273427	vz=4.22030926
+V	3	x=176.959503	y=384.000000	rz=0.0219807774	uz=11.273427	vz=0
+P	seq=94	verts=3	bucket=17864	window=1	renderer=2	tex=1	trans=0	hdr=40db,0000,1836,8280	luma=209	lumabase=0	colorbase=522	checker=0	texlod=800	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x256	texpos=1728,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=221.091049	y=384.000000	rz=0.0210092776	uz=3.67242026	vz=5.37574911
+V	1	x=225.243439	y=322.667297	rz=0.0177672897	uz=0	vz=4.54620504
+V	2	x=226.551804	y=384.000000	rz=0.0167457741	uz=0	vz=7.76297188
+P	seq=95	verts=4	bucket=18102	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1b28,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1294	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1280,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=35.380402	y=366.655548	rz=0.0220177174	uz=2.81551552	vz=2.81551552
+V	1	x=25.677582	y=384.000000	rz=0.0230224878	uz=3.8229301	vz=2.94142818
+V	2	x=-0.000031	y=384.000000	rz=0.024025362	uz=4.01525211	vz=2.21456456
+V	3	x=-0.000015	y=364.815521	rz=0.0233331565	uz=2.98134589	vz=1.77149534
+P	seq=96	verts=3	bucket=18230	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=338.754181	y=150.939667	rz=0.0215433817	uz=0.282756895	vz=0.648994386
+V	1	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	2	x=342.786865	y=150.389664	rz=0.0214711055	uz=0.169084951	vz=0.601190925
+P	seq=97	verts=3	bucket=18230	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.042908	y=150.940338	rz=0.0215433817	uz=0.403938413	vz=0.648994386
+V	1	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	2	x=338.754181	y=150.939667	rz=0.0215433817	uz=0.282756895	vz=0.648994386
+P	seq=98	verts=3	bucket=18230	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=329.414398	y=150.391006	rz=0.0214711055	uz=0.515306532	vz=0.601190925
+V	1	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	2	x=334.042908	y=150.940338	rz=0.0215433817	uz=0.403938413	vz=0.648994386
+P	seq=99	verts=4	bucket=18230	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=255	lumabase=0	colorbase=59	checker=0	texlod=1533	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.042908	y=150.940338	rz=0.0215433817	uz=0.148110747	vz=0
+V	1	x=331.922363	y=179.118286	rz=0.0214868747	uz=0.147722259	vz=0.687579989
+V	2	x=323.615967	y=177.960251	rz=0.0213578064	uz=0.104119308	vz=0.683449805
+V	3	x=329.414398	y=150.391006	rz=0.0214711055	uz=0.104671642	vz=0
+P	seq=100	verts=4	bucket=18230	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=255	lumabase=0	colorbase=59	checker=0	texlod=1535	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=338.754181	y=150.939667	rz=0.0215433817	uz=0.191197515	vz=0
+V	1	x=340.417725	y=179.117279	rz=0.0214868747	uz=0.190696016	vz=0.687579989
+V	2	x=331.922363	y=179.118286	rz=0.0214868747	uz=0.147722259	vz=0.687579989
+V	3	x=334.042908	y=150.940338	rz=0.0215433817	uz=0.148110747	vz=0
+P	seq=101	verts=4	bucket=18230	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=255	lumabase=0	colorbase=59	checker=0	texlod=1501	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=342.786865	y=150.389664	rz=0.0214711055	uz=0.233498275	vz=0
+V	1	x=347.658783	y=177.957199	rz=0.0213573612	uz=0.2322613	vz=0.683435559
+V	2	x=340.417725	y=179.117279	rz=0.0214868747	uz=0.190696016	vz=0.687579989
+V	3	x=338.754181	y=150.939667	rz=0.0215433817	uz=0.191197515	vz=0
+P	seq=102	verts=4	bucket=18245	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=235	lumabase=0	colorbase=59	checker=0	texlod=1322	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=331.922363	y=179.118286	rz=0.0214868747	uz=0.512999117	vz=0
+V	1	x=330.104004	y=204.995071	rz=0.0210894868	uz=0.503511488	vz=1.34972715
+V	2	x=321.443726	y=203.623596	rz=0.0209569801	uz=0.165036216	vz=1.34124672
+V	3	x=323.615967	y=177.960251	rz=0.0213578064	uz=0.168192729	vz=0
+P	seq=103	verts=4	bucket=18245	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=246	lumabase=0	colorbase=59	checker=0	texlod=1324	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=340.417725	y=179.117279	rz=0.0214868747	uz=0.856789112	vz=0
+V	1	x=338.974762	y=204.993759	rz=0.0210894868	uz=0.840943277	vz=1.34972715
+V	2	x=330.104004	y=204.995071	rz=0.0210894868	uz=0.503511488	vz=1.34972715
+V	3	x=331.922363	y=179.118286	rz=0.0214868747	uz=0.512999117	vz=0
+P	seq=104	verts=4	bucket=18245	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=249	lumabase=0	colorbase=59	checker=0	texlod=1298	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=347.658783	y=177.957199	rz=0.0213573612	uz=0.509907007	vz=0
+V	1	x=346.544952	y=203.620316	rz=0.0209569801	uz=0.500347912	vz=1.34124672
+V	2	x=338.974762	y=204.993759	rz=0.0210894868	uz=0.166079715	vz=1.34972715
+V	3	x=340.417725	y=179.117279	rz=0.0214868747	uz=0.169209138	vz=0
+P	seq=105	verts=3	bucket=18250	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=342.786865	y=150.389664	rz=0.0214711055	uz=0.169084951	vz=0.601190925
+V	1	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	2	x=345.503723	y=149.381790	rz=0.0213391129	uz=0.0826890618	vz=0.512138724
+P	seq=106	verts=3	bucket=18250	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=329.414398	y=150.391006	rz=0.0214711055	uz=0.515306532	vz=0.601190925
+V	1	x=325.614624	y=149.383575	rz=0.0213395581	uz=0.597507596	vz=0.512149394
+V	2	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+P	seq=107	verts=4	bucket=18250	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=246	lumabase=0	colorbase=59	checker=0	texlod=1496	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=329.414398	y=150.391006	rz=0.0214711055	uz=0.104671642	vz=0
+V	1	x=323.615967	y=177.960251	rz=0.0213578064	uz=0.104119308	vz=0.683449805
+V	2	x=316.876770	y=175.855438	rz=0.0211229827	uz=0.060728576	vz=0.675935447
+V	3	x=325.614624	y=149.383575	rz=0.0213395581	uz=0.0613512285	vz=0
+P	seq=108	verts=4	bucket=18250	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=255	lumabase=0	colorbase=59	checker=0	texlod=1436	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=345.503723	y=149.381790	rz=0.0213391129	uz=0.274741083	vz=0
+V	1	x=352.466858	y=175.851151	rz=0.0211225487	uz=0.271952808	vz=0.675921559
+V	2	x=347.658783	y=177.957199	rz=0.0213573612	uz=0.2322613	vz=0.683435559
+V	3	x=342.786865	y=150.389664	rz=0.0214711055	uz=0.233498275	vz=0
+P	seq=109	verts=4	bucket=18281	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=219	lumabase=0	colorbase=59	checker=0	texlod=1295	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=323.615967	y=177.960251	rz=0.0213578064	uz=0.851642549	vz=0
+V	1	x=321.443726	y=203.623596	rz=0.0209569801	uz=0.835659564	vz=1.34124672
+V	2	x=314.438080	y=201.133255	rz=0.0207165834	uz=0.494608432	vz=1.32586133
+V	3	x=316.876770	y=175.855438	rz=0.0211229827	uz=0.504311204	vz=0
+P	seq=110	verts=4	bucket=18281	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=244	lumabase=0	colorbase=59	checker=0	texlod=1218	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=352.466858	y=175.851151	rz=0.0211225487	uz=0.842261612	vz=0
+V	1	x=351.570465	y=201.128220	rz=0.0207161643	uz=0.826057076	vz=1.32583451
+V	2	x=346.544952	y=203.620316	rz=0.0209569801	uz=0.500347912	vz=1.34124672
+V	3	x=347.658783	y=177.957199	rz=0.0213573612	uz=0.509907007	vz=0
+P	seq=111	verts=3	bucket=18286	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=325.614624	y=149.383575	rz=0.0213395581	uz=0.597507596	vz=0.512149394
+V	1	x=323.222351	y=148.086990	rz=0.0211692713	uz=0.63772428	vz=0.39692384
+V	2	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+P	seq=112	verts=4	bucket=18286	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=227	lumabase=0	colorbase=59	checker=0	texlod=1430	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=316.876770	y=175.855438	rz=0.0211229827	uz=0.060728576	vz=0.675935447
+V	1	x=312.747040	y=173.173843	rz=0.0208235886	uz=0.0182206407	vz=0.666354835
+V	2	x=323.222351	y=148.086990	rz=0.0211692713	uz=0.0185231119	vz=0
+V	3	x=325.614624	y=149.383575	rz=0.0213395581	uz=0.0613512285	vz=0
+P	seq=113	verts=4	bucket=18286	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=255	lumabase=0	colorbase=59	checker=0	texlod=1294	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=345.503723	y=149.381790	rz=0.0213391129	uz=0.274741083	vz=0
+V	1	x=346.495941	y=148.085251	rz=0.0211688336	uz=0.314886391	vz=0
+V	2	x=354.133057	y=173.168701	rz=0.0208231658	uz=0.309744596	vz=0.666341305
+V	3	x=352.466858	y=175.851151	rz=0.0211225487	uz=0.271952808	vz=0.675921559
+P	seq=114	verts=3	bucket=18286	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=345.503723	y=149.381790	rz=0.0213391129	uz=0.0826890618	vz=0.512138724
+V	1	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	2	x=346.495941	y=148.085251	rz=0.0211688336	uz=0.0370454602	vz=0.396915644
+P	seq=115	verts=3	bucket=18335	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=345.651489	y=146.704163	rz=0.0209879074	uz=0.0367288366	vz=0.275466293
+V	2	x=346.495941	y=148.085251	rz=0.0211688336	uz=0.0370454602	vz=0.396915644
+P	seq=116	verts=3	bucket=18335	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=323.222351	y=148.086990	rz=0.0211692713	uz=0.63772428	vz=0.39692384
+V	1	x=322.576813	y=146.705856	rz=0.0209883377	uz=0.632273674	vz=0.275471926
+V	2	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+P	seq=117	verts=4	bucket=18335	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c03,0ec0	luma=208	lumabase=0	colorbase=59	checker=0	texlod=1277	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=96,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=312.747040	y=173.173843	rz=0.0208235886	uz=0.684575498	vz=0.666354835
+V	1	x=311.766724	y=170.355179	rz=0.0205091238	uz=0.633219182	vz=0.656291962
+V	2	x=322.576813	y=146.705856	rz=0.0209883377	uz=0.648014903	vz=0
+V	3	x=323.222351	y=148.086990	rz=0.0211692713	uz=0.695939779	vz=0
+P	seq=118	verts=3	bucket=18337	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a20,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=1237	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1024,256	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=25.677582	y=384.000000	rz=0.0230224878	uz=3.82207274	vz=1.47056139
+V	1	x=35.380402	y=366.655548	rz=0.0220177174	uz=2.81551552	vz=1.40638173
+V	2	x=38.986206	y=384.000000	rz=0.0216443203	uz=2.76776743	vz=1.97455144
+P	seq=119	verts=4	bucket=18348	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=199	lumabase=0	colorbase=59	checker=0	texlod=1209	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=316.876770	y=175.855438	rz=0.0211229827	uz=0.504311204	vz=0
+V	1	x=314.438080	y=201.133255	rz=0.0207165834	uz=0.494608432	vz=1.32586133
+V	2	x=310.168152	y=197.963730	rz=0.0204106048	uz=0.160733506	vz=1.30627871
+V	3	x=312.747040	y=173.173843	rz=0.0208235886	uz=0.163985759	vz=0
+P	seq=120	verts=4	bucket=18348	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=232	lumabase=0	colorbase=59	checker=0	texlod=1029	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=352.466858	y=175.851151	rz=0.0211225487	uz=0.166340068	vz=0
+V	1	x=354.133057	y=173.168701	rz=0.0208231658	uz=0.497153074	vz=0
+V	2	x=353.324280	y=197.957870	rz=0.0204101969	uz=0.487293452	vz=1.3062526
+V	3	x=351.570465	y=201.128220	rz=0.0207161643	uz=0.16313979	vz=1.32583451
+P	seq=121	verts=3	bucket=18361	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=343.142975	y=145.448868	rz=0.0208235886	uz=0.0806914046	vz=0.163985759
+V	2	x=345.651489	y=146.704163	rz=0.0209879074	uz=0.0367288366	vz=0.275466293
+P	seq=122	verts=3	bucket=18361	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=339.372375	y=144.501312	rz=0.0206994135	uz=0.163007885	vz=0.0802102238
+V	2	x=343.142975	y=145.448868	rz=0.0208235886	uz=0.0806914046	vz=0.163985759
+P	seq=123	verts=3	bucket=18361	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=334.911774	y=143.993225	rz=0.0206330977	uz=0.270809412	vz=0.0361079201
+V	2	x=339.372375	y=144.501312	rz=0.0206994135	uz=0.163007885	vz=0.0802102238
+P	seq=124	verts=3	bucket=18361	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=330.398285	y=143.994522	rz=0.0206330977	uz=0.386870593	vz=0.0361079201
+V	2	x=334.911774	y=143.993225	rz=0.0206330977	uz=0.270809412	vz=0.0361079201
+P	seq=125	verts=3	bucket=18361	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=326.481812	y=144.503906	rz=0.0206994135	uz=0.496785939	vz=0.0802102238
+V	2	x=330.398285	y=143.994522	rz=0.0206330977	uz=0.386870593	vz=0.0361079201
+P	seq=126	verts=3	bucket=18361	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=323.734314	y=145.450531	rz=0.0208240133	uz=0.583072364	vz=0.163989112
+V	2	x=326.481812	y=144.503906	rz=0.0206994135	uz=0.496785939	vz=0.0802102238
+P	seq=127	verts=3	bucket=18361	window=1	renderer=3	tex=1	trans=1	hdr=60c0,0000,1c09,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1180	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=288,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.483856	y=147.393265	rz=0.0210781991	uz=0.337251186	vz=0.337251186
+V	1	x=322.576813	y=146.705856	rz=0.0209883377	uz=0.632273674	vz=0.275471926
+V	2	x=323.734314	y=145.450531	rz=0.0208240133	uz=0.583072364	vz=0.163989112
+P	seq=128	verts=4	bucket=18362	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=330.041107	y=204.840363	rz=47.4541016	uz=0	vz=0
+V	1	x=321.482391	y=203.471481	rz=47.7529297	uz=0	vz=0
+V	2	x=322.965912	y=202.353470	rz=48.0009766	uz=0	vz=0
+V	3	x=330.205688	y=203.504211	rz=47.7460938	uz=0	vz=0
+P	seq=129	verts=4	bucket=18362	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=234	lumabase=0	colorbase=423	checker=0	texlod=1263	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=330.041107	y=204.840363	rz=0.0210729949	uz=1.0115037	vz=0.666433454
+V	1	x=326.179077	y=260.028992	rz=0.0201765448	uz=0.96847415	vz=2.58007574
+V	2	x=317.298157	y=258.245056	rz=0.0200450234	uz=0.320720375	vz=2.56325746
+V	3	x=321.482391	y=203.471481	rz=0.0209411234	uz=0.335057974	vz=0.662263036
+P	seq=130	verts=4	bucket=18362	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=244	lumabase=0	colorbase=423	checker=0	texlod=1265	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=330.041107	y=204.840363	rz=0.0210729949	uz=0.337167919	vz=0.666433454
+V	1	x=338.822327	y=204.853348	rz=0.021074295	uz=1.01156616	vz=0.666474581
+V	2	x=335.318359	y=260.046967	rz=0.0201781355	uz=0.968550503	vz=2.58027911
+V	3	x=326.179077	y=260.028992	rz=0.0201765448	uz=0.322824717	vz=2.58007574
+P	seq=131	verts=4	bucket=18362	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=337.625397	y=203.515060	rz=47.7431641	uz=0	vz=0
+V	1	x=338.822327	y=204.853348	rz=47.4511719	uz=0	vz=0
+V	2	x=330.041107	y=204.840363	rz=47.4541016	uz=0	vz=0
+V	3	x=330.205688	y=203.504211	rz=47.7460938	uz=0	vz=0
+P	seq=132	verts=4	bucket=18362	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=346.334656	y=203.508041	rz=47.7451172	uz=0	vz=0
+V	1	x=338.822327	y=204.853348	rz=47.4511719	uz=0	vz=0
+V	2	x=337.625397	y=203.515060	rz=47.7431641	uz=0	vz=0
+V	3	x=343.983063	y=202.384247	rz=47.9941406	uz=0	vz=0
+P	seq=133	verts=4	bucket=18362	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=247	lumabase=0	colorbase=423	checker=0	texlod=1229	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=346.334656	y=203.508041	rz=0.0209445506	uz=1.00533843	vz=0.662371397
+V	1	x=343.157959	y=258.293060	rz=0.020048555	uz=0.962330639	vz=2.56370902
+V	2	x=335.318359	y=260.046967	rz=0.0201781355	uz=0.322850168	vz=2.58027911
+V	3	x=338.822327	y=204.853348	rz=0.021074295	uz=0.337188721	vz=0.666474581
+P	seq=134	verts=4	bucket=18399	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=242	lumabase=0	colorbase=423	checker=0	texlod=1161	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=351.342712	y=201.052521	rz=0.020707367	uz=0.993953586	vz=0.65487051
+V	1	x=348.403381	y=255.094803	rz=0.0198127087	uz=0.951009989	vz=2.53355002
+V	2	x=343.157959	y=258.293060	rz=0.020048555	uz=0.32077688	vz=2.56370902
+V	3	x=346.334656	y=203.508041	rz=0.0209445506	uz=0.33511281	vz=0.662371397
+P	seq=135	verts=4	bucket=18399	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=346.334656	y=203.508041	rz=47.7451172	uz=0	vz=0
+V	1	x=343.983063	y=202.384247	rz=47.9941406	uz=0	vz=0
+V	2	x=348.246582	y=200.315186	rz=48.4580078	uz=0	vz=0
+V	3	x=351.342712	y=201.052521	rz=48.2919922	uz=0	vz=0
+P	seq=136	verts=4	bucket=18400	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=217	lumabase=0	colorbase=423	checker=0	texlod=1223	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=310.159149	y=255.024490	rz=0.0198073424	uz=0.316917479	vz=2.53286386
+V	1	x=314.569672	y=200.998886	rz=0.0207023434	uz=0.331237495	vz=0.654711604
+V	2	x=321.482391	y=203.471481	rz=0.0209411234	uz=1.00517392	vz=0.662263036
+V	3	x=317.298157	y=258.245056	rz=0.0200450234	uz=0.962161124	vz=2.56325746
+P	seq=137	verts=4	bucket=18400	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=322.965912	y=202.353470	rz=48.0009766	uz=0	vz=0
+V	1	x=321.482391	y=203.471481	rz=47.7529297	uz=0	vz=0
+V	2	x=314.569672	y=200.998886	rz=48.3037109	uz=0	vz=0
+V	3	x=317.096069	y=200.269821	rz=48.46875	uz=0	vz=0
+P	seq=138	verts=4	bucket=18435	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,0ec0	luma=192	lumabase=0	colorbase=59	checker=0	texlod=988	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=309.187469	y=194.636429	rz=0.0200894605	uz=0.479635864	vz=1.28572547
+V	1	x=311.766724	y=170.355179	rz=0.0205091238	uz=0.489655316	vz=0
+V	2	x=312.747040	y=173.173843	rz=0.0208235886	uz=0.830340624	vz=0
+V	3	x=310.168152	y=197.963730	rz=0.0204106048	uz=0.813872874	vz=1.30627871
+P	seq=139	verts=4	bucket=18469	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=230	lumabase=0	colorbase=423	checker=0	texlod=952	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=351.342712	y=201.052521	rz=0.020707367	uz=0.331317872	vz=0.65487051
+V	1	x=353.115448	y=197.920258	rz=0.0204053167	uz=0.979455233	vz=0.645318151
+V	2	x=350.288300	y=251.018387	rz=0.0195118226	uz=0.936567485	vz=2.49507427
+V	3	x=348.403381	y=255.094803	rz=0.0198127087	uz=0.31700334	vz=2.53355002
+P	seq=140	verts=4	bucket=18469	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=351.342712	y=201.052521	rz=48.2919922	uz=0	vz=0
+V	1	x=348.246582	y=200.315186	rz=48.4580078	uz=0	vz=0
+V	2	x=349.790619	y=197.664993	rz=49.0664062	uz=0	vz=0
+V	3	x=353.115448	y=197.920258	rz=49.0068359	uz=0	vz=0
+P	seq=141	verts=4	bucket=18471	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=197	lumabase=0	colorbase=423	checker=0	texlod=1152	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=310.371887	y=197.858719	rz=0.0203992184	uz=0.326387495	vz=0.64512527
+V	1	x=314.569672	y=200.998886	rz=0.0207023434	uz=0.993712485	vz=0.654711604
+V	2	x=310.159149	y=255.024490	rz=0.0198073424	uz=0.950752437	vz=2.53286386
+V	3	x=305.862976	y=250.938232	rz=0.019505877	uz=0.312094033	vz=2.49431396
+P	seq=142	verts=4	bucket=18471	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=317.096069	y=200.269821	rz=48.46875	uz=0	vz=0
+V	1	x=314.569672	y=200.998886	rz=48.3037109	uz=0	vz=0
+V	2	x=310.371887	y=197.858719	rz=49.0214844	uz=0	vz=0
+V	3	x=313.500122	y=197.612915	rz=49.0791016	uz=0	vz=0
+P	seq=143	verts=4	bucket=18561	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=348.466370	y=194.865417	rz=49.7255859	uz=0	vz=0
+V	1	x=351.506287	y=194.626312	rz=49.7832031	uz=0	vz=0
+V	2	x=353.115448	y=197.920258	rz=49.0068359	uz=0	vz=0
+V	3	x=349.790619	y=197.664993	rz=49.0664062	uz=0	vz=0
+P	seq=144	verts=4	bucket=18563	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=310.371887	y=197.858719	rz=49.0214844	uz=0	vz=0
+V	1	x=309.430817	y=194.566833	rz=49.796875	uz=0	vz=0
+V	2	x=312.658447	y=194.814651	rz=49.7382812	uz=0	vz=0
+V	3	x=313.500122	y=197.612915	rz=49.0791016	uz=0	vz=0
+P	seq=145	verts=4	bucket=18563	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,69c0	luma=192	lumabase=0	colorbase=423	checker=0	texlod=913	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=304.959534	y=246.660278	rz=0.0191904046	uz=0.307046473	vz=2.45397305
+V	1	x=309.430817	y=194.566833	rz=0.0200815815	uz=0.321305305	vz=0.63508004
+V	2	x=310.371887	y=197.858719	rz=0.0203992184	uz=0.979162455	vz=0.64512527
+V	3	x=305.862976	y=250.938232	rz=0.019505877	uz=0.936282098	vz=2.49431396
+P	seq=146	verts=4	bucket=18601	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,15c0	luma=243	lumabase=0	colorbase=87	checker=0	texlod=1318	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=337.499390	y=277.976288	rz=0.0202768259	uz=2.26846981	vz=0.6463238
+V	1	x=333.017487	y=341.678345	rz=0.0191907641	uz=2.1469667	vz=1.2282089
+V	2	x=320.310181	y=341.647949	rz=0.0191893261	uz=0.304630548	vz=1.22811687
+V	3	x=324.744232	y=277.951721	rz=0.0202752203	uz=0.321869135	vz=0.646272659
+P	seq=147	verts=4	bucket=18601	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,72c0	luma=233	lumabase=0	colorbase=459	checker=0	texlod=1317	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=312.393036	y=275.304993	rz=0.0200910382	uz=0.62784493	vz=1.28331506
+V	1	x=324.744232	y=277.951721	rz=0.0202752203	uz=1.93121469	vz=1.29507971
+V	2	x=320.310181	y=341.647949	rz=0.0191893261	uz=1.82778335	vz=2.45623374
+V	3	x=308.044800	y=338.433105	rz=0.0190154314	uz=0.594232202	vz=2.43397522
+P	seq=148	verts=4	bucket=18601	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1345	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=326.179077	y=260.028992	rz=0.0201765448	uz=0.443883985	vz=1.28877676
+V	1	x=324.744232	y=277.951721	rz=0.0202752203	uz=0.446054846	vz=0
+V	2	x=312.393036	y=275.304993	rz=0.0200910382	uz=0.680583894	vz=0
+V	3	x=317.298157	y=258.245056	rz=0.0200450234	uz=0.681530774	vz=1.28037584
+P	seq=149	verts=4	bucket=18601	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1346	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=335.318359	y=260.046967	rz=0.0201781355	uz=0.201781362	vz=1.28887844
+V	1	x=337.499390	y=277.976288	rz=0.0202768259	uz=0.202768266	vz=0
+V	2	x=324.744232	y=277.951721	rz=0.0202752203	uz=0.446054846	vz=0
+V	3	x=326.179077	y=260.028992	rz=0.0201765448	uz=0.443883985	vz=1.28877676
+P	seq=150	verts=4	bucket=18601	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1324	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=348.390930	y=275.374817	rz=0.0200957693	uz=0.602873087	vz=0
+V	1	x=337.499390	y=277.976288	rz=0.0202768259	uz=0.851626694	vz=0
+V	2	x=335.318359	y=260.046967	rz=0.0201781355	uz=0.847481668	vz=1.28887844
+V	3	x=343.157959	y=258.293060	rz=0.020048555	uz=0.601456642	vz=1.2806015
+P	seq=151	verts=4	bucket=18601	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,15c0	luma=246	lumabase=0	colorbase=87	checker=0	texlod=1293	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=348.390930	y=275.374817	rz=0.0200957693	uz=2.25072622	vz=0.64055264
+V	1	x=343.910248	y=338.521088	rz=0.0190203767	uz=2.12790465	vz=1.21730411
+V	2	x=333.017487	y=341.678345	rz=0.0191907641	uz=0.304653376	vz=1.2282089
+V	3	x=337.499390	y=277.976288	rz=0.0202768259	uz=0.321894616	vz=0.6463238
+P	seq=152	verts=4	bucket=18653	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=344.581085	y=192.340286	rz=50.3359375	uz=0	vz=0
+V	1	x=346.908997	y=191.668716	rz=50.5009766	uz=0	vz=0
+V	2	x=351.506287	y=194.626312	rz=49.7832031	uz=0	vz=0
+V	3	x=348.466370	y=194.865417	rz=49.7255859	uz=0	vz=0
+P	seq=153	verts=4	bucket=18655	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=312.658447	y=194.814651	rz=49.7382812	uz=0	vz=0
+V	1	x=309.430817	y=194.566833	rz=49.796875	uz=0	vz=0
+V	2	x=311.743866	y=191.619705	rz=50.5126953	uz=0	vz=0
+V	3	x=314.592041	y=192.298370	rz=50.3466797	uz=0	vz=0
+P	seq=154	verts=4	bucket=18658	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,72c0	luma=241	lumabase=0	colorbase=459	checker=0	texlod=1209	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=355.574768	y=270.662872	rz=0.0197679587	uz=1.88289809	vz=1.26267838
+V	1	x=351.140015	y=332.798370	rz=0.0187110566	uz=1.78222811	vz=2.39501524
+V	2	x=343.910248	y=338.521088	rz=0.0190203767	uz=0.594386756	vz=2.43460822
+V	3	x=348.390930	y=275.374817	rz=0.0200957693	uz=0.627992809	vz=1.28361726
+P	seq=155	verts=4	bucket=18658	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1283	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=348.390930	y=275.374817	rz=0.0200957693	uz=0.602873087	vz=0
+V	1	x=343.157959	y=258.293060	rz=0.020048555	uz=0.601456642	vz=1.2806015
+V	2	x=348.403381	y=255.094803	rz=0.0198127087	uz=0.356628746	vz=1.26553679
+V	3	x=355.574768	y=270.662872	rz=0.0197679587	uz=0.353352249	vz=0
+P	seq=156	verts=4	bucket=18659	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1321	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=302.581360	y=270.561462	rz=0.0197610911	uz=0.274185151	vz=0
+V	1	x=310.159149	y=255.024490	rz=0.0198073424	uz=0.274826884	vz=1.26519394
+V	2	x=317.298157	y=258.245056	rz=0.0200450234	uz=0.0400900468	vz=1.28037584
+V	3	x=312.393036	y=275.304993	rz=0.0200910382	uz=0.037670698	vz=0
+P	seq=157	verts=4	bucket=18659	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,72c0	luma=216	lumabase=0	colorbase=459	checker=0	texlod=1289	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=312.393036	y=275.304993	rz=0.0200910382	uz=1.91367137	vz=1.28331506
+V	1	x=308.044800	y=338.433105	rz=0.0190154314	uz=1.81121981	vz=2.43397522
+V	2	x=298.341003	y=332.677002	rz=0.0187045634	uz=0.584517598	vz=2.39418411
+V	3	x=302.581360	y=270.561462	rz=0.0197610911	uz=0.617534101	vz=1.26223969
+P	seq=158	verts=4	bucket=18731	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=338.783234	y=190.444656	rz=50.8037109	uz=0	vz=0
+V	1	x=340.092804	y=189.456619	rz=51.0517578	uz=0	vz=0
+V	2	x=346.908997	y=191.668716	rz=50.5009766	uz=0	vz=0
+V	3	x=344.581085	y=192.340286	rz=50.3359375	uz=0	vz=0
+P	seq=159	verts=4	bucket=18732	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=314.592041	y=192.298370	rz=50.3466797	uz=0	vz=0
+V	1	x=311.743866	y=191.619705	rz=50.5126953	uz=0	vz=0
+V	2	x=316.849731	y=189.424576	rz=51.0595703	uz=0	vz=0
+V	3	x=318.928925	y=190.417145	rz=50.8105469	uz=0	vz=0
+P	seq=160	verts=4	bucket=18749	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1174	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=355.574768	y=270.662872	rz=0.0197679587	uz=0.353352249	vz=0
+V	1	x=348.403381	y=255.094803	rz=0.0198127087	uz=0.356628746	vz=1.26553679
+V	2	x=350.288300	y=251.018387	rz=0.0195118226	uz=0.117070936	vz=1.24631763
+V	3	x=358.024292	y=264.722931	rz=0.0193547159	uz=0.116128296	vz=0
+P	seq=161	verts=4	bucket=18750	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=243	lumabase=0	colorbase=521	checker=0	texlod=1274	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=302.581360	y=270.561462	rz=0.0197610911	uz=0.274185151	vz=0
+V	1	x=296.822540	y=264.606842	rz=0.0193466712	uz=0.500595093	vz=0
+V	2	x=305.862976	y=250.938232	rz=0.019505877	uz=0.504714549	vz=1.24593794
+V	3	x=310.159149	y=255.024490	rz=0.0198073424	uz=0.274826884	vz=1.26519394
+P	seq=162	verts=4	bucket=18763	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,72c0	luma=229	lumabase=0	colorbase=459	checker=0	texlod=995	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=355.574768	y=270.662872	rz=0.0197679587	uz=0.617748737	vz=1.26267838
+V	1	x=358.024292	y=264.722931	rz=0.0193547159	uz=1.84353673	vz=1.23628247
+V	2	x=353.673096	y=325.585724	rz=0.0183213763	uz=1.74511111	vz=2.34513617
+V	3	x=351.140015	y=332.798370	rz=0.0187110566	uz=0.584720492	vz=2.39501524
+P	seq=163	verts=4	bucket=18765	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,15c0	luma=196	lumabase=0	colorbase=87	checker=0	texlod=1197	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=302.581360	y=270.561462	rz=0.0197610911	uz=2.21077204	vz=0.629884779
+V	1	x=298.341003	y=332.677002	rz=0.0187045634	uz=2.0949111	vz=1.19709206
+V	2	x=292.690704	y=325.443695	rz=0.0183135122	uz=0.293016195	vz=1.17206478
+V	3	x=296.822540	y=264.606842	rz=0.0193466712	uz=0.309546739	vz=0.616675138
+P	seq=164	verts=4	bucket=18791	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=331.932983	y=189.428040	rz=51.0585938	uz=0	vz=0
+V	1	x=332.074005	y=188.273163	rz=51.3505859	uz=0	vz=0
+V	2	x=340.092804	y=189.456619	rz=51.0517578	uz=0	vz=0
+V	3	x=338.783234	y=190.444656	rz=50.8037109	uz=0	vz=0
+P	seq=165	verts=4	bucket=18792	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=318.928925	y=190.417145	rz=50.8105469	uz=0	vz=0
+V	1	x=316.849731	y=189.424576	rz=51.0595703	uz=0	vz=0
+V	2	x=323.959991	y=188.262054	rz=51.3535156	uz=0	vz=0
+V	3	x=324.995361	y=189.418549	rz=51.0615234	uz=0	vz=0
+P	seq=166	verts=4	bucket=18824	window=1	renderer=0	tex=0	trans=0	hdr=00c0,0000,0000,72c0	luma=255	lumabase=0	colorbase=459	checker=0	texlod=1747	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=0x0	texpos=0,0	wrap=0,0	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=324.995361	y=189.418549	rz=51.0615234	uz=0	vz=0
+V	1	x=323.959991	y=188.262054	rz=51.3535156	uz=0	vz=0
+V	2	x=332.074005	y=188.273163	rz=51.3505859	uz=0	vz=0
+V	3	x=331.932983	y=189.428040	rz=51.0585938	uz=0	vz=0
+P	seq=167	verts=4	bucket=18848	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=874	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=355.628723	y=258.557343	rz=0.0189258121	uz=0.489705384	vz=0
+V	1	x=358.024292	y=264.722931	rz=0.0193547159	uz=0.735479236	vz=0
+V	2	x=350.288300	y=251.018387	rz=0.0195118226	uz=0.741449237	vz=1.24631763
+V	3	x=348.664673	y=246.737854	rz=0.0191961601	uz=0.496700644	vz=1.22615469
+P	seq=168	verts=4	bucket=18850	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=226	lumabase=0	colorbase=521	checker=0	texlod=1162	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=295.784790	y=258.446350	rz=0.0189181194	uz=0.716523767	vz=0
+V	1	x=304.959534	y=246.660278	rz=0.0191904046	uz=0.726836562	vz=1.22578704
+V	2	x=305.862976	y=250.938232	rz=0.019505877	uz=0.504714549	vz=1.24593794
+V	3	x=296.822540	y=264.606842	rz=0.0193466712	uz=0.500595093	vz=0
+P	seq=169	verts=4	bucket=18904	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,15c0	luma=192	lumabase=0	colorbase=87	checker=0	texlod=939	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=295.784790	y=258.446350	rz=0.0189181194	uz=0.30268991	vz=0.603015065
+V	1	x=296.822540	y=264.606842	rz=0.0193466712	uz=2.1668272	vz=0.616675138
+V	2	x=292.690704	y=325.443695	rz=0.0183135122	uz=2.05111337	vz=1.17206478
+V	3	x=291.747925	y=317.962830	rz=0.0179092996	uz=0.286548793	vz=1.14619517
+P	seq=170	verts=4	bucket=18958	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=211	lumabase=0	colorbase=521	checker=0	texlod=778	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=299.327454	y=253.000168	rz=0.0185389705	uz=0.331384093	vz=0
+V	1	x=307.425446	y=242.834137	rz=0.0189079903	uz=0.33798033	vz=1.20774794
+V	2	x=304.959534	y=246.660278	rz=0.0191904046	uz=0.112743624	vz=1.22578704
+V	3	x=295.784790	y=258.446350	rz=0.0189181194	uz=0.111143954	vz=0
+P	seq=171	verts=4	bucket=18958	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1454	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=334.585510	y=371.097229	rz=0.0191169605	uz=0.0764678419	vz=1.22348547
+V	1	x=333.017487	y=341.678345	rz=0.0191907641	uz=0.0767630562	vz=0
+V	2	x=343.910248	y=338.521088	rz=0.0190203767	uz=0.228244513	vz=0
+V	3	x=348.692230	y=366.664856	rz=0.0188964754	uz=0.226757705	vz=1.20937443
+P	seq=172	verts=4	bucket=18958	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1478	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=318.062988	y=371.058075	rz=0.0191148203	uz=0.535214961	vz=1.2233485
+V	1	x=320.310181	y=341.647949	rz=0.0191893261	uz=0.537301123	vz=0
+V	2	x=333.017487	y=341.678345	rz=0.0191907641	uz=0.690867484	vz=0
+V	3	x=334.585510	y=371.097229	rz=0.0191169605	uz=0.688210607	vz=1.22348547
+P	seq=173	verts=4	bucket=18958	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1476	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=302.186371	y=366.543945	rz=0.0188905485	uz=0.377810955	vz=1.2089951
+V	1	x=308.044800	y=338.433105	rz=0.0190154314	uz=0.380308628	vz=0
+V	2	x=320.310181	y=341.647949	rz=0.0191893261	uz=0.537301123	vz=0
+V	3	x=318.062988	y=371.058075	rz=0.0191148203	uz=0.535214961	vz=1.2233485
+P	seq=174	verts=4	bucket=18984	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,72c0	luma=244	lumabase=0	colorbase=459	checker=0	texlod=1286	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=333.488556	y=384.000000	rz=0.01887477	uz=0.30199632	vz=0.198060021
+V	1	x=334.585510	y=371.097229	rz=0.0191169605	uz=0.305871367	vz=0
+V	2	x=348.692230	y=366.664856	rz=0.0188964754	uz=2.11640525	vz=0
+V	3	x=346.985596	y=384.000000	rz=0.0185761955	uz=2.08053398	vz=0.264976948
+P	seq=175	verts=4	bucket=18984	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,72c0	luma=241	lumabase=0	colorbase=459	checker=0	texlod=1312	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=317.172607	y=384.000000	rz=0.0188719016	uz=0.301950425	vz=0.19867751
+V	1	x=318.062988	y=371.058075	rz=0.0191148203	uz=0.305837125	vz=0
+V	2	x=334.585510	y=371.097229	rz=0.0191169605	uz=2.14109945	vz=0
+V	3	x=333.488556	y=384.000000	rz=0.01887477	uz=2.11397433	vz=0.198060021
+P	seq=176	verts=4	bucket=18984	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,72c0	luma=230	lumabase=0	colorbase=459	checker=0	texlod=1310	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=301.261749	y=384.000000	rz=0.0185682122	uz=0.297091395	vz=0.266761392
+V	1	x=302.186371	y=366.543945	rz=0.0188905485	uz=0.302248776	vz=0
+V	2	x=318.062988	y=371.058075	rz=0.0191148203	uz=2.14085984	vz=0
+V	3	x=317.172607	y=384.000000	rz=0.0188719016	uz=2.11365294	vz=0.198677525
+P	seq=177	verts=4	bucket=19018	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1407	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=348.692230	y=366.664856	rz=0.0188964754	uz=0.226757705	vz=1.20937443
+V	1	x=343.910248	y=338.521088	rz=0.0190203767	uz=0.228244513	vz=0
+V	2	x=351.140015	y=332.798370	rz=0.0187110566	uz=0.374221146	vz=0
+V	3	x=357.923065	y=358.690674	rz=0.0185001176	uz=0.370002359	vz=1.18400753
+P	seq=178	verts=4	bucket=19019	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=245	lumabase=0	colorbase=521	checker=0	texlod=1450	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=289.786774	y=358.522949	rz=0.0184917655	uz=0.221901178	vz=1.18347299
+V	1	x=298.341003	y=332.677002	rz=0.0187045634	uz=0.224454761	vz=0
+V	2	x=308.044800	y=338.433105	rz=0.0190154314	uz=0.380308628	vz=0
+V	3	x=302.186371	y=366.543945	rz=0.0188905485	uz=0.377810955	vz=1.2089951
+P	seq=179	verts=4	bucket=19062	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,72c0	luma=239	lumabase=0	colorbase=459	checker=0	texlod=1195	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=346.985596	y=384.000000	rz=0.0185761955	uz=0.297219127	vz=0.264976978
+V	1	x=348.692230	y=366.664856	rz=0.0188964754	uz=0.302343607	vz=0
+V	2	x=357.923065	y=358.690674	rz=0.0185001176	uz=2.07201314	vz=0
+V	3	x=355.224304	y=384.000000	rz=0.0180459116	uz=2.02114201	vz=0.383827835
+P	seq=180	verts=4	bucket=19064	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,72c0	luma=214	lumabase=0	colorbase=459	checker=0	texlod=1282	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=288.754089	y=384.000000	rz=0.0180347767	uz=0.288556427	vz=0.386354268
+V	1	x=289.786774	y=358.522949	rz=0.0184917655	uz=0.295868248	vz=0
+V	2	x=302.186371	y=366.543945	rz=0.0188905485	uz=2.11574149	vz=0
+V	3	x=301.261749	y=384.000000	rz=0.0185682122	uz=2.07963967	vz=0.266761392
+P	seq=181	verts=4	bucket=19129	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=255	lumabase=0	colorbase=521	checker=0	texlod=1287	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=357.923065	y=358.690674	rz=0.0185001176	uz=0.370002359	vz=1.18400753
+V	1	x=351.140015	y=332.798370	rz=0.0187110566	uz=0.374221146	vz=0
+V	2	x=353.673096	y=325.585724	rz=0.0183213763	uz=0.512998521	vz=0
+V	3	x=360.990021	y=348.743774	rz=0.0180056617	uz=0.504158497	vz=1.15236235
+P	seq=182	verts=4	bucket=19131	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=226	lumabase=0	colorbase=521	checker=0	texlod=1396	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=289.786774	y=358.522949	rz=0.0184917655	uz=0.221901178	vz=1.18347299
+V	1	x=282.770294	y=348.553162	rz=0.0179961696	uz=0.0719846785	vz=1.15175486
+V	2	x=292.690704	y=325.443695	rz=0.0183135122	uz=0.0732540488	vz=0
+V	3	x=298.341003	y=332.677002	rz=0.0187045634	uz=0.224454761	vz=0
+P	seq=183	verts=4	bucket=19185	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,3880	luma=227	lumabase=0	colorbase=226	checker=0	texlod=827	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=363.969910	y=360.356201	rz=0.0185577851	uz=2.37539649	vz=0.00927889254
+V	1	x=366.554840	y=350.665131	rz=0.0180768613	uz=0.327643096	vz=0.00903843064
+V	2	x=363.959167	y=373.403503	rz=0.0176810846	uz=0.320469648	vz=0.693982542
+V	3	x=361.366821	y=383.471619	rz=0.0181412324	uz=2.32207775	vz=0.712043345
+P	seq=184	verts=4	bucket=19185	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,3880	luma=255	lumabase=0	colorbase=226	checker=0	texlod=1487	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=363.969910	y=360.356201	rz=0.0185577851	uz=4.75079298	vz=0.00927889254
+V	1	x=357.923065	y=358.690674	rz=0.0185001176	uz=4.47009087	vz=0
+V	2	x=360.990021	y=348.743774	rz=0.0180056617	uz=2.30247402	vz=0
+V	3	x=366.554840	y=350.665131	rz=0.0180768613	uz=2.6414814	vz=0.00903843064
+P	seq=185	verts=5	bucket=19185	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,3880	luma=233	lumabase=0	colorbase=226	checker=0	texlod=1325	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=355.224304	y=384.000000	rz=0.0180459116	uz=2.05046678	vz=0.767655671
+V	1	x=357.923065	y=358.690674	rz=0.0185001176	uz=2.10207582	vz=0
+V	2	x=363.969910	y=360.356201	rz=0.0185577851	uz=2.37539649	vz=0.00927889254
+V	3	x=361.366821	y=383.471619	rz=0.0181412324	uz=2.32207775	vz=0.712043345
+V	4	x=361.059875	y=384.000000	rz=0.0181282144	uz=2.30986023	vz=0.729699135
+P	seq=186	verts=4	bucket=19210	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,72c0	luma=194	lumabase=0	colorbase=459	checker=0	texlod=1183	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=281.586334	y=384.000000	rz=0.0173833892	uz=0.278134227	vz=0.532333195
+V	1	x=282.770294	y=348.553162	rz=0.0179961696	uz=0.287938714	vz=0
+V	2	x=289.786774	y=358.522949	rz=0.0184917655	uz=2.07107782	vz=0
+V	3	x=288.754089	y=384.000000	rz=0.0180347767	uz=2.01989508	vz=0.386354268
+P	seq=187	verts=4	bucket=19274	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=240	lumabase=0	colorbase=521	checker=0	texlod=525	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=351.380493	y=318.096375	rz=0.0179165062	uz=0.644994199	vz=0
+V	1	x=357.862701	y=338.546326	rz=0.0174985901	uz=0.629949212	vz=1.11990976
+V	2	x=360.990021	y=348.743774	rz=0.0180056617	uz=0.504158497	vz=1.15236235
+V	3	x=353.673096	y=325.585724	rz=0.0183213763	uz=0.512998521	vz=0
+P	seq=188	verts=4	bucket=19277	window=1	renderer=2	tex=1	trans=0	hdr=40c8,0000,1b94,8240	luma=206	lumabase=0	colorbase=521	checker=0	texlod=1266	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x64	texpos=640,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=282.770294	y=348.553162	rz=0.0179961696	uz=0.647862077	vz=1.15175486
+V	1	x=281.846802	y=338.366272	rz=0.0174896233	uz=0.489709437	vz=1.11933589
+V	2	x=291.747925	y=317.962830	rz=0.0179092996	uz=0.501460373	vz=0
+V	3	x=292.690704	y=325.443695	rz=0.0183135122	uz=0.659286439	vz=0
+P	seq=189	verts=5	bucket=19401	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c02,72c0	luma=192	lumabase=0	colorbase=459	checker=0	texlod=871	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=64,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=281.413361	y=384.000000	rz=0.0172899552	uz=1.70669794	vz=0.553278565
+V	1	x=280.677002	y=374.693115	rz=0.0168851521	uz=0.270162433	vz=0.540324867
+V	2	x=281.846802	y=338.366272	rz=0.0174896233	uz=0.279833972	vz=0
+V	3	x=282.770294	y=348.553162	rz=0.0179961696	uz=2.01557112	vz=0
+V	4	x=281.586334	y=384.000000	rz=0.0173833892	uz=1.94693959	vz=0.532333195
+P	seq=190	verts=5	bucket=19403	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1b28,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1364	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1280,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=70.117065	y=304.554352	rz=0.0184205789	uz=4.7156682	vz=2.35553145
+V	1	x=4.332581	y=304.554352	rz=0.0184205789	uz=2.3578341	vz=2.36243916
+V	2	x=-0.000015	y=296.117737	rz=0.018301947	uz=2.34202933	vz=2.02802086
+V	3	x=0.000000	y=273.945190	rz=0.0179901607	uz=2.70900846	vz=1.14952016
+V	4	x=52.860718	y=273.945190	rz=0.0179901607	uz=4.60548115	vz=1.15137029
+P	seq=191	verts=4	bucket=19403	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1412	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=0.000000	y=28.900665	rz=0.0219422299	uz=2.45045161	vz=0
+V	1	x=9.992630	y=28.900665	rz=0.0219422299	uz=2.80860543	vz=0
+V	2	x=52.860718	y=273.945190	rz=0.0179901607	uz=2.30274057	vz=4.60323238
+V	3	x=0.000000	y=273.945190	rz=0.0179901607	uz=0.408117861	vz=4.60323238
+P	seq=192	verts=3	bucket=19403	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1380	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=-0.000015	y=296.117737	rz=0.018301947	uz=2.62557769	vz=2.02301717
+V	1	x=4.332581	y=304.554352	rz=0.0184205789	uz=2.74927139	vz=2.35553145
+V	2	x=-0.000015	y=310.208862	rz=0.0187481102	uz=2.9693141	vz=2.39741468
+P	seq=193	verts=4	bucket=19472	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a20,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1401	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1024,256	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=75.939102	y=340.060486	rz=0.0178176817	uz=4.5590992	vz=2.28066325
+V	1	x=12.307709	y=340.060486	rz=0.0178176817	uz=2.27843595	vz=2.28066325
+V	2	x=4.332581	y=304.554352	rz=0.0184205789	uz=2.35553145	vz=1.17661452
+V	3	x=70.117065	y=304.554352	rz=0.0184205789	uz=4.7156682	vz=1.17661452
+P	seq=194	verts=4	bucket=19472	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1824,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=1231	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=1152,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=-0.000015	y=310.208862	rz=0.0187481102	uz=0.513225496	vz=1.19753551
+V	1	x=4.332581	y=304.554352	rz=0.0184205789	uz=0	vz=1.17661452
+V	2	x=12.307709	y=340.060486	rz=0.0178176817	uz=0	vz=2.28066325
+V	3	x=-0.000015	y=358.521088	rz=0.0187481102	uz=1.50726736	vz=2.3997581
+P	seq=195	verts=3	bucket=19663	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a84,72c0	luma=192	lumabase=0	colorbase=459	checker=0	texlod=999	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=128,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=280.377350	y=384.000000	rz=0.0167303178	uz=1.00381911	vz=0.473128408
+V	1	x=280.677002	y=374.693115	rz=0.0168851521	uz=1.01310909	vz=0
+V	2	x=281.413361	y=384.000000	rz=0.0172899552	uz=1.15470684	vz=0
+P	seq=196	verts=4	bucket=20254	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1b28,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1294	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1280,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=52.860718	y=273.945190	rz=0.0179901607	uz=2.30274057	vz=1.15137029
+V	1	x=73.715454	y=243.228317	rz=0.0160675347	uz=0	vz=1.02631378
+V	2	x=89.532791	y=269.842865	rz=0.0164099932	uz=0	vz=2.10047913
+V	3	x=70.117065	y=304.554352	rz=0.0184205789	uz=2.3578341	vz=2.35553145
+P	seq=197	verts=4	bucket=20254	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=1263	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=52.860718	y=273.945190	rz=0.0179901607	uz=2.30274057	vz=4.60323238
+V	1	x=9.992630	y=28.900665	rz=0.0219422299	uz=2.80860543	vz=0
+V	2	x=40.308746	y=23.508148	rz=0.0191473439	uz=0	vz=0
+V	3	x=73.715454	y=243.228317	rz=0.0160675347	uz=0	vz=4.11128044
+P	seq=198	verts=4	bucket=20254	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1431	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=188.473801	y=243.228317	rz=0.0160675347	uz=4.11328888	vz=4.11328888
+V	1	x=73.715454	y=243.228317	rz=0.0160675347	uz=0	vz=4.11128044
+V	2	x=40.308746	y=23.508148	rz=0.0191473439	uz=0	vz=0
+V	3	x=177.063873	y=23.508148	rz=0.0191473439	uz=4.90172005	vz=0
+P	seq=199	verts=4	bucket=20254	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1b28,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1384	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1280,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=206.739120	y=269.842865	rz=0.0164099932	uz=4.20095825	vz=2.10047913
+V	1	x=89.532791	y=269.842865	rz=0.0164099932	uz=0.598964751	vz=2.09842777
+V	2	x=73.715454	y=243.228317	rz=0.0160675347	uz=0	vz=1.02631378
+V	3	x=188.473801	y=243.228317	rz=0.0160675347	uz=3.52481532	vz=1.02832222
+P	seq=200	verts=4	bucket=20255	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1493	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=496.000000	y=243.210236	rz=0.0160662737	uz=3.454849	vz=4.11095762
+V	1	x=417.937012	y=243.210236	rz=0.0160662737	uz=2.05447483	vz=4.11095762
+V	2	x=450.511108	y=23.506393	rz=0.0191459134	uz=2.44828367	vz=0
+V	3	x=496.000000	y=23.506393	rz=0.0191459134	uz=3.26430988	vz=0
+P	seq=201	verts=4	bucket=20323	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a20,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=1237	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1024,256	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=70.117065	y=304.554352	rz=0.0184205789	uz=2.3578341	vz=1.17661452
+V	1	x=89.532791	y=269.842865	rz=0.0164099932	uz=0	vz=1.04818833
+V	2	x=94.169815	y=302.604645	rz=0.0159298088	uz=0	vz=2.03901553
+V	3	x=75.939102	y=340.060486	rz=0.0178176817	uz=2.28066325	vz=2.28066325
+P	seq=202	verts=4	bucket=20323	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1824,82c0	luma=241	lumabase=0	colorbase=523	checker=0	texlod=1425	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=1152,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=207.946487	y=302.604645	rz=0.0159298088	uz=8.15407085	vz=2.03901553
+V	1	x=94.169815	y=302.604645	rz=0.0159298088	uz=4.07603979	vz=2.03901553
+V	2	x=89.532791	y=269.842865	rz=0.0164099932	uz=4.20095825	vz=1.04818833
+V	3	x=206.739120	y=269.842865	rz=0.0164099932	uz=8.4019165	vz=1.05023956
+P	seq=203	verts=4	bucket=20373	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1365	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=496.000000	y=259.879028	rz=0.0158327669	uz=4.91256762	vz=2.02518463
+V	1	x=415.467133	y=259.879028	rz=0.0158327669	uz=2.02461505	vz=2.02659416
+V	2	x=417.937012	y=243.210236	rz=0.0160662737	uz=2.05447483	vz=1.0262332
+V	3	x=496.000000	y=243.210236	rz=0.0160662737	uz=4.85385656	vz=1.0262332
+P	seq=204	verts=4	bucket=20424	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1814,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1401	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=640,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=22.175797	y=384.000000	rz=0.0170716811	uz=2.18304133	vz=1.44023037
+V	1	x=12.307709	y=340.060486	rz=0.0178176817	uz=2.27843595	vz=0
+V	2	x=75.939102	y=340.060486	rz=0.0178176817	uz=4.5590992	vz=0
+V	3	x=83.143036	y=384.000000	rz=0.0170716811	uz=4.36821651	vz=1.44023025
+P	seq=205	verts=4	bucket=20424	window=1	renderer=2	tex=1	trans=0	hdr=40db,0000,1808,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=1231	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x256	texpos=256,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=-0.000015	y=358.521088	rz=0.0187481102	uz=1.507267	vz=0
+V	1	x=12.307709	y=340.060486	rz=0.0178176817	uz=0	vz=0
+V	2	x=22.175797	y=384.000000	rz=0.0170716811	uz=0	vz=1.44023025
+V	3	x=-0.000015	y=384.000000	rz=0.0187481102	uz=2.0314672	vz=0.624716043
+P	seq=206	verts=4	bucket=20544	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1824,82c0	luma=241	lumabase=0	colorbase=523	checker=0	texlod=1431	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=1152,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=496.000000	y=291.802155	rz=0.0153855402	uz=6.99436331	vz=0.984674573
+V	1	x=410.736694	y=291.802155	rz=0.0153855402	uz=3.93677521	vz=0.984674573
+V	2	x=415.467133	y=259.879028	rz=0.0158327669	uz=4.05120945	vz=0
+V	3	x=496.000000	y=259.879028	rz=0.0158327669	uz=6.93916225	vz=0
+P	seq=207	verts=4	bucket=20793	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,182c,1340	luma=239	lumabase=0	colorbase=77	checker=0	texlod=1451	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=1408,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=246.024048	y=218.429733	rz=0.0145153515	uz=1.85615063	vz=3.71411562
+V	1	x=188.437302	y=243.210236	rz=0.0160662737	uz=0	vz=4.11095762
+V	2	x=177.020111	y=23.506393	rz=0.0191459134	uz=0	vz=0
+V	3	x=245.688141	y=19.330765	rz=0.0169828851	uz=2.17168641	vz=0
+P	seq=208	verts=4	bucket=20793	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1b28,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1417	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1280,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=263.596863	y=241.947296	rz=0.0147942668	uz=1.89366615	vz=1.89366615
+V	1	x=206.701416	y=269.822266	rz=0.0164086781	uz=0.525077701	vz=2.1003108
+V	2	x=188.437302	y=243.210236	rz=0.0160662737	uz=0	vz=1.0262332
+V	3	x=246.024048	y=218.429733	rz=0.0145153515	uz=1.39347374	vz=0.927168071
+P	seq=209	verts=4	bucket=20793	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,182c,1340	luma=214	lumabase=0	colorbase=77	checker=0	texlod=1489	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=1408,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=450.511108	y=23.506393	rz=0.0191459134	uz=4.89896059	vz=0
+V	1	x=417.937012	y=243.210236	rz=0.0160662737	uz=4.11095762	vz=4.11095762
+V	2	x=349.698181	y=218.429733	rz=0.0145153515	uz=1.85615063	vz=3.71411562
+V	3	x=366.986328	y=19.330765	rz=0.0169828851	uz=2.17168641	vz=0
+P	seq=210	verts=4	bucket=20828	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1824,82c0	luma=239	lumabase=0	colorbase=523	checker=0	texlod=1310	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=1152,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=263.183990	y=272.303802	rz=0.0144026559	uz=7.37235928	vz=0.921769977
+V	1	x=207.909775	y=302.580109	rz=0.0159285702	uz=4.07572269	vz=1.01942849
+V	2	x=206.701416	y=269.822266	rz=0.0164086781	uz=4.19857073	vz=0
+V	3	x=263.596863	y=241.947296	rz=0.0147942668	uz=7.57281542	vz=0
+P	seq=211	verts=4	bucket=20852	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,1340	luma=214	lumabase=0	colorbase=77	checker=0	texlod=1361	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=349.698181	y=218.429733	rz=0.0145153515	uz=1.85615063	vz=0.927168071
+V	1	x=417.937012	y=243.210236	rz=0.0160662737	uz=4.11095762	vz=1.0262332
+V	2	x=415.467133	y=259.879028	rz=0.0158327669	uz=4.05120945	vz=2.02659416
+V	3	x=348.358093	y=233.834381	rz=0.0143240821	uz=1.83169198	vz=1.8334825
+P	seq=212	verts=4	bucket=20878	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1814,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=1237	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=640,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=75.939102	y=340.060486	rz=0.0178176817	uz=2.28066325	vz=0
+V	1	x=94.169815	y=302.604645	rz=0.0159298088	uz=0	vz=0
+V	2	x=105.691254	y=384.000000	rz=0.014736712	uz=0	vz=2.57603717
+V	3	x=83.143036	y=384.000000	rz=0.0170716811	uz=2.18517518	vz=1.44023037
+P	seq=213	verts=4	bucket=20878	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1814,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1425	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=640,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=105.691254	y=384.000000	rz=0.014736712	uz=1.88445699	vz=2.57603717
+V	1	x=94.169815	y=302.604645	rz=0.0159298088	uz=2.03702426	vz=0
+V	2	x=207.946487	y=302.604645	rz=0.0159298088	uz=6.11505556	vz=0
+V	3	x=210.946381	y=384.000000	rz=0.014736712	uz=5.65705538	vz=2.57603717
+P	seq=214	verts=4	bucket=20970	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,181c,82c0	luma=214	lumabase=0	colorbase=523	checker=0	texlod=1361	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=896,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=348.358093	y=233.834381	rz=0.0143240821	uz=3.66517448	vz=0
+V	1	x=415.467133	y=259.879028	rz=0.0158327669	uz=8.10439777	vz=0
+V	2	x=410.736694	y=291.802155	rz=0.0153855402	uz=7.8754735	vz=0.984674573
+V	3	x=345.786499	y=263.461792	rz=0.0139570385	uz=3.57125711	vz=0.893250465
+P	seq=215	verts=4	bucket=21020	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1814,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1431	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=640,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=397.066467	y=384.000000	rz=0.0140931197	uz=1.80215764	vz=2.88920093
+V	1	x=410.736694	y=291.802155	rz=0.0153855402	uz=1.96742594	vz=0
+V	2	x=496.000000	y=291.802155	rz=0.0153855402	uz=5.0250144	vz=0
+V	3	x=496.000000	y=384.000000	rz=0.0140931197	uz=5.34996843	vz=2.88920069
+P	seq=216	verts=3	bucket=21273	window=1	renderer=3	tex=1	trans=1	hdr=60d1,0000,1b00,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=775	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x128	texpos=0,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=304.063110	y=384.000000	rz=0.0129756937	uz=1.85344768	vz=0
+V	1	x=303.279114	y=378.440918	rz=0.0127942422	uz=0.817232251	vz=0
+V	2	x=302.975098	y=384.000000	rz=0.0127238752	uz=0.812737525	vz=1.26028454
+P	seq=217	verts=4	bucket=21274	window=1	renderer=3	tex=1	trans=1	hdr=60d1,0000,1b00,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=684	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x128	texpos=0,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=272.518158	y=384.000000	rz=0.0126388427	uz=5.09656334	vz=1.61777186
+V	1	x=270.599640	y=352.899231	rz=0.0116498666	uz=0.744135201	vz=1.49118292
+V	2	x=270.747681	y=346.114197	rz=0.0117261754	uz=0.74900943	vz=0
+V	3	x=273.144440	y=384.000000	rz=0.0129616819	uz=6.15153646	vz=0
+P	seq=218	verts=5	bucket=21304	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1818,1340	luma=239	lumabase=0	colorbase=77	checker=0	texlod=1375	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=768,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=261.714508	y=380.409576	rz=0.013008791	uz=3.32862449	vz=3.32862449
+V	1	x=256.945923	y=384.000000	rz=0.0131273782	uz=3.18356586	vz=3.35896778
+V	2	x=210.912827	y=384.000000	rz=0.0147354063	uz=1.8842901	vz=2.57672095
+V	3	x=207.909775	y=302.580109	rz=0.0159285702	uz=2.03686595	vz=0
+V	4	x=263.183990	y=272.303802	rz=0.0144026559	uz=3.68527961	vz=0
+P	seq=219	verts=5	bucket=21386	window=1	renderer=3	tex=1	trans=1	hdr=60d1,0000,1b00,2280	luma=241	lumabase=0	colorbase=138	checker=0	texlod=1060	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x128	texpos=0,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=302.975098	y=384.000000	rz=0.0127238752	uz=0	vz=1.26028454
+V	1	x=303.279114	y=378.440918	rz=0.0127942422	uz=0	vz=0
+V	2	x=330.018646	y=361.428497	rz=0.012238849	uz=3.91643167	vz=0
+V	3	x=329.461731	y=368.404175	rz=0.0121557452	uz=3.88983846	vz=1.55593538
+V	4	x=305.378235	y=384.000000	rz=0.0126521066	uz=0.364670396	vz=1.61946964
+P	seq=220	verts=3	bucket=21421	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a80,1340	luma=239	lumabase=0	colorbase=77	checker=0	texlod=1375	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=0,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=256.945923	y=384.000000	rz=0.0131273782	uz=3.18356586	vz=0.838511288
+V	1	x=261.714508	y=380.409576	rz=0.013008791	uz=3.32862449	vz=0.830936551
+V	2	x=261.665741	y=384.000000	rz=0.012962536	uz=3.31678891	vz=0.951933682
+P	seq=221	verts=3	bucket=21424	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1814,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=776	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=640,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=271.574280	y=368.697235	rz=0.0121522835	uz=0	vz=0.473939061
+V	1	x=272.249451	y=384.000000	rz=0.0126388948	uz=1.44506967	vz=0.492916912
+V	2	x=271.220886	y=384.000000	rz=0.0119701019	uz=0	vz=1.35233152
+P	seq=222	verts=4	bucket=21424	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c07,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1313	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=224,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=329.438538	y=368.697235	rz=0.0121522835	uz=0	vz=0.054685276
+V	1	x=305.552277	y=384.000000	rz=0.0126388948	uz=1.08803582	vz=1.2959094
+V	2	x=272.249451	y=384.000000	rz=0.0126388948	uz=2.42531872	vz=1.2959094
+V	3	x=271.574280	y=368.697235	rz=0.0121522835	uz=2.32108617	vz=0.054685276
+P	seq=223	verts=3	bucket=21424	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1814,1340	luma=242	lumabase=0	colorbase=77	checker=0	texlod=1256	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=640,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=305.552277	y=384.000000	rz=0.0126388948	uz=1.44506967	vz=0.480278015
+V	1	x=329.438538	y=368.697235	rz=0.0121522835	uz=0	vz=0.461786777
+V	2	x=328.217651	y=384.000000	rz=0.0119701019	uz=0	vz=1.34444189
+P	seq=224	verts=5	bucket=21446	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1818,1340	luma=214	lumabase=0	colorbase=77	checker=0	texlod=1428	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=768,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=345.786499	y=263.461792	rz=0.0139570385	uz=1.7847563	vz=0
+V	1	x=410.736694	y=291.802155	rz=0.0153855402	uz=3.93677521	vz=0
+V	2	x=397.066467	y=384.000000	rz=0.0140931197	uz=3.60607696	vz=2.88920116
+V	3	x=360.489594	y=384.000000	rz=0.0131274005	uz=2.41403913	vz=3.3589735
+V	4	x=336.588135	y=369.369141	rz=0.0126441605	uz=1.61687207	vz=3.23532462
+P	seq=225	verts=3	bucket=21563	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a80,1340	luma=214	lumabase=0	colorbase=77	checker=0	texlod=1428	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=0,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=336.588135	y=369.369141	rz=0.0126441605	uz=1.61687207	vz=0.807645738
+V	1	x=360.489594	y=384.000000	rz=0.0131274005	uz=2.41403937	vz=0.838512719
+V	2	x=335.318420	y=384.000000	rz=0.0124629335	uz=1.59467351	vz=1.29570711
+P	seq=226	verts=4	bucket=21645	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1490	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=333.237030	y=180.899414	rz=0.0121658547	uz=4.67168808	vz=3.11293817
+V	1	x=246.343872	y=180.899414	rz=0.0121658547	uz=1.55570865	vz=3.11293817
+V	2	x=246.114182	y=13.286942	rz=0.0138531886	uz=1.77147651	vz=0
+V	3	x=345.058899	y=13.286942	rz=0.0138531886	uz=5.31962442	vz=0
+P	seq=227	verts=4	bucket=21645	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=209	lumabase=0	colorbase=77	checker=0	texlod=449	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=246.114182	y=13.286942	rz=0.0138531886	uz=0	vz=0
+V	1	x=246.343872	y=180.899414	rz=0.0121658547	uz=0	vz=3.11293817
+V	2	x=246.024048	y=218.429733	rz=0.0145153515	uz=3.71592999	vz=3.71411562
+V	3	x=245.688141	y=19.330765	rz=0.0169828851	uz=4.34761858	vz=0
+P	seq=228	verts=4	bucket=21645	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1810,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=1179	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=512,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=349.698181	y=218.429733	rz=0.0145153515	uz=3.71411562	vz=3.71411562
+V	1	x=333.237030	y=180.899414	rz=0.0121658547	uz=0	vz=3.11293817
+V	2	x=345.058899	y=13.286942	rz=0.0138531886	uz=0	vz=0
+V	3	x=366.986328	y=19.330765	rz=0.0169828851	uz=4.3454957	vz=0
+P	seq=229	verts=4	bucket=21651	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c07,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1313	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=224,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=329.438538	y=368.697235	rz=0.0121522835	uz=0	vz=1.99905062
+V	1	x=271.574280	y=368.697235	rz=0.0121522835	uz=2.32108617	vz=1.99905062
+V	2	x=270.142181	y=345.484711	rz=0.0114140492	uz=2.18008351	vz=0
+V	3	x=324.491241	y=345.484711	rz=0.0114140492	uz=0	vz=0
+P	seq=230	verts=4	bucket=21703	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1429	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=332.295624	y=194.253876	rz=0.0120314891	uz=4.62009192	vz=1.5400306
+V	1	x=260.684204	y=194.253876	rz=0.0120314891	uz=2.0528729	vz=1.5400306
+V	2	x=246.343872	y=180.899414	rz=0.0121658547	uz=1.55570865	vz=0.777093947
+V	3	x=333.237030	y=180.899414	rz=0.0121658547	uz=4.67168808	vz=0.777093947
+P	seq=231	verts=4	bucket=21703	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a98,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=1115	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=768,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=348.358093	y=233.834381	rz=0.0143240821	uz=3.66517448	vz=1.8334825
+V	1	x=332.295624	y=194.253876	rz=0.0120314891	uz=0	vz=1.5400306
+V	2	x=333.237030	y=180.899414	rz=0.0121658547	uz=0	vz=0.777093947
+V	3	x=349.698181	y=218.429733	rz=0.0145153515	uz=3.71411562	vz=0.927168071
+P	seq=232	verts=4	bucket=21703	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1b28,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1189	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1280,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=246.024048	y=218.429733	rz=0.0145153515	uz=3.18430519	vz=0.927168071
+V	1	x=246.343872	y=180.899414	rz=0.0121658547	uz=0	vz=0.777093947
+V	2	x=260.684204	y=194.253876	rz=0.0120314891	uz=0	vz=1.53852665
+V	3	x=263.596863	y=241.947296	rz=0.0147942668	uz=3.7873323	vz=1.89181685
+P	seq=233	verts=4	bucket=21759	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a8c,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1266	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=384,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=298.813354	y=343.047943	rz=0.0117606521	uz=0	vz=3.76340866
+V	1	x=326.814026	y=343.047943	rz=0.0117606521	uz=1.50536346	vz=3.76340866
+V	2	x=327.789032	y=359.730804	rz=0.0119061461	uz=1.5239867	vz=0
+V	3	x=299.441986	y=359.730804	rz=0.0119061461	uz=0	vz=0
+P	seq=234	verts=4	bucket=21821	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1824,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1429	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=1152,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=330.471954	y=220.096375	rz=0.0117711974	uz=3.01342654	vz=0.753356636
+V	1	x=260.409790	y=220.096375	rz=0.0117711974	uz=0	vz=0.753356636
+V	2	x=260.684204	y=194.253876	rz=0.0120314891	uz=0	vz=0
+V	3	x=332.295624	y=194.253876	rz=0.0120314891	uz=3.07855725	vz=0
+P	seq=235	verts=4	bucket=21821	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a20,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=1179	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=1024,256	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=345.786499	y=263.461792	rz=0.0139570385	uz=3.57125711	vz=0.893250465
+V	1	x=330.471954	y=220.096375	rz=0.0117711974	uz=0	vz=0.753356636
+V	2	x=332.295624	y=194.253876	rz=0.0120314891	uz=0	vz=0
+V	3	x=348.358093	y=233.834381	rz=0.0143240821	uz=3.66517448	vz=0
+P	seq=236	verts=4	bucket=21826	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c07,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1307	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=224,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=294.899597	y=315.590240	rz=0.010854817	uz=1.38941658	vz=0
+V	1	x=320.743561	y=315.590240	rz=0.010854817	uz=0	vz=0
+V	2	x=326.814026	y=343.047943	rz=0.0117606521	uz=0	vz=1.88023424
+V	3	x=298.813354	y=343.047943	rz=0.0117606521	uz=1.50389338	vz=1.88023424
+P	seq=237	verts=4	bucket=21842	window=1	renderer=3	tex=1	trans=1	hdr=60d1,0000,1b00,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1094	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x128	texpos=0,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=270.747681	y=346.114197	rz=0.0117261754	uz=0	vz=0
+V	1	x=270.599640	y=352.899231	rz=0.0116498666	uz=0	vz=1.49118292
+V	2	x=283.729553	y=345.484711	rz=0.0114140492	uz=2.19149733	vz=1.4609983
+V	3	x=283.958801	y=338.787476	rz=0.0114872903	uz=2.20555973	vz=0
+P	seq=238	verts=4	bucket=22297	window=1	renderer=2	tex=1	trans=0	hdr=40db,0000,1808,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1362	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x256	texpos=256,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=323.831299	y=314.244659	rz=0.0108233802	uz=2.77078533	vz=5.54021788
+V	1	x=259.410553	y=314.244659	rz=0.0108233802	uz=0	vz=5.54021788
+V	2	x=260.409790	y=220.096375	rz=0.0117711974	uz=0	vz=0
+V	3	x=330.471954	y=220.096375	rz=0.0117711974	uz=3.01342654	vz=0
+P	seq=239	verts=4	bucket=22297	window=1	renderer=2	tex=1	trans=0	hdr=40da,0000,1814,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=1179	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x256	texpos=640,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=336.588135	y=369.369141	rz=0.0126441605	uz=3.23532462	vz=3.23532462
+V	1	x=323.831299	y=314.244659	rz=0.0108233802	uz=0	vz=2.76943231
+V	2	x=330.471954	y=220.096375	rz=0.0117711974	uz=0	vz=0
+V	3	x=345.786499	y=263.461792	rz=0.0139570385	uz=3.57125711	vz=0
+P	seq=240	verts=4	bucket=22415	window=1	renderer=2	tex=1	trans=0	hdr=40c9,0000,1b92,1340	luma=241	lumabase=0	colorbase=77	checker=0	texlod=1490	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x64	texpos=576,448	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=322.353821	y=335.205078	rz=0.010612499	uz=2.0375998	vz=1.35707331
+V	1	x=259.188232	y=335.205078	rz=0.010612499	uz=0	vz=1.35707331
+V	2	x=259.410553	y=314.244659	rz=0.0108233802	uz=0	vz=0.691343427
+V	3	x=323.831299	y=314.244659	rz=0.0108233802	uz=2.078089	vz=0.691343427
+P	seq=241	verts=5	bucket=22415	window=1	renderer=2	tex=1	trans=0	hdr=40cb,0000,1800,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=1179	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=256x64	texpos=0,0	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=332.759644	y=384.000000	rz=0.012097721	uz=2.69151688	vz=1.54699612
+V	1	x=322.353821	y=335.205078	rz=0.010612499	uz=0	vz=1.35707331
+V	2	x=323.831299	y=314.244659	rz=0.0108233802	uz=0	vz=0.691343427
+V	3	x=336.588135	y=369.369141	rz=0.0126441605	uz=3.23532462	vz=0.807645738
+V	4	x=335.318420	y=384.000000	rz=0.0124629335	uz=3.18895316	vz=1.29570711
+P	seq=242	verts=3	bucket=22415	window=1	renderer=2	tex=1	trans=0	hdr=40ca,0000,1a80,1340	luma=192	lumabase=0	colorbase=77	checker=0	texlod=1243	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x64	texpos=0,320	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=326.052277	y=384.000000	rz=0.0111403791	uz=0.693646967	vz=1.23233545
+V	1	x=322.353821	y=335.205078	rz=0.010612499	uz=0	vz=0.677873373
+V	2	x=332.759644	y=384.000000	rz=0.012097721	uz=1.345101	vz=0.772741914
+P	seq=243	verts=4	bucket=22415	window=1	renderer=2	tex=1	trans=0	hdr=40d2,0000,1b0a,1340	luma=255	lumabase=0	colorbase=77	checker=0	texlod=1464	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=128x128	texpos=320,384	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=259.744751	y=384.000000	rz=0.0111403791	uz=3.1244626	vz=0
+V	1	x=259.188232	y=335.205078	rz=0.010612499	uz=0	vz=0
+V	2	x=322.353821	y=335.205078	rz=0.010612499	uz=0	vz=1.35839987
+V	3	x=326.052307	y=384.000000	rz=0.0111403801	uz=3.12344599	vz=1.42596865
+P	seq=244	verts=4	bucket=36672	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c07,1000	luma=255	lumabase=0	colorbase=64	checker=0	texlod=1413	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=224,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=271.164764	y=364.789948	rz=0.0103155095	uz=0.716927886	vz=1.65048146
+V	1	x=272.341187	y=384.000000	rz=0.0108393766	uz=0.753336668	vz=0.698625982
+V	2	x=259.438263	y=384.000000	rz=0.0108393766	uz=0.214077681	vz=0.698625922
+V	3	x=258.885437	y=364.789948	rz=0.0103155095	uz=0.203731313	vz=1.65048146
+P	seq=245	verts=4	bucket=36672	window=1	renderer=2	tex=1	trans=0	hdr=40c0,0000,1c07,1000	luma=255	lumabase=0	colorbase=64	checker=0	texlod=1413	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=32x32	texpos=224,512	wrap=1,1	mirror=0,0	sheet1=1	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=272.341187	y=384.000000	rz=0.0108393766	uz=0.0596165732	vz=0.698625922
+V	1	x=271.164764	y=364.789948	rz=0.0103155095	uz=0.0567353033	vz=1.65048146
+V	2	x=320.283356	y=364.789948	rz=0.0103155095	uz=2.10565329	vz=1.65048146
+V	3	x=323.954224	y=384.000000	rz=0.0108393766	uz=2.21258783	vz=0.698625982
+P	seq=246	verts=3	bucket=36672	window=1	renderer=3	tex=1	trans=1	hdr=e0c9,0064,0000,01c0	luma=255	lumabase=12800	colorbase=7	checker=1	texlod=-16256	vp=8,90,504,474	clip=0,0,495,383	center=256,282	texsize=64x64	texpos=0,0	wrap=1,1	mirror=0,0	sheet1=0	utex=0	utexminlod=0	utexpos=0,0
+V	0	x=248.000244	y=192.000000	rz=0.00100000005	uz=0.0323750004	vz=0.0117500005
+V	1	x=247.999756	y=192.000000	rz=0.00100000005	uz=0.0268750004	vz=0.0117500005
+V	2	x=248.000000	y=192.000000	rz=0.00100001565	uz=0.0296254642	vz=0.0172502697
+# 247 polygons tapped, 247 submitted by the geometry engine

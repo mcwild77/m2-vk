@@ -1,0 +1,7 @@
+# sticktest
+# device      Nintendo Switch Pro Controller
+# sdl mapping yes
+# hidapi hint 1
+# axes 6, buttons 16, hats 1
+# raw int16 values, one row per CHANGE (not per poll)
+ms,a0,a1,a2,a3,a4,a5
