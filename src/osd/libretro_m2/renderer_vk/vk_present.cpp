@@ -153,6 +153,11 @@ struct frame_slot
 
 	layer_tex       layers[m2vk::LAYER_COUNT];
 
+	// model2_smooth_2d: a second descriptor naming layers[LAYER_UNDER].texture_view through the LINEAR
+	// sampler. Written once alongside the NEAREST one; the composite binds whichever the live option
+	// selects, so the toggle needs no ring rebuild.
+	VkDescriptorSet under_linear_descriptor = VK_NULL_HANDLE;
+
 	VkCommandPool   pool = VK_NULL_HANDLE;
 	VkCommandBuffer cmd = VK_NULL_HANDLE;
 	VkFence         fence = VK_NULL_HANDLE;
@@ -174,6 +179,10 @@ uint32_t s_slot_count = 0;
 // Shared by every slot, built and destroyed with the ring.
 VkRenderPass          s_render_pass = VK_NULL_HANDLE;
 VkSampler             s_sampler = VK_NULL_HANDLE;
+// model2_smooth_2d: a LINEAR twin of s_sampler, used by the opaque 2D under-layer's second descriptor
+// only. Never bound anywhere else — the color-keyed OVER layer, the reticle/bar/counter overlays and
+// the supersample resolve all keep the NEAREST sampler.
+VkSampler             s_sampler_linear = VK_NULL_HANDLE;
 VkDescriptorSetLayout s_set_layout = VK_NULL_HANDLE;
 VkDescriptorPool      s_descriptor_pool = VK_NULL_HANDLE;
 VkPipelineLayout      s_pipeline_layout = VK_NULL_HANDLE;
@@ -338,6 +347,24 @@ bool counter_on()
 		s_env_counter = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
 	}
 	return (s_env_counter < 0) ? s_option_counter : (s_env_counter != 0);
+}
+
+// model2_smooth_2d — bilinear-filter the opaque 2D under-layer (background tilemaps) when the picture
+// is magnified above native by model2_internal_res. Off by default; a no-op at native, where the layer
+// maps one texel per pixel. Only ever changes which of the under-layer's two descriptors the composite
+// binds, so it applies live. M2VK_SMOOTH_2D overrides it in the same presence-or-value direction as
+// the counter switch above.
+bool     s_option_smooth_2d = false;
+int      s_env_smooth_2d = -2;   // -2 = not read; -1 = no switch; 0/1 = pinned
+
+bool smooth_2d_on()
+{
+	if (s_env_smooth_2d == -2)
+	{
+		char const *const env = std::getenv("M2VK_SMOOTH_2D");
+		s_env_smooth_2d = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_smooth_2d < 0) ? s_option_smooth_2d : (s_env_smooth_2d != 0);
 }
 
 // model2_internal_res's value, parked here by retro_load_game before the ring exists; 0x0 is "the
@@ -884,11 +911,24 @@ bool build_sampler()
 	info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
 	info.unnormalizedCoordinates = VK_FALSE;
 
-	return check(s_fns.create_sampler(s_device, &info, nullptr, &s_sampler), "vkCreateSampler");
+	if (!check(s_fns.create_sampler(s_device, &info, nullptr, &s_sampler), "vkCreateSampler"))
+		return false;
+
+	// The LINEAR twin for model2_smooth_2d. Identical but for the two filter fields: same
+	// CLAMP_TO_EDGE, so magnifying the picture-sized under-layer up to the internal-resolution target
+	// interpolates the interior and clamps the border with no wrap bleed. mipmapMode stays NEAREST —
+	// the layer texture has no mip chain (maxLod 0), so it never samples one. UNORM formats are
+	// required by Vulkan to support SAMPLED_IMAGE_FILTER_LINEAR, so this cannot fail where NEAREST did.
+	info.magFilter = VK_FILTER_LINEAR;
+	info.minFilter = VK_FILTER_LINEAR;
+
+	return check(s_fns.create_sampler(s_device, &info, nullptr, &s_sampler_linear), "vkCreateSampler (linear)");
 }
 
-// One combined image sampler, fragment stage, one set per slot. The sampler is immutable — it never
-// varies and baking it into the layout is one fewer thing for the per-frame path to get wrong.
+// One combined image sampler, fragment stage, one set per slot. The sampler is NOT immutable: the
+// under-layer owns a second descriptor naming the LINEAR twin (model2_smooth_2d), and immutable would
+// force both descriptors to the layout's one sampler. Each write names its sampler instead — every
+// site already did, when the field was ignored — so this is one word of layout, not a per-frame cost.
 bool build_descriptors(uint32_t slot_count)
 {
 	VkDescriptorSetLayoutBinding binding{};
@@ -896,7 +936,7 @@ bool build_descriptors(uint32_t slot_count)
 	binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	binding.descriptorCount = 1;
 	binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	binding.pImmutableSamplers = &s_sampler;
+	binding.pImmutableSamplers = nullptr;
 
 	VkDescriptorSetLayoutCreateInfo layout_info{};
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -906,9 +946,10 @@ bool build_descriptors(uint32_t slot_count)
 		return false;
 
 	// One set per layer per slot: the two layers are sampled by two draws in the same command buffer,
-	// so they cannot share. Under M2VK_SS each slot needs one more, naming its oversized attachment
-	// for the resolve draw.
-	const uint32_t sets = slot_count * (uint32_t(m2vk::LAYER_COUNT) + ((s_ss > 1) ? 1u : 0u));
+	// so they cannot share. One more per slot for the under-layer's LINEAR twin (model2_smooth_2d),
+	// naming the same view through s_sampler_linear. Under M2VK_SS each slot needs one more again,
+	// naming its oversized attachment for the resolve draw.
+	const uint32_t sets = slot_count * (uint32_t(m2vk::LAYER_COUNT) + 1u + ((s_ss > 1) ? 1u : 0u));
 
 	VkDescriptorPoolSize size{};
 	size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1161,6 +1202,8 @@ void destroy_shared()
 		s_fns.destroy_descriptor_set_layout(s_device, s_set_layout, nullptr);
 	if (s_sampler != VK_NULL_HANDLE)
 		s_fns.destroy_sampler(s_device, s_sampler, nullptr);
+	if (s_sampler_linear != VK_NULL_HANDLE)
+		s_fns.destroy_sampler(s_device, s_sampler_linear, nullptr);
 	if (s_render_pass != VK_NULL_HANDLE)
 		s_fns.destroy_render_pass(s_device, s_render_pass, nullptr);
 
@@ -1174,6 +1217,7 @@ void destroy_shared()
 	s_descriptor_pool = VK_NULL_HANDLE;
 	s_set_layout = VK_NULL_HANDLE;
 	s_sampler = VK_NULL_HANDLE;
+	s_sampler_linear = VK_NULL_HANDLE;
 	s_render_pass = VK_NULL_HANDLE;
 }
 
@@ -1206,6 +1250,7 @@ void forget_ring()
 	s_descriptor_pool = VK_NULL_HANDLE;
 	s_set_layout = VK_NULL_HANDLE;
 	s_sampler = VK_NULL_HANDLE;
+	s_sampler_linear = VK_NULL_HANDLE;
 	s_render_pass = VK_NULL_HANDLE;
 	s_device = VK_NULL_HANDLE;
 	s_iface = nullptr;
@@ -1544,13 +1589,42 @@ bool build_slot(frame_slot &slot, unsigned width, unsigned height, uint32_t queu
 		// Written once. The texture it names never changes for the life of the slot, so there is nothing
 		// for the per-frame path to update.
 		VkDescriptorImageInfo image_binding{};
-		image_binding.sampler = s_sampler;   // immutable in the layout; named here for clarity
+		image_binding.sampler = s_sampler;   // NEAREST; the layout carries no immutable sampler now
 		image_binding.imageView = l.texture_view;
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		VkWriteDescriptorSet write{};
 		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		write.dstSet = l.descriptor;
+		write.dstBinding = 0;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		write.pImageInfo = &image_binding;
+		s_fns.update_descriptor_sets(s_device, 1, &write, 0, nullptr);
+	}
+
+	// model2_smooth_2d's LINEAR twin for the opaque under-layer: the same view the NEAREST descriptor
+	// names, sampled through s_sampler_linear. Only the background gets one — the color-keyed OVER
+	// layer must stay NEAREST (its exact pixel-0 transparency test breaks under interpolation, and the
+	// key colour would bleed into glyph edges), so it has no linear descriptor.
+	{
+		VkDescriptorSetAllocateInfo set_alloc{};
+		set_alloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		set_alloc.descriptorPool = s_descriptor_pool;
+		set_alloc.descriptorSetCount = 1;
+		set_alloc.pSetLayouts = &s_set_layout;
+		if (!check(s_fns.allocate_descriptor_sets(s_device, &set_alloc, &slot.under_linear_descriptor),
+				"vkAllocateDescriptorSets (under linear)"))
+			return false;
+
+		VkDescriptorImageInfo image_binding{};
+		image_binding.sampler = s_sampler_linear;
+		image_binding.imageView = slot.layers[m2vk::LAYER_UNDER].texture_view;
+		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.dstSet = slot.under_linear_descriptor;
 		write.dstBinding = 0;
 		write.descriptorCount = 1;
 		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -2067,9 +2141,14 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	}
 	else
 	{
+		// model2_smooth_2d picks the LINEAR twin here and only here: this is the opaque background draw.
+		// The OVER pass, the reticle/bar/counter overlays and the SS resolve keep the NEAREST descriptor.
+		VkDescriptorSet const under_set = smooth_2d_on()
+				? slot.under_linear_descriptor
+				: slot.layers[m2vk::LAYER_UNDER].descriptor;
 		s_fns.cmd_bind_pipeline(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
 		s_fns.cmd_bind_descriptor_sets(slot.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline_layout,
-				0, 1, &slot.layers[m2vk::LAYER_UNDER].descriptor, 0, nullptr);
+				0, 1, &under_set, 0, nullptr);
 		s_fns.cmd_draw(slot.cmd, 3, 1, 0, 0);
 	}
 
@@ -2534,6 +2613,13 @@ void set_option_counter(bool on)
 	// Parked; draw_counter reads counter_on() each frame, so it applies on the next presented frame with
 	// nothing to rebuild. M2VK_POLYCOUNT overrides it there.
 	s_option_counter = on;
+}
+
+void set_option_smooth_2d(bool on)
+{
+	// Parked; the composite reads smooth_2d_on() each frame to pick the under-layer descriptor, so it
+	// applies on the next presented frame with nothing to rebuild. M2VK_SMOOTH_2D overrides it there.
+	s_option_smooth_2d = on;
 }
 
 bool present_extent(unsigned &width, unsigned &height)

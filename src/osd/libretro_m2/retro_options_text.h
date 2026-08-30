@@ -92,6 +92,12 @@ inline constexpr char const *POLY_COUNTER_LABEL = "Polygon Count";
 inline constexpr char const *POLY_COUNTER_INFO =
 	"Display polygons rendered per frame. Vulkan only.";
 
+// --- Smooth 2D Backgrounds ---------------------------------------------------
+inline constexpr char const *SMOOTH_2D_LABEL = "Smooth 2D Backgrounds";
+inline constexpr char const *SMOOTH_2D_INFO =
+	"Bilinear-filter the 2D background layer when Internal Resolution is above native. "
+	"Softens the background tilemaps; the HUD text stays sharp. Vulkan only.";
+
 // --- 2D Overlay (System 22) --------------------------------------------------
 inline constexpr char const *S22_2D_OVERLAY_LABEL = "2D Overlay (HUD)";
 inline constexpr char const *S22_2D_OVERLAY_INFO =

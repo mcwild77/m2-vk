@@ -108,6 +108,15 @@ inline constexpr char const *KEY_S22_DEPTH_BUFFER = "system22_depth_buffer";
 // m2vk::set_option_counter() parks it; M2VK_POLYCOUNT wins.
 inline constexpr char const *KEY_POLY_COUNTER = "model2_poly_counter";
 
+// Bilinear-filter the opaque 2D under-layer (background tilemaps) when Internal Resolution magnifies the
+// picture above native. An enhancement, off by default; a no-op at native, where the layer is one texel
+// per pixel. Under layer ONLY — the color-keyed foreground/HUD overlay keeps NEAREST, because bilinear
+// breaks its exact pixel-0 transparency test and bleeds the key colour into glyph edges. Shown for
+// Model 2 / System 22 / Model 1 / System 23 (the shared composite path); hidden from the System 21
+// menu, whose background is composited in pen space with texelFetch and cannot read this sampler.
+// Vulkan only. m2vk::set_option_smooth_2d() parks it; M2VK_SMOOTH_2D wins.
+inline constexpr char const *KEY_SMOOTH_2D = "model2_smooth_2d";
+
 // System 22 only — draw the hardware fog (default on, the accurate picture) or skip every fog blend.
 // Unlike the two options above this is not an enhancement: fog is what the hardware does, so "on" is the
 // accurate default and "off" is the debug view. Hidden from the Model 2 and System 21 menus (their seams
@@ -300,6 +309,10 @@ bool get_steering_display(retro_environment_t environ_cb);
 // KEY_POLY_COUNTER resolved to the bool m2vk::set_option_counter() takes. "on" tested, so an unreadable
 // value leaves the counter off.
 bool get_poly_counter(retro_environment_t environ_cb);
+
+// KEY_SMOOTH_2D resolved to the bool m2vk::set_option_smooth_2d() takes. "on" tested, so an unreadable
+// value lands on the accurate NEAREST default.
+bool get_smooth_2d(retro_environment_t environ_cb);
 
 // Anything unrecognised → accurate screen door.
 unsigned get_transparency(retro_environment_t environ_cb);

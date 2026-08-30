@@ -87,6 +87,12 @@ void set_option_resolution(unsigned width, unsigned height);
 // overrides the option. Applies on the next presented frame; nothing to rebuild.
 void set_option_counter(bool on);
 
+// model2_smooth_2d: bilinear-filter the opaque 2D under-layer (background tilemaps) when the picture is
+// magnified above native by the internal-resolution option. Off by default; a no-op at native. Under
+// layer only — the color-keyed foreground/HUD overlay keeps NEAREST. Vulkan only. M2VK_SMOOTH_2D
+// overrides the option. Applies on the next presented frame; nothing to rebuild.
+void set_option_smooth_2d(bool on);
+
 // The extent of the image the frontend was last handed, which is NOT MAME's picture size once the
 // resolution option is above native. False before the first successful present_frame(), when there is
 // nothing to report and the caller should say nothing to the frontend either.

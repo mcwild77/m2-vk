@@ -417,6 +417,9 @@ void apply_family_cascade(family fam)
 		// Both Smooth Shading enhancements belong to other families; hide them here too.
 		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
 		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
+		// Smooth 2D Backgrounds acts on the shared composite's under-layer draw, which S21 does not take —
+		// its background is composited in pen space with texelFetch (s21_geom), unreachable by the sampler.
+		m2opt::hide_option(m2opt::KEY_SMOOTH_2D);
 	}
 	else if (fam == family::model1)
 	{
@@ -879,6 +882,10 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// a harmless no-op on the software renderer.
 	m2vk::set_option_counter(m2opt::get_poly_counter(s_environ_cb));
 
+	// Smooth 2D backgrounds — bilinear the under-layer when magnified. Shared composite path, so it
+	// covers every family but System 21 (hidden from its menu; its background is pen-space texelFetch).
+	m2vk::set_option_smooth_2d(m2opt::get_smooth_2d(s_environ_cb));
+
 	// System 22's 3D texture filter — its own option, declared only on the S22 build (hidden on Model 2
 	// above). Parked in the S22 polygon pass; a harmless no-op on Model 2, whose seam never draws. The
 	// option is hidden there, so it always reads its "off" default, but the read is gated on family
@@ -1286,6 +1293,7 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_steerbar(steer_display);
 		m2vk::set_option_analog(m2opt::get_analog_deadzone(s_environ_cb), m2opt::get_analog_reach(s_environ_cb));
 		m2vk::set_option_counter(m2opt::get_poly_counter(s_environ_cb));
+		m2vk::set_option_smooth_2d(m2opt::get_smooth_2d(s_environ_cb));
 
 		// System 22 texture filter, fog, no-textures and No Lighting all apply live — push-constant bits
 		// read at the next draw, nothing to rebuild.

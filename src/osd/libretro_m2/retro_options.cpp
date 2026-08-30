@@ -149,12 +149,15 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		m2txt::FLAT_LUMA_INFO,
 		nullptr,
 		nullptr,
+		// "disabled"/"enabled" rather than "off"/"on": RetroArch draws an inline on/off toggle switch
+		// (no value-list submenu) only when a two-value option's value KEYS are exactly these. The human
+		// labels are still V_OFF/V_ON. get_flat_luma() tests "enabled" to match.
 		{
-			{ "off", m2txt::V_OFF },
-			{ "on",  m2txt::V_ON },
+			{ "disabled", m2txt::V_OFF },
+			{ "enabled",  m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
-		"off"
+		"disabled"
 	},
 	{
 		m2opt::KEY_SMOOTH_SHADING,
@@ -189,6 +192,20 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		m2txt::POLY_COUNTER_LABEL,
 		nullptr,
 		m2txt::POLY_COUNTER_INFO,
+		nullptr,
+		nullptr,
+		{
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"off"
+	},
+	{
+		m2opt::KEY_SMOOTH_2D,
+		m2txt::SMOOTH_2D_LABEL,
+		nullptr,
+		m2txt::SMOOTH_2D_INFO,
 		nullptr,
 		nullptr,
 		{
@@ -683,7 +700,10 @@ unsigned m2opt::get_flat_shading(retro_environment_t environ_cb)
 
 bool m2opt::get_flat_luma(retro_environment_t environ_cb)
 {
-	return get(environ_cb, KEY_FLAT_LUMA) == "on";
+	// "enabled" is the value key now (see the DEFINITIONS entry): the boolean toggle-switch pair. A stale
+	// "on" from an older config no longer matches any value, so RetroArch falls back to the "disabled"
+	// default — same off as before.
+	return get(environ_cb, KEY_FLAT_LUMA) == "enabled";
 }
 
 bool m2opt::get_smooth_shading(retro_environment_t environ_cb)
@@ -704,6 +724,11 @@ bool m2opt::get_steering_display(retro_environment_t environ_cb)
 bool m2opt::get_poly_counter(retro_environment_t environ_cb)
 {
 	return get(environ_cb, KEY_POLY_COUNTER) == "on";
+}
+
+bool m2opt::get_smooth_2d(retro_environment_t environ_cb)
+{
+	return get(environ_cb, KEY_SMOOTH_2D) == "on";
 }
 
 unsigned m2opt::get_transparency(retro_environment_t environ_cb)
