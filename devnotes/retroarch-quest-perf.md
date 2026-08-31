@@ -55,9 +55,9 @@ it works. Only the deltas below are Quest-3-specific.
 | | Odin 2 (`android.md`) | Quest 3 |
 | --- | --- | --- |
 | RetroArch package | `com.retroarch.aarch64` | same (arm64 → aarch64 build) |
-| ROM location | SD card, found by `fsLabel` | **no SD card** — internal storage, set `M2VK_ANDROID_ROMDIR` |
+| ROM location | SD card, found by `fsLabel` | **no SD card** — internal storage `/storage/emulated/0/Roms/model2`, set `M2VK_ANDROID_ROMDIR` |
 | Input | built-in gamepad | **pair a Bluetooth pad** (RetroArch's touch overlay is unusable in the 2D panel) |
-| Video driver | `vulkan` (already was) | must be `vulkan` — confirm in `retroarch.cfg` |
+| Video driver | `vulkan` (already was) | ⚠️ shipped as `gl` here — **had to flip to `vulkan`** in `retroarch.cfg`, or the core silently fails to load |
 
 `deploy-android.sh` errors out looking for the SD card when there isn't one, so name the internal ROM
 directory explicitly:
@@ -75,6 +75,43 @@ reads its paths out of that file rather than assuming them.
 RetroArch runs as an ordinary flat 2D Android app inside the Quest's panel. That is what we want: it
 replaces the entire deployment-frontend CPU load with a thin host, leaving the emulation thread the run
 of the big cores. (The system compositor still owns cores 6–7, same as always.)
+
+### 2.1 Quest 3 first light — verified 2026-08-31 (and the gotchas that cost the session)
+
+daytona built, deployed, and **ran on the Quest 3** under RetroArch's Vulkan driver. Concrete facts and
+traps found on the way:
+
+- **The ROM folder is `/storage/emulated/0/Roms` (capital R), not `ROMS`** — it already held a `VB`
+  (Virtual Boy) subfolder. Dropped the sets in a new `model2/` beside it. `retroarch.cfg` here has
+  `rgui_browser_directory = "default"`, so nothing pins model2 as the browse root — navigate to it.
+- **On-device ROM copy, no Mac round-trip.** The sets were already on the headset in AoJ's download
+  cache; copy them straight across rather than pull+push:
+  `adb shell "cp -r /sdcard/Android/data/com.curif.ageofjoy/downloads/modelizer/. /storage/emulated/0/Roms/model2/"`
+  (91 entries, 1.38 GB, verified by `du -sb` on both sides; the loose-file `manxttc/` + `overrev/` dirs
+  survive the `/.` copy).
+- **`video_driver` shipped as `gl`.** With `am force-stop` first (RA rewrites the file on exit):
+  `sed -i 's/^video_driver = "gl"/video_driver = "vulkan"/'`. A GL driver + a
+  `RETRO_HW_CONTEXT_VULKAN` core = a load that fails with nothing useful on screen.
+- 🚨 **"Install or Restore a Core" is not optional and the installed copy goes stale silently.** The
+  first launch after deploy **hung at ~0 CPU / ANR** — the core in the private cores dir was stale. A
+  fresh *Install or Restore a Core* on the headset fixed it instantly (CPU jumped to ~90 %, TIME+
+  climbing). If a launch hangs, reinstall the core before debugging anything else. Same class of trap as
+  the desktop symlink-reverts-to-copy note in `CLAUDE.md`.
+- **Launch by intent works, but the core only runs while the panel is focused in the headset.** An
+  unfocused panel sits at `0:00.xx` CPU and reads exactly like a hang; take the headset off and
+  wakefulness goes `Asleep` and daytona **pauses (not killed)** — pid and banked CPU-time survive, it
+  resumes on wake. Verdict tool while blind: `adb shell "top -b -n1 -p <pid>"` — climbing TIME+ = really
+  emulating, flat = unfocused/paused/deadlocked.
+- **Pin the clock before any number:** `adb shell cmd power set-fixed-performance-mode-enabled true`
+  (persists across headset sleep). §4 already says this; confirmed it takes on the Quest 3.
+- First live baseline (no optimisation, plain build): daytona **choppy audio** (emulation missing the
+  frame budget, as expected — CPU-bound) with OVR Metrics reporting ~57. This is the number Stage 1 is
+  meant to move.
+
+The Stage 0 gate for the first lever (thread the M1 sound 68000) **passed on the host** the same day —
+sound→main reply delayed up to 2 frames leaves the pixel digest bit-identical, boot→attract *and* driven
+into an actual race with the serial link flooded. Detail and digests in `m1audio-thread-plan.md`
+(Stage 0). Stage 1 (`M2VK_SOUND_THREAD`) is the next build; its Stage 2 measure is this loop.
 
 ---
 
@@ -137,6 +174,70 @@ is the same, read three ways:
 - **Pin the clock.** `adb shell cmd power set-fixed-performance-mode-enabled true` before measuring, so
   DVFS does not dip below the 1.92 GHz cap mid-run (worth ~7 % on its own, and it is system-wide, so it
   applies to RetroArch identically). It cannot exceed the cap — there is no clock headroom on this device.
+
+### 4.1 First on-device ranking — daytona, heavy race, 2026-08-31
+
+The PROFILER=1 core (throwaway build; ship builds stay PROFILER=0) run on the Quest 3 under RetroArch's
+Vulkan driver, clock pinned, driven into a sustained full-grid race. The per-device split was **rock
+steady across f=2640–3060** (`:copro_tgp` risen to 8–9 % confirms real 3D geometry load, not attract):
+
+| Bucket | % | Note |
+| --- | --- | --- |
+| `:maincpu` (i960) | 12 % | |
+| `:m1audio:sndcpu` (sound 68000) | **12 %** | **co-largest — the Stage 1 target** |
+| `:copro_tgp` (TGP geometry) | 8–9 % | the one bucket that scales with scene density |
+| `:ioboard:iocpu` | 8 % | |
+| `:drivecpu` (drive-board Z80) | 6 % | force feedback we never use on a pad |
+| *Timer Callbacks* | 13–14 % | |
+| *Unaccounted/Overhead* | 28 % | inflated by the profiler's own tick reads — read the ranking, not this |
+| *Video Update / Sound Generation* | 2 % / 1 % | GPU does the raster; confirms §1 |
+
+**Three more titles, same session, same story — `srallyc` (Sega Rally), `motoraid` (Motor Raid) and
+`dynamcop` (Dynamite Cop / Dynamite Deka 2), heavy scenes.** All steady across ~f=2100–2900. The sound
+CPU enumerates as `:audiocpu` on these three (their own 68000 board) rather than daytona's
+`:m1audio:sndcpu`, but it is the same device role:
+
+| Bucket | daytona | Sega Rally | Motor Raid | Dynamite Cop |
+| --- | --- | --- | --- | --- |
+| `:maincpu` | 12 % | 14 % | 15–16 % | 17 % |
+| sound 68000 (`:audiocpu` / `:m1audio:sndcpu`) | 12 % | 12–13 % | **17–18 %** | **18 %** |
+| sound rank | tied #1 | #2 | **#1** | **#1** |
+| `:copro_tgp` | 8–9 % | 6–8 % | 6 % | 5 % |
+| `:drivecpu` (drive board) | 6 % | 8–9 % | — | — |
+| `Video Update` | 2 % | 4–5 % | 4 % | 5 % |
+
+The sound 68000 is the **outright largest device in two of four titles and never below #2** — and
+`dynamcop` is a beat-'em-up, not a racer, so this is a Model-2-wide property, not a driving-game one.
+Stage 1 (thread it) is backed by a genre-spanning sample. The drive-board Z80 is present only on the
+wheel cabs (daytona/Sega Rally), absent on the bike (Motor Raid) and the brawler (Dynamite Cop), and
+*higher* in Sega Rally than daytona; size that lever at ~6–9 % on the games that have it, zero elsewhere.
+
+Three conclusions, the first two feeding `m1audio-thread-plan.md`:
+
+1. **The sound 68000 is co-largest (12 %, tied with `:maincpu`), so Stage 1 is justified.** The decisive
+   detail is that it held 12 % in *both* attract and the heavy race, while `:maincpu` eased 13→12 and
+   `:copro_tgp` climbed 0→9 under load — the sound CPU is a **fixed** cost on the critical path, so it
+   *becomes* the co-top bucket precisely when the frame is tightest. Best possible case for threading it off.
+2. **The drive-board Z80 (`:drivecpu`) is 6 %** — the smallest CPU bucket, but nonzero and pure
+   force-feedback with no effect on a pad. A clean ~6 % for zero gameplay cost → worth a **second lever**
+   (gate/park `:drivecpu` when no wheel is bound) once Stage 1 lands.
+3. **Interpreter hot-path work is the *other* class of lever, and the flat profile is exactly why.**
+   Every bucket here is a plain switch-interpreter with no DRC (`:maincpu`/i960, the sound 68000, `:copro_tgp`,
+   the two Z80s), so each has real local headroom — decode caching / computed-goto dispatch / fast-pathing
+   the common opcodes typically 2–3× the *device*. But Amdahl caps the whole-frame payoff at the device's
+   share: 3× on the i960 removes only `12 % × 2/3 ≈ 8 %` of the frame, not the "insane" whole-frame
+   multiplier a hot-path buys on a machine with one dominant CPU (e.g. Model 3's PowerPC). That is not a
+   reason to skip it — the gap being chased is only ~13 % (§2), so ~6–8 % off the i960 is a real chunk of
+   it, it **stacks with the sound thread** (parallelism + faster interpreter compose), and on a flat profile
+   several such ~6–8 % wins (i960, then `:copro_tgp`, then the I/O Z80) add up. It also carries **none of the
+   cross-thread-latency risk** threading does. Order of attack: land the sound thread (Stage 2 measures it),
+   then decide hot-path vs the harder copro thread by what the number says.
+
+Method notes for a re-run: the private cores dir is not adb-writable on this non-rooted headset and
+Android's linker namespace refuses to `dlopen` a core from `/storage/emulated/0/RetroArch/downloads`
+(`namespace "clns-6"`), so the in-headset **Load Core → Install or Restore a Core** step is genuinely
+mandatory — there is no shell path around it. After it, launch by intent against
+`/data/user/0/com.retroarch.aarch64/cores/…` (not the downloads copy).
 
 ---
 

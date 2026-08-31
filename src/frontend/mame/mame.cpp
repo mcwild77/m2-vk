@@ -38,6 +38,15 @@
 //  MACHINE MANAGER
 //**************************************************************************
 
+// A secondary running_machine — the M2VK sound-board worker (src/osd/libretro_m2/m2vk_soundthread.cpp)
+// — runs on its own thread. The frontend lua engine and UI manager below belong to the PRIMARY machine
+// and the main thread; entering them concurrently from the worker corrupts the shared sol::state and
+// aborts with an intermittent "call a nil value" Lua PANIC. The worker thread sets this thread_local so
+// the four emulator_info hooks that reach the singleton no-op for it. Defined here (always linked) so
+// the setter symbol exists in every build; only the libretro sound-thread module ever flips it.
+namespace { thread_local bool s_frontend_hooks_suppressed = false; }
+void mame_suppress_frontend_hooks(bool suppress) { s_frontend_hooks_suppressed = suppress; }
+
 mame_machine_manager *mame_machine_manager::s_manager = nullptr;
 
 mame_machine_manager* mame_machine_manager::instance(emu_options &options, osd_interface &osd)
@@ -461,21 +470,29 @@ int emulator_info::start_frontend(emu_options &options, osd_interface &osd, int 
 
 bool emulator_info::draw_user_interface(running_machine& machine)
 {
+	if (s_frontend_hooks_suppressed)   // worker thread: the UI belongs to the primary machine
+		return false;
 	return mame_machine_manager::instance()->ui().update_and_render(machine.render().ui_target());
 }
 
 void emulator_info::periodic_check()
 {
+	if (s_frontend_hooks_suppressed)   // worker thread: do not enter the primary machine's lua engine
+		return;
 	return mame_machine_manager::instance()->lua()->on_periodic();
 }
 
 bool emulator_info::frame_hook()
 {
+	if (s_frontend_hooks_suppressed)   // worker thread: do not enter the primary machine's lua engine
+		return false;
 	return mame_machine_manager::instance()->lua()->frame_hook();
 }
 
 void emulator_info::sound_hook(const std::map<std::string, std::vector<std::pair<const float *, int>>> &sound)
 {
+	if (s_frontend_hooks_suppressed)   // worker thread: do not enter the primary machine's lua engine
+		return;
 	return mame_machine_manager::instance()->lua()->on_sound_update(sound);
 }
 

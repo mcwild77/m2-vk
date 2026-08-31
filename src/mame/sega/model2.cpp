@@ -93,6 +93,10 @@
 
 #include "endianness.h"
 
+#ifdef M2VK
+#include "libretro_m2/m2vk_soundthread.h"
+#endif
+
 #include "model1io2.lh"
 #include "segabill.lh"
 
@@ -2614,10 +2618,35 @@ void model2o_state::model2o(machine_config &config)
 
 	MB8421(config, "dpram");
 
+#ifdef M2VK
+	// M2VK_SOUND_THREAD: run the Model 1 sound board in a second machine on a worker thread. When on,
+	// the board is not instantiated here; the main UART's TXD crosses a bridge to it and its replies
+	// come back on the UART's RXD a frame later. When off (the default), this is the untouched path.
+	// See src/osd/libretro_m2/m2vk_soundthread.h.
+	if (!m2vk_snd::enabled())
+#endif
+	{
 	SEGAM1AUDIO(config, m_m1audio);
 	m_m1audio->rxd_handler().set(m_uart, FUNC(i8251_device::write_rxd));
+	}
+#ifdef M2VK
+	else
+	{
+		// The board (with the machine's only speaker) now lives in the worker. Give the main machine a
+		// bare speaker so the "driver has no sound device" validity check still passes; it carries no
+		// stream, and frame_audio() presents the worker's ring, not this.
+		// The speaker's tag "m2vk_snd_null" is also the marker the OSD looks for to know this machine
+		// took the threaded branch (see m2vk_snd::prepare_main).
+		SPEAKER(config, "m2vk_snd_null", 2).front();
+	}
+#endif
 
 	I8251(config, m_uart, 8000000); // uPD71051C, clock unknown
+#ifdef M2VK
+	if (m2vk_snd::enabled())
+		m_uart->txd_handler().set([this](int state) { m2vk_snd::main_txd(machine().time(), state); });
+	else
+#endif
 	m_uart->txd_handler().set(m_m1audio, FUNC(segam1audio_device::write_txd));
 	m_uart->rxrdy_handler().set(FUNC(model2o_state::sound_ready_w));
 	m_uart->txrdy_handler().set(FUNC(model2o_state::sound_ready_w));

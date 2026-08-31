@@ -336,6 +336,29 @@ that the 105 % figure obscures rather than supports.
 than an M5 P-core on interpreter-style code. Take the desktop unthrottled multiple from §2, divide by
 ~3.5, and that is the first estimate of whether it fits at all.
 
+### 6.1 ✅ CONFIRMED on Quest silicon — the per-device split, daytona heavy race (2026-08-31) [measured]
+
+The `PROFILER=1` core, run on the Quest 3 under RetroArch's Vulkan driver with the clock pinned and
+driven into a sustained full-grid race, settled the §6 hypothesis with real numbers. Ranking (profiled,
+so read the order, not the absolute — the profiler roughly doubles frame time; full table and method in
+`retroarch-quest-perf.md` §4.1):
+
+`:maincpu` 12 % ≈ `:m1audio:sndcpu` 12 % > `:copro_tgp` 8–9 % ≈ `:ioboard:iocpu` 8 % > `:drivecpu` 6 %,
+against `Video Update` 2 % / `Sound Generation` 1 %.
+
+- **§1/§6 confirmed: the load is on the interpreted CPUs, not the renderer.** The GPU-side buckets are
+  2–1 %; the five interpreted CPUs are the frame.
+- **The sound 68000 is co-largest and load-independent** — 12 % in both attract and the heavy race,
+  while `:maincpu` eased 13→12 and `:copro_tgp` climbed 0→9 under geometry load. A fixed cost on the
+  critical path → the first lever (thread it, `m1audio-thread-plan.md`) aims at the right device.
+- **`:drivecpu` is a clean 6 %** of pure force-feedback we never use on a pad → a candidate second lever.
+- **Corroborated across four titles the same session** — Sega Rally, Motor Raid and Dynamite Cop
+  (Dynamite Deka 2) all give the same shape (sound 68000 tagged `:audiocpu` on these). The sound CPU is
+  the **outright largest device in two of the four** (Motor Raid 17–18 %, Dynamite Cop 18 %, both ahead
+  of `:maincpu`) and never below #2 — and Dynamite Cop is a *brawler*, so this is a Model-2-wide
+  property, not driving-specific. `:drivecpu` appears only on the wheel cabs (6 % daytona, 8–9 % Sega
+  Rally), absent on the bike and the brawler. Table in `retroarch-quest-perf.md` §4.1.
+
 ---
 
 ## 7. Measurement hygiene — a new gotcha, and it belongs in CLAUDE.md's list

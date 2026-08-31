@@ -8,6 +8,7 @@
 #include "m2vk_reticle.h"
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
+#include "m2vk_soundthread.h"
 
 #include "emu.h"
 #include "emuopts.h"
@@ -32,6 +33,11 @@
 #include "osdcore.h"
 
 #include <cstring>
+
+
+// Drops the cached threaded-sound worker state size (defined down in the savestate section). Called
+// from osd_exit() as the worker stops, so a second content load re-measures against the new machine.
+static void reset_worker_state_size_cache();
 
 
 namespace {
@@ -71,6 +77,11 @@ libretro_m2_osd_interface::libretro_m2_osd_interface(libretro_m2_options &option
 	: osd_common_t(options)
 	, m_options(options)
 {
+	// Declare that this OSD can host the sound-board worker, so the model2.cpp config hook is allowed to
+	// split the board off (M2VK_SOUND_THREAD). Must be here, in the constructor: the driver's config
+	// runs — and calls m2vk_snd::enabled() — before the machine, and long before osd init(). See
+	// m2vk_soundthread.h.
+	m2vk_snd::engage_host();
 }
 
 libretro_m2_osd_interface::~libretro_m2_osd_interface()
@@ -86,6 +97,11 @@ void libretro_m2_osd_interface::init(running_machine &machine)
 {
 	osd_common_t::init(machine);
 	init_subsystems();
+
+	// M2VK_SOUND_THREAD: allocate the sound->main serial timer on the main machine now, while its
+	// save-state registration is still open (init() runs inside running_machine::start()). No-op unless
+	// this is a split model2o machine. The worker itself starts later, on the first RUNNING frame.
+	m2vk_snd::prepare_main(machine);
 
 	// Brackets the polygon stream tapped in model2_v.cpp with this machine's run. Opening it here
 	// rather than letting the first rendered frame do it is what lets a game that renders no 3D at
@@ -175,6 +191,13 @@ void libretro_m2_osd_interface::check_osd_inputs()
 // machine().input(), and the render_target belongs to machine().render().
 void libretro_m2_osd_interface::osd_exit()
 {
+	// Stop and join the sound-board worker first, while the main machine (whose scheduler carries the
+	// sound->main serial timer) is still alive. No-op unless a threaded run is up. See m2vk_soundthread.h.
+	m2vk_snd::stop();
+
+	// the cached worker state size belonged to the worker machine going away
+	reset_worker_state_size_cache();
+
 	// last point at which the run's polygon stream is complete
 	m2vk::sink_close();
 
@@ -304,6 +327,16 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	if (machine().phase() < machine_phase::RUNNING)
 		return;
 
+	// M2VK_SOUND_THREAD: bring the worker up on the first RUNNING frame (ROMs loaded, machine up), then
+	// pace it and drain its serial replies every frame. Inert unless the flag is set (enabled() is false
+	// without it). See m2vk_soundthread.h.
+	if (m2vk_snd::enabled())
+	{
+		if (!m2vk_snd::running())
+			m2vk_snd::start(machine());
+		m2vk_snd::pump_main(machine().time());
+	}
+
 	// The lightgun read-out (M2VK_GUN_LOG), taken here so that it reports the state the frame being
 	// handed over was drawn from. Off unless the variable is set, and it reads ports rather than
 	// writing anything, so a run without it is unchanged.
@@ -365,19 +398,123 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 // pair brackets every point at which machine() is valid. A frontend is entitled to call
 // retro_serialize_size() early — RetroArch does, right after retro_load_game — and answering 0 is
 // how a core says "not yet".
+//
+// Threaded sound (M2VK_SOUND_THREAD): when the m1audio board runs on the worker machine, its state
+// lives there and not in main(), so a savestate must round-trip both. The two are length-prefixed
+// into one buffer — [u32 main_len][main bytes][u32 worker_len][worker bytes] — rather than
+// concatenated at a fixed offset: main's size is an exact figure here but the framing is robust to
+// a variable-length tail, and load parses the prefixes rather than assuming offsets. When the worker
+// is not running (THREAD=0, or a non-model2o game) the methods forward to the main machine exactly
+// as before, so the untouched fixtures see a byte-identical path. See m2vk_soundthread.h.
+namespace {
+// Each m2vk_snd::state_size() call parks the worker (mutex + a scheduler round-trip), so cache it.
+// ram_state::get_size is stable once registration closes, same as the main machine's. Reset in
+// osd_exit() alongside m2vk_snd::stop(), so a second content load in the same process re-decides.
+size_t s_worker_state_size = 0;
+size_t worker_state_size()
+{
+	if (s_worker_state_size == 0)
+		s_worker_state_size = m2vk_snd::state_size();
+	return s_worker_state_size;
+}
+constexpr size_t COMBINED_PREFIX_BYTES = 2 * sizeof(uint32_t);
+} // anonymous namespace
+
+// Defined here (below the cache), forward-declared above so osd_exit() can drop it as the worker stops.
+static void reset_worker_state_size_cache()
+{
+	s_worker_state_size = 0;
+}
+
 size_t libretro_m2_osd_interface::state_size()
 {
-	return machine_started() ? m2vk::state_size(machine()) : 0;
+	if (!machine_started())
+		return 0;
+	const size_t main = m2vk::state_size(machine());
+	if (!m2vk_snd::running())
+		return main;
+	return COMBINED_PREFIX_BYTES + main + worker_state_size();
 }
 
 bool libretro_m2_osd_interface::state_save(void *data, size_t size)
 {
-	return machine_started() && m2vk::state_save(machine(), data, size);
+	if (!machine_started())
+		return false;
+	if (!m2vk_snd::running())
+		return m2vk::state_save(machine(), data, size);
+
+	const size_t main = m2vk::state_size(machine());
+	const size_t worker = worker_state_size();
+	if ((data == nullptr) || (size < COMBINED_PREFIX_BYTES + main + worker))
+	{
+		osd_printf_error("[model2] savestate: refusing threaded save, need %zu bytes and was offered %zu\n",
+				COMBINED_PREFIX_BYTES + main + worker, size);
+		return false;
+	}
+
+	uint8_t *p = static_cast<uint8_t *>(data);
+	const uint32_t main_len = uint32_t(main);
+	std::memcpy(p, &main_len, sizeof(main_len));
+	p += sizeof(main_len);
+	if (!m2vk::state_save(machine(), p, main))
+	{
+		osd_printf_error("[model2] savestate: threaded save failed in the MAIN half (main=%zu worker=%zu)\n", main, worker);
+		return false;
+	}
+	p += main;
+
+	const uint32_t worker_len = uint32_t(worker);
+	std::memcpy(p, &worker_len, sizeof(worker_len));
+	p += sizeof(worker_len);
+	if (!m2vk_snd::state_save(p, worker))
+	{
+		osd_printf_error("[model2] savestate: threaded save failed in the WORKER half (main=%zu worker=%zu)\n", main, worker);
+		return false;
+	}
+
+	return true;
 }
 
 bool libretro_m2_osd_interface::state_load(void const *data, size_t size)
 {
-	return machine_started() && m2vk::state_load(machine(), data, size);
+	if (!machine_started())
+		return false;
+	if (!m2vk_snd::running())
+		return m2vk::state_load(machine(), data, size);
+
+	if ((data == nullptr) || (size < COMBINED_PREFIX_BYTES))
+	{
+		osd_printf_error("[model2] savestate: refusing threaded load, %zu bytes is too small for the framing\n", size);
+		return false;
+	}
+
+	uint8_t const *p = static_cast<uint8_t const *>(data);
+	uint8_t const *const end = p + size;
+
+	uint32_t main_len = 0;
+	std::memcpy(&main_len, p, sizeof(main_len));
+	p += sizeof(main_len);
+	if (size_t(end - p) < size_t(main_len) + sizeof(uint32_t))
+	{
+		osd_printf_error("[model2] savestate: threaded load framing bad (main_len=%u exceeds buffer)\n", main_len);
+		return false;
+	}
+	if (!m2vk::state_load(machine(), p, main_len))
+		return false;
+	p += main_len;
+
+	uint32_t worker_len = 0;
+	std::memcpy(&worker_len, p, sizeof(worker_len));
+	p += sizeof(worker_len);
+	if (size_t(end - p) < size_t(worker_len))
+	{
+		osd_printf_error("[model2] savestate: threaded load framing bad (worker_len=%u exceeds buffer)\n", worker_len);
+		return false;
+	}
+	if (!m2vk_snd::state_load(p, worker_len))
+		return false;
+
+	return true;
 }
 
 
@@ -518,6 +655,16 @@ const uint32_t *libretro_m2_osd_interface::framebuffer(int &width, int &height) 
 
 const int16_t *libretro_m2_osd_interface::frame_audio(int &samples_this_frame) const
 {
+	// M2VK_SOUND_THREAD: the board is in the worker machine, so the main machine's mix is silent and the
+	// audio comes from the worker's ring instead. pull_audio hands back a stable copy; drop it from the
+	// ring now, since retro_run consumes the pointer synchronously before releasing the frame.
+	if (m2vk_snd::running())
+	{
+		const int16_t *const buf = m2vk_snd::pull_audio(samples_this_frame);
+		m2vk_snd::audio_consumed();
+		return buf;
+	}
+
 	// m_audio holds interleaved stereo, so two int16 per sample frame
 	samples_this_frame = int(m_audio.size() / 2);
 	return m_audio.empty() ? nullptr : m_audio.data();

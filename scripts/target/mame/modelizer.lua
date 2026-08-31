@@ -237,6 +237,13 @@ function createProjects_mame_modelizer(_target, _subtarget)
         MAME_DIR .. "src/mame/sega/segaic24.h",
         MAME_DIR .. "src/mame/shared/segam1audio.cpp",
         MAME_DIR .. "src/mame/shared/segam1audio.h",
+
+        -- HAND-ADDED: M2VK_SOUND_THREAD — the sound board on a worker thread. Compiled here (not in the
+        -- OSD lib) because it builds a second running_machine and needs the full MAME/devices headers,
+        -- which this project has. The OSD lib and model2.cpp see only the forward-declared header; the
+        -- symbols resolve at the final link, as the render seams do. Inert unless the flag is set.
+        MAME_DIR .. "src/osd/libretro_m2/m2vk_soundthread.h",
+        MAME_DIR .. "src/osd/libretro_m2/m2vk_soundthread.cpp",
     }
 
     -- HAND-ADDED: the seam in model2_v.cpp calls into the sink in

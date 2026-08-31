@@ -36,11 +36,21 @@ Correctness and performance are measured on different machines and neither can d
 
 So each change goes: **validate on Mac (digest) → build Android `.so` → measure on Quest.**
 
-## Stage 0 — de-risk with NO threading (CODE WRITTEN, awaiting Mac digest run)
+## Stage 0 — de-risk with NO threading (✅ PASSED 2026-08-31)
 
 A fixed, single-threaded, order-preserving delay on the **sound→main serial reply** line, to answer
 one question: *does the main gate its video on sound-reply timing?* If a ~1-frame delay leaves the
 pixel digest bit-identical, the thread split is safe for video.
+
+**Result — bit-identical, including under gameplay load.** Two passes, delay off vs 17400 µs (~1f) vs
+34800 µs (~2f):
+- `ab.sh daytona 2500` (boot→attract): `bg` and both `3d` digests identical across all three arms
+  (`3d vulkan dadecf752e33441d`, `3d software 48bb93c7814cd3f4`).
+- retrohost daytona 4200f driven into an actual race (coin → accel-jam past the selector → hold accel +
+  weave, serial link flooded with engine/tyre sound; final frame confirmed on-track, LAP 1/8):
+  `digest: 41c50490a932b852` identical across all three arms.
+
+⇒ The main does not gate video on sound-reply timing, even mid-race. **Stage 1 is cleared to build.**
 
 Implemented in `src/mame/shared/segam1audio.{h,cpp}`:
 
@@ -81,23 +91,82 @@ test, drive gameplay via retrohost's control script (`frame:control[:held][:port
 - **Digests move** ⇒ **STOP.** The main gates video on reply timing; reassess the boundary before
   building any thread.
 
-## Stage 1 — thread the board (behind `M2VK_SOUND_THREAD=0/1`, default OFF)
+## Stage 1 — thread the board (behind `M2VK_SOUND_THREAD=0/1`, default OFF) — ✅ BUILT 2026-08-31
 
-Lift the whole SEGAM1AUDIO subtree onto a worker thread ~1 frame behind the main:
+**Approach chosen: a second `running_machine`.** The m1audio subtree can't be peeled off MAME's single
+global `device_scheduler`, so the board runs in its own headless machine, on a worker thread, stepped
+~1 frame behind the main. All new logic is in **`src/osd/libretro_m2/m2vk_soundthread.{h,cpp}`**; the
+only upstream edit is a **+29-line, `#ifdef M2VK`-guarded hook in `model2o_state::model2o()`**
+(`model2.cpp`) — off by default, byte-identical when off.
 
-- main→sound bytes cross a lock-free queue;
-- the board's mixed audio lands in a ring the main's audio output pulls (reuse the ring already built
-  for the HW cores);
-- sound→main replies return a frame later (the Stage 0 delay, now real cross-thread latency).
+How it fits together:
 
-The hard part is MAME-side: the m1audio subtree currently runs on the single global
-`device_scheduler` and must be lifted onto a private timeline with serial + audio bridges. Env-flag so
-one binary A/Bs cleanly. **Register the reply FIFO (and any thread hand-off state) in save state** —
-Stage 0 skips this because `ab.sh` runs boot-deterministic, but the threaded build must survive
-savestates.
+- **Second machine.** A synthetic `GAME(m1snd)` (internal linkage, never in the driver list) hosts one
+  `SEGAM1AUDIO` tagged `m1audio`. Its ROM regions are declared empty and **memcpy'd from the main
+  machine's already-loaded `m1audio:*` regions** in the driver's `machine_start` (before the 68000's
+  first fetch) — so it needs no per-game ROM_START. Driven by a bare `machine_manager` shim (returns a
+  no-op `ui_manager`) + a direct-`osd_interface` stub (`sound_osd`); `machine.run(true)` on the worker.
+  Gotchas that each cost a debug cycle: `start_http_server()` must be called (run() derefs http()),
+  `create_ui` must return a real (no-op) `ui_manager`, and one non-hidden `render().target_alloc()` is
+  needed so exit-time config-save doesn't deref a null `m_ui_target`. Do NOT `set_system_name` (it
+  validates against the driver list → "Unknown system").
+- **Serial bridge, both directions.** Both machines share the t=0 emulated-time origin, so each
+  direction is a time-tagged transition queue replayed on the RECEIVING machine's own scheduler
+  (`serial_line`), preserving inter-bit spacing — the Stage-0 delay line generalised across threads.
+  main→sound is scheduled at the tag's absolute time (worker lags, so it's future); sound→main clamps
+  to "now" and preserves deltas (a real ~1-frame reply latency). **The sound→main timer must be
+  allocated during the main machine's start (from `osd().init()`), while save registration is open** —
+  allocating it post-start is refused by MAME.
+- **Audio.** The board's mixed stereo lands in a mutex-guarded ring; `frame_audio()` presents it in
+  place of the main machine's now-silent mix. The main machine gets a bare marker speaker
+  (`m2vk_snd_null`) so validity passes — that speaker's presence is also how the OSD detects "this is a
+  split model2o machine" (a config-time flag can't be used: the validity checker builds every model2.cpp
+  driver's config, incl. daytona's, before the real machine, and would leak the decision into e.g. vf2).
+- **Pacing.** The worker blocks in its `update()` until the main is ≥1 frame ahead, so it never runs
+  ahead of the main (which would put main→sound transitions in its past).
 
-Verify: `ab.sh` digest still matches the no-thread baseline (main unaffected), audio ear-test on
-device, savestates round-trip.
+**Verified on desktop (retrohost):**
+- `M2VK_SOUND_THREAD=0` (default): daytona 2500f `48bb93c7814cd3f4` — **bit-identical to baseline**.
+- `M2VK_SOUND_THREAD=1`: daytona 2500f **also `48bb93c7814cd3f4`** — the split doesn't perturb the main
+  video at all (Stage 0's hypothesis, now fully confirmed); audio flows from the worker; clean shutdown.
+- Non-model2o safety: vf2 (model2a/SCSP) with the flag on is unchanged — worker never engages, real SCSP
+  audio intact (834/frame).
+- Works under both `software` and `--vk`.
+
+**Open items:**
+1. **Savestate round-trip across the thread boundary — ✅ WIRED + verified 2026-08-31.** The OSD's
+   `state_size/save/load` now length-prefix both machines into one buffer when `m2vk_snd::running()`:
+   `[u32 main_len][main bytes][u32 worker_len][worker bytes]`. `state_size()` reports
+   `8 + main + worker` (an exact upper bound; libretro sizes the frontend buffer from it), and load
+   parses the prefixes rather than assuming offsets — main's trailer is variable-length, so a fixed
+   offset would be wrong. When the worker is not running (flag off, or a non-model2o game) all three
+   forward to the main machine byte-for-byte as before, so the seven non-threaded fixtures are untouched
+   (re-verified: daytona/vf2/vcop2 digests identical to the pre-change baseline). Worker size is cached
+   (each `m2vk_snd::state_size()` parks the worker) and dropped in `osd_exit()`.
+   `M2VK_SOUND_THREAD=1 ./devnotes/state.sh daytona` → **C==D && N!=D, 5/5 runs**.
+
+   Wiring the save exposed **two pre-existing bugs in the threaded path**, both fixed:
+   - **Worker-park deadlock (intermittent save failure).** A savestate parks the MAIN emulation, which
+     freezes `g_main_time`. A worker sitting in its *pace* wait (`g_main_time >= self+LAG`) could then
+     never satisfy its predicate and never reach the park check, so `with_worker_parked` timed out and
+     the WORKER half of the save failed at random. Fix: the pace wait now also wakes on `g_park_request`
+     and loops back to park instead of running a frame; and `with_worker_parked` now blocks on a proper
+     CV handshake (worker announces parked under `g_park_mutex` + `notify`) instead of a 100k-yield
+     busy-spin that lost the race under load. (`m2vk_soundthread.cpp` `update()` + `with_worker_parked`.)
+   - **Lua PANIC (intermittent, even with NO savestate — 2/8 plain runs).** The worker `running_machine`
+     drives the global `emulator_info` frame/periodic/sound/UI hooks, which reach
+     `mame_machine_manager::instance()->lua()` — the PRIMARY machine's shared `sol::state` — from the
+     worker thread, concurrently with the main thread. Fix: a `thread_local` suppressor in
+     `src/frontend/mame/mame.cpp` (`mame_suppress_frontend_hooks(bool)`, always linked; only the
+     libretro worker flips it, so other OSDs are unaffected) no-ops the four `emulator_info` hooks on the
+     worker thread. **0/12 plain runs crash after the fix.** ⚠️ New upstream-file edit: `mame.cpp`
+     (self-contained — one thread_local, one setter, four one-line guards).
+2. **Worker throughput.** On the unthrottled desktop harness the worker underruns (main runs ~5.5×
+   realtime and starves it); the worker's absolute rate here is ~1.15× realtime. This is a **harness
+   artifact** — on a realtime-throttled device the worker isn't starved, and the Quest profile predicts
+   the board needs ~15% of a frame (≈6× headroom on a dedicated core). **This is exactly what Stage 2
+   measures on-device; the desktop number is not predictive.**
+3. Optional core option (menu toggle) — the env var drives it today; the menu entry is a shippable-pass nicety.
 
 ## Stage 2 — measure on the Quest (AoJ / device side)
 
