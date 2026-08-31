@@ -14,6 +14,8 @@
 #include "machine/clock.h"
 #include "speaker.h"
 
+#include <cstdlib>
+
 void segam1audio_device::segam1audio_map(address_map &map)
 {
 	map(0x000000, 0x03ffff).rom();
@@ -115,6 +117,15 @@ void segam1audio_device::device_start()
 {
 	m_mpcmbank1->configure_entries(0, 4, m_multipcm1_region->base(), 0x100000);
 	m_mpcmbank2->configure_entries(0, 4, m_multipcm2_region->base(), 0x100000);
+
+	// Stage-0 de-risk: optional delay line on the sound->main serial reply (see header).
+	m_rxd_delay_timer = timer_alloc(FUNC(segam1audio_device::rxd_delay_tick), this);
+	if (char const *const env = std::getenv("M2VK_SOUND_DELAY"))
+	{
+		long const us = std::atol(env);
+		if (us > 0)
+			m_rxd_delay = attotime::from_usec(us);
+	}
 }
 
 //-------------------------------------------------
@@ -143,5 +154,27 @@ void segam1audio_device::write_txd(int state)
 
 void segam1audio_device::output_txd(int state)
 {
+	if (m_rxd_delay.is_zero())
+	{
+		m_rxd_handler(state);
+		return;
+	}
+
+	// Queue the line transition and deliver it m_rxd_delay later, preserving order.
+	// Constant delay + monotonic enqueue => FIFO order == delivery order, so a single
+	// timer armed on the empty->non-empty edge is sufficient.
+	bool const was_empty = m_rxd_delay_fifo.empty();
+	m_rxd_delay_fifo.emplace(machine().time() + m_rxd_delay, state);
+	if (was_empty)
+		m_rxd_delay_timer->adjust(m_rxd_delay);
+}
+
+TIMER_CALLBACK_MEMBER(segam1audio_device::rxd_delay_tick)
+{
+	int const state = m_rxd_delay_fifo.front().second;
+	m_rxd_delay_fifo.pop();
 	m_rxd_handler(state);
+
+	if (!m_rxd_delay_fifo.empty())
+		m_rxd_delay_timer->adjust(m_rxd_delay_fifo.front().first - machine().time());
 }

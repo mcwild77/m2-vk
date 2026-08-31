@@ -2301,6 +2301,28 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 	return check(result, "vkQueueSubmit");
 }
 
+// M2VK_ASYNC_PRESENT (default ON): decouple emulation/audio from GPU-render completion. The frontend
+// pushes this frame's audio_sample_batch from retro_run right AFTER present_frame (retro_entry.cpp),
+// so blocking present_frame on the slot fence starves the audio buffer whenever the render is
+// scheduled late. On an idle GPU that lateness is a latency artefact (VR compositor contention / DVFS
+// wake), not real GPU work, so blocking buys nothing and costs audio. When ON, present_frame checks
+// the fence without blocking and skips the tick if the render has not retired (see present_frame).
+// Set M2VK_ASYNC_PRESENT=0 to restore the old blocking wait for A/B.
+int s_env_async_present = -2;   // -2 = unread; 0 = blocking (old); 1 = async skip (default)
+bool async_present_on()
+{
+	if (s_env_async_present == -2)
+	{
+		char const *const env = std::getenv("M2VK_ASYNC_PRESENT");
+		s_env_async_present = (env == nullptr) ? 1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return s_env_async_present != 0;
+}
+
+// Async-present skip diagnostic: how often the GPU render lagged a full ring, throttled to logcat.
+uint64_t s_present_calls = 0;
+uint64_t s_present_skips = 0;
+
 } // anonymous namespace
 
 
@@ -2385,17 +2407,50 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 
 	frame_slot &slot = s_slots[index];
 
-	// And our own previous submit into this slot has retired, so its command buffer can be reset —
-	// and, just as importantly, so its staging buffer is no longer being read by a copy in flight.
-	const VkResult waited = s_fns.wait_for_fences(s_device, 1, &slot.fence, VK_TRUE, FENCE_TIMEOUT_NS);
-	if (waited != VK_SUCCESS)
+	// Our own previous submit into this slot must have retired before the slot is reused: only then can
+	// its command buffer be reset and, just as importantly, is its staging buffer no longer being read
+	// by a copy in flight.
+	//
+	// Two ways to enforce it. The default (M2VK_ASYNC_PRESENT) does NOT block the emulation thread on
+	// the GPU: if the slot has not retired, skip this tick's submit — return false so retro_entry dupes
+	// the last image, and leave syncIndex un-advanced (set_image is not called) so the SAME slot is
+	// retried next tick. Emulation and the audio push that follows present_frame keep running at the
+	// core's native rate; only video drops a frame, and only while the render genuinely lags a full
+	// ring (~52 ms at 3 deep). The old path blocks on the fence (audio-coupled-to-GPU; kept for A/B).
+	s_present_calls++;
+	if (async_present_on())
 	{
-		if (!s_reported_frame_error)
+		const VkResult status = s_fns.get_fence_status(s_device, slot.fence);
+		if (status == VK_NOT_READY)
 		{
-			vk_log(RETRO_LOG_ERROR, "slot %u never retired: %s\n", unsigned(index), vk_result_name(waited));
-			s_reported_frame_error = true;
+			s_present_skips++;
+			if ((s_present_skips % 240) == 1)
+				vk_log(RETRO_LOG_INFO, "async-present: slot %u still rendering, skipped %llu of %llu present calls (GPU render lagging a full ring)\n",
+						unsigned(index), (unsigned long long)s_present_skips, (unsigned long long)s_present_calls);
+			return false;   // frontend dupes the last frame; syncIndex not advanced → retry this slot
 		}
-		return false;
+		if (status != VK_SUCCESS)
+		{
+			if (!s_reported_frame_error)
+			{
+				vk_log(RETRO_LOG_ERROR, "slot %u fence status error: %s\n", unsigned(index), vk_result_name(status));
+				s_reported_frame_error = true;
+			}
+			return false;
+		}
+	}
+	else
+	{
+		const VkResult waited = s_fns.wait_for_fences(s_device, 1, &slot.fence, VK_TRUE, FENCE_TIMEOUT_NS);
+		if (waited != VK_SUCCESS)
+		{
+			if (!s_reported_frame_error)
+			{
+				vk_log(RETRO_LOG_ERROR, "slot %u never retired: %s\n", unsigned(index), vk_result_name(waited));
+				s_reported_frame_error = true;
+			}
+			return false;
+		}
 	}
 
 	// The copies of the picture. capture_frame() and capture_layer() have both already packed the

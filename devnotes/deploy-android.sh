@@ -20,10 +20,10 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-CORE=model2_libretro_android.so
+CORE=libmodelizer_libretro_android.so
 [ -f "$CORE" ] || { echo "no $CORE -- run ./devnotes/build-android.sh first" >&2; exit 1; }
 
-command -v adb >/dev/null || { echo "adb not on PATH (brew install --cask android-platform-tools)" >&2; exit 1; }
+command -v adb >/dev/null || { echo "adb not on PATH (brew install --cask android-platform-tools; on Windows it ships with the SDK's platform-tools, e.g. C:\\NVPACK\\android-sdk-windows\\platform-tools)" >&2; exit 1; }
 if [ -z "$(adb devices | sed -n '2p')" ]; then
 	echo "no device: check the cable, and that USB debugging is on and this host authorised." >&2
 	adb devices
@@ -67,9 +67,19 @@ echo
 
 # The build keeps its debug info so ndk-stack can symbolise a native crash; what gets pushed does
 # not need it, and unstripped this is 90 MB across a USB cable.
-: "${ANDROID_NDK_HOME:=$HOME/Library/Android/sdk/ndk/android-ndk-r27d}"
-HOSTTAG=$([ "$(uname -s)" = Darwin ] && echo darwin-x86_64 || echo linux-x86_64)
-STRIP="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$HOSTTAG/bin/llvm-strip"
+EXE=
+case "$(uname -s)" in
+	Darwin)              HOSTTAG=darwin-x86_64 ;;
+	MINGW*|MSYS*|CYGWIN*) HOSTTAG=windows-x86_64; EXE=.exe ;;
+	*)                   HOSTTAG=linux-x86_64 ;;
+esac
+if [ -z "$ANDROID_NDK_HOME" ]; then
+	case "$HOSTTAG" in
+		windows-x86_64) ANDROID_NDK_HOME=/c/NVPACK/android-ndk-r27d ;;
+		*)              ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/android-ndk-r27d ;;
+	esac
+fi
+STRIP="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$HOSTTAG/bin/llvm-strip$EXE"
 PUSH=$CORE
 if [ -x "$STRIP" ]; then
 	mkdir -p build/android

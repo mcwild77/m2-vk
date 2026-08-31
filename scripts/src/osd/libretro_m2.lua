@@ -164,16 +164,20 @@ function maintargetosdoptions(_target, _subtarget)
 	configuration { "android-*" }
 		targetextension ".so"
 		targetprefix ""
-		targetname ("modelizer_libretro_android")
+		-- The "lib" prefix is deliberate: an APK only extracts/loads native libraries whose
+		-- basename matches lib*.so (jniLibs / nativeLibraryDir), so a core meant to be bundled
+		-- into a frontend APK must be named libmodelizer_libretro_android.so.  targetprefix stays
+		-- "" and the prefix is carried in the name itself so both agree with the soname below.
+		targetname ("libmodelizer_libretro_android")
 		-- Reissued here because mainProject()'s own android block, which is where a genie build
 		-- normally gets these, is skipped for this OSD -- it also links SDL2 and GLES.  The soname
 		-- matters: Android's loader dedupes by soname, and mainProject()'s is the generic
 		-- "libmain.so", which is a collision waiting to happen inside a frontend's process.
 		linkoptions {
 			"-shared",
-			-- Matches the dylib basename (modelizer_libretro_android.so); the soname and the
+			-- Matches the basename (libmodelizer_libretro_android.so); the soname and the
 			-- basename must agree or the frontend's loader dedupe and .info matching break.
-			"-Wl,-soname,modelizer_libretro_android.so",
+			"-Wl,-soname,libmodelizer_libretro_android.so",
 			-- The NDK's clang links libc++_shared.so by default, which would make the core
 			-- undlopenable in any frontend whose APK does not happen to ship that library --
 			-- a runtime failure on the phone, discovered late, with nothing in the build to

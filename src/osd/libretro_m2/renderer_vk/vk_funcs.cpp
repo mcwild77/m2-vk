@@ -171,6 +171,7 @@ bool load_funcs(vk_funcs &fns, PFN_vkGetInstanceProcAddr gipa, PFN_vkGetDevicePr
 	M2VK_RESOLVE_DEVICE(create_fence,                     PFN_vkCreateFence,                    "vkCreateFence");
 	M2VK_RESOLVE_DEVICE(destroy_fence,                    PFN_vkDestroyFence,                   "vkDestroyFence");
 	M2VK_RESOLVE_DEVICE(wait_for_fences,                  PFN_vkWaitForFences,                  "vkWaitForFences");
+	M2VK_RESOLVE_DEVICE(get_fence_status,                 PFN_vkGetFenceStatus,                 "vkGetFenceStatus");
 	M2VK_RESOLVE_DEVICE(reset_fences,                     PFN_vkResetFences,                    "vkResetFences");
 
 	M2VK_RESOLVE_DEVICE(allocate_memory,                  PFN_vkAllocateMemory,                 "vkAllocateMemory");

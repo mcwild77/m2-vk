@@ -101,6 +101,7 @@ struct vk_funcs
 	PFN_vkCreateFence                               create_fence = nullptr;
 	PFN_vkDestroyFence                              destroy_fence = nullptr;
 	PFN_vkWaitForFences                             wait_for_fences = nullptr;
+	PFN_vkGetFenceStatus                            get_fence_status = nullptr;
 	PFN_vkResetFences                               reset_fences = nullptr;
 
 	// device level — memory

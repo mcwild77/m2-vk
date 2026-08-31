@@ -8,6 +8,9 @@
 #include "sound/multipcm.h"
 #include "sound/ymopn.h"
 
+#include <queue>
+#include <utility>
+
 #pragma once
 
 #define M1AUDIO_TAG "m1audio"
@@ -59,6 +62,15 @@ private:
 	devcb_write_line   m_rxd_handler;
 
 	void output_txd(int state);
+
+	// Stage-0 de-risk: optional fixed delay on the sound->main serial reply line
+	// (m_rxd_handler), single-threaded and order-preserving. Enabled by the desktop
+	// env var M2VK_SOUND_DELAY (microseconds); zero/unset = immediate delivery with no
+	// behaviour change (getenv returns null on device, so shipping builds are unaffected).
+	TIMER_CALLBACK_MEMBER(rxd_delay_tick);
+	emu_timer *m_rxd_delay_timer = nullptr;
+	std::queue<std::pair<attotime, int>> m_rxd_delay_fifo;
+	attotime m_rxd_delay = attotime::zero;
 };
 
 

@@ -20,6 +20,7 @@
 #include "m2vk_analog.h"
 #include "m2vk_gunlog.h"
 #include "m2vk_inputdump.h"
+#include "m2vk_profile.h"
 #include "m2vk_savestate.h"
 #include "m2vk_steer.h"
 #include "m2vk_twinstick.h"
@@ -193,6 +194,10 @@ void libretro_m2_osd_interface::osd_exit()
 	// against the new set's fields
 	m2vk::twin_stick_close();
 
+	// stop the per-device profiler and reset its state — its buckets index into the device tree of
+	// the machine going away (PROFILER=1 build only; a no-op otherwise)
+	m2vk::profile_close();
+
 	if (m_input)
 	{
 		m_input->exit();
@@ -325,6 +330,11 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// M2VK_SAVE_LOG's one-shot report. Here rather than in init() because the save registry is still
 	// being filled while devices start, and osd->init() runs inside that window.
 	m2vk::state_log(machine());
+
+	// Per-device CPU profiler read-out (PROFILER=1 build only; a no-op otherwise). Here so it runs on
+	// the emulation thread every frame while the machine is RUNNING — it enables MAME's profiler once
+	// and dumps the per-device split to logcat every ~second. See m2vk_profile.h.
+	m2vk::profile_frame(machine());
 
 	if (!skip_redraw)
 		capture_frame();
