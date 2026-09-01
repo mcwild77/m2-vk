@@ -108,6 +108,10 @@ inline constexpr char const *KEY_S22_DEPTH_BUFFER = "system22_depth_buffer";
 // m2vk::set_option_counter() parks it; M2VK_POLYCOUNT wins.
 inline constexpr char const *KEY_POLY_COUNTER = "model2_poly_counter";
 
+// Wall-clock frame-rate read-out in the top-left corner. On by default. Vulkan only.
+// m2vk::set_option_fps() parks it; M2VK_FPS wins.
+inline constexpr char const *KEY_FPS_DISPLAY = "model2_fps_display";
+
 // Bilinear-filter the opaque 2D under-layer (background tilemaps) when Internal Resolution magnifies the
 // picture above native. An enhancement, off by default; a no-op at native, where the layer is one texel
 // per pixel. Under layer ONLY — the color-keyed foreground/HUD overlay keeps NEAREST, because bilinear
@@ -147,6 +151,8 @@ inline constexpr char const *KEY_M2_SMOOTH_SHADING = "model2_smooth_shading";
 // path is the default. Hidden from the other families' menus. Reload-gated — the board split is decided
 // when the machine is built. m2vk_snd::set_option_enabled() seeds it; M2VK_SOUND_THREAD wins (harness).
 inline constexpr char const *KEY_SOUND_THREAD = "model2_sound_thread";
+inline constexpr char const *KEY_SELF_THROTTLE = "model2_self_throttle";
+inline constexpr char const *KEY_DRIVE_BOARD = "model2_drive_board";
 
 // System 22 only — whether the 2D HUD/text overlay is drawn back over the GPU 3D. On by default (the
 // accurate picture); off hides the score/HUD/text layer, leaving the 3D above the 2D background. A
@@ -311,6 +317,15 @@ bool get_smooth_shading(retro_environment_t environ_cb);
 // unreadable or stale value lands on the accurate single-threaded default (off).
 bool get_sound_thread(retro_environment_t environ_cb);
 
+// KEY_SELF_THROTTLE resolved to whether retro_load_game passes -throttle (MAME paces itself) instead
+// of -nothrottle (the frontend paces). "enabled" tested; the fallback default differs per platform —
+// see the DEFINITIONS entry.
+bool get_self_throttle(retro_environment_t environ_cb);
+
+// KEY_DRIVE_BOARD resolved to whether the force-feedback drive-board Z80 runs. "enabled" tested, so
+// an unreadable value lands on the accurate default (board running); the park is the opt-in.
+bool get_drive_board(retro_environment_t environ_cb);
+
 // KEY_M2_SMOOTH_SHADING resolved to the bool m2vk::set_option_smooth() takes. "on" tested, same reason.
 bool get_m2_smooth_shading(retro_environment_t environ_cb);
 
@@ -320,6 +335,10 @@ bool get_steering_display(retro_environment_t environ_cb);
 // KEY_POLY_COUNTER resolved to the bool m2vk::set_option_counter() takes. "on" tested, so an unreadable
 // value leaves the counter off.
 bool get_poly_counter(retro_environment_t environ_cb);
+
+// KEY_FPS_DISPLAY resolved to the bool m2vk::set_option_fps() takes. Defaults on, so "off" is tested and
+// an unreadable value leaves the read-out on.
+bool get_fps_display(retro_environment_t environ_cb);
 
 // KEY_SMOOTH_2D resolved to the bool m2vk::set_option_smooth_2d() takes. "on" tested, so an unreadable
 // value lands on the accurate NEAREST default.

@@ -202,6 +202,20 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		"off"
 	},
 	{
+		m2opt::KEY_FPS_DISPLAY,
+		m2txt::FPS_DISPLAY_LABEL,
+		nullptr,
+		m2txt::FPS_DISPLAY_INFO,
+		nullptr,
+		nullptr,
+		{
+			{ "off", m2txt::V_OFF },
+			{ "on",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"on"
+	},
+	{
 		m2opt::KEY_SMOOTH_2D,
 		m2txt::SMOOTH_2D_LABEL,
 		nullptr,
@@ -394,6 +408,46 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 			{ nullptr, nullptr }
 		},
 		"disabled"
+	},
+	{
+		m2opt::KEY_DRIVE_BOARD,
+		m2txt::DRIVE_BOARD_LABEL,
+		nullptr,
+		m2txt::DRIVE_BOARD_INFO,
+		nullptr,
+		nullptr,
+		// Wheel sets only (it rides the steering-detector visibility list in retro_run) — the
+		// drive board exists only on the cabinets that declare IPT_PADDLE. Applies live both
+		// ways: drive_park_frame() reconciles suspend/resume on the next emulated frame.
+		{
+			{ "enabled",  m2txt::V_ON },
+			{ "disabled", m2txt::V_OFF },
+			{ nullptr, nullptr }
+		},
+		"enabled"
+	},
+	{
+		m2opt::KEY_SELF_THROTTLE,
+		m2txt::SELF_THROTTLE_LABEL,
+		nullptr,
+		m2txt::SELF_THROTTLE_INFO,
+		nullptr,
+		nullptr,
+		// All families — the frame-limiter slop it works around is the frontend's, not any one
+		// machine's. Reload-gated: -throttle/-nothrottle is fixed when the machine is built.
+		// Default ON only on Android, where RetroArch's limiter measurably undershoots (54 of
+		// 57.5 fps on the Quest 3); the host harness and desktop keep the frontend-paced default
+		// so digest runs stay free of any wall-clock coupling.
+		{
+			{ "disabled", m2txt::V_OFF },
+			{ "enabled",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+#if defined(__ANDROID__)
+		"enabled"
+#else
+		"disabled"
+#endif
 	},
 	{
 		m2opt::KEY_DIAGNOSTIC_INPUT,
@@ -737,6 +791,20 @@ bool m2opt::get_sound_thread(retro_environment_t environ_cb)
 	return get(environ_cb, KEY_SOUND_THREAD) == "enabled";
 }
 
+bool m2opt::get_drive_board(retro_environment_t environ_cb)
+{
+	// "enabled" tested with the enabled arm as fallback: an unreadable value keeps the board
+	// running (the accurate default); parking is the explicit opt-in.
+	return get(environ_cb, KEY_DRIVE_BOARD) != "disabled";
+}
+
+bool m2opt::get_self_throttle(retro_environment_t environ_cb)
+{
+	// "enabled" is the value key. An unreadable value lands on "false" here, which retro_load_game
+	// maps to the frontend-paced -nothrottle — the safe arm on every platform.
+	return get(environ_cb, KEY_SELF_THROTTLE) == "enabled";
+}
+
 bool m2opt::get_m2_smooth_shading(retro_environment_t environ_cb)
 {
 	return get(environ_cb, KEY_M2_SMOOTH_SHADING) == "on";
@@ -750,6 +818,12 @@ bool m2opt::get_steering_display(retro_environment_t environ_cb)
 bool m2opt::get_poly_counter(retro_environment_t environ_cb)
 {
 	return get(environ_cb, KEY_POLY_COUNTER) == "on";
+}
+
+bool m2opt::get_fps_display(retro_environment_t environ_cb)
+{
+	// Defaults on: "off" tested, so an unreadable value leaves the read-out visible.
+	return get(environ_cb, KEY_FPS_DISPLAY) != "off";
 }
 
 bool m2opt::get_smooth_2d(retro_environment_t environ_cb)

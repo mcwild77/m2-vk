@@ -9,6 +9,9 @@
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 #include "m2vk_soundthread.h"
+#include "m2vk_affinity.h"
+#include "m2vk_stallmeter.h"
+#include "m2vk_driveboard.h"
 
 #include "emu.h"
 #include "emuopts.h"
@@ -279,6 +282,12 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 {
 	osd_common_t::update(skip_redraw); // watchdog reset
 
+	// Keep the emulation thread on the big-core cluster: emu_thread_main pins it once at startup,
+	// but Android wipes thread affinity on app-state transitions, so re-assert here at the
+	// per-frame rendezvous (one cheap syscall every 128 frames; see m2vk_affinity.h).
+	static unsigned s_emu_repin = 0;
+	m2vk_repin_self(s_emu_repin);
+
 	// Honor a cross-thread exit request here, on the emulation thread. m_exiting is sticky:
 	// schedule_exit() only takes effect at the end of the timeslice, so update() is called
 	// several more times on the way out. Those calls must NOT park on the baton — retro_unload_game
@@ -369,6 +378,10 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// and dumps the per-device split to logcat every ~second. See m2vk_profile.h.
 	m2vk::profile_frame(machine());
 
+	// Reconcile the drive-board Z80 with the model2_drive_board option (live both ways). Same
+	// emulation-thread every-frame slot as the profiler, for the same machine-access reason.
+	m2vk::drive_park_frame(machine());
+
 	if (!skip_redraw)
 		capture_frame();
 
@@ -376,6 +389,8 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// consumer reads (m_fb, m_audio) is written above and not touched again until it releases
 	// us, so the baton is the only synchronisation needed.
 	{
+		static m2vk::stall_meter s_stall;   // emu thread only; see m2vk_stallmeter.h
+		s_stall.park_begin();
 		std::unique_lock<std::mutex> lock(m_baton);
 		m_frame_ready = true;
 		m_cv.notify_all();
@@ -384,6 +399,7 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 			m_go = false;
 			m_cv.wait(lock, [this] { return m_go || m_died; });
 		}
+		s_stall.park_end();
 	}
 
 	// the next frame's audio accumulates from empty

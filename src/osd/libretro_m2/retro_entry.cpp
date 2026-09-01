@@ -36,6 +36,7 @@
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 #include "m2vk_soundthread.h"
+#include "m2vk_affinity.h"
 #include "s22_seam.h"
 #include "s21_seam.h"
 #include "m1_seam.h"
@@ -56,6 +57,7 @@
 // include
 #include "m2vk_analog.h"
 #include "m2vk_steer.h"
+#include "m2vk_driveboard.h"
 
 #include "corestr.h"
 
@@ -100,6 +102,15 @@ retro_log_printf_t s_log_cb = fallback_log;
 std::unique_ptr<libretro_m2_options>      s_options;
 std::unique_ptr<libretro_m2_osd_interface> s_osd;
 std::thread                                s_emu_thread;
+
+// Frame pipelining: retro_run presents frame N, then releases the emulation thread to start frame
+// N+1 and only afterwards pushes audio and returns — so emulation overlaps the frontend's audio
+// write and inter-frame overhead instead of idling through them (measured ~2.4 ms of a 17.38 ms
+// budget on the Quest 3). The price: between retro_run calls the emulation thread is RUNNING, not
+// parked, so every entry point that touches machine state calls drain_frame() first, and video
+// runs one frame behind the emulation.
+bool                                       s_frame_in_flight = false;
+std::vector<int16_t>                       s_audio_scratch;
 bool                                       s_running = false;
 
 // Set as the emulation thread falls out of emu_thread_main, i.e. "join() will not block". Only the
@@ -136,6 +147,11 @@ bool                                       s_analog_display_applied = false;
 // Runs the whole MAME frontend. Everything after start_frontend() returns is teardown.
 void emu_thread_main(std::vector<std::string> args)
 {
+	// Big-core pin (see m2vk_affinity.h): without it the Android scheduler parks this thread —
+	// the single thread every frame waits on — on a 1.38 GHz little core for long stretches.
+	if (int const pinned = m2vk_pin_self_to_big_cores())
+		s_log_cb(RETRO_LOG_INFO, "[model2] emulation thread pinned to the %d big cores\n", pinned);
+
 	try
 	{
 		emulator_info::start_frontend(*s_options, *s_osd, args);
@@ -626,6 +642,7 @@ void announce_geometry(unsigned width, unsigned height)
 		fill_geometry(av.geometry);
 		av.timing.fps = s_osd ? s_osd->refresh_rate() : 60.0;
 		av.timing.sample_rate = double(s_osd && s_osd->audio_rate() ? s_osd->audio_rate() : 48000);
+		m2vk::set_target_fps(av.timing.fps);   // the green/red threshold for the frame-rate read-out
 		s_environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av);
 	}
 	else
@@ -660,6 +677,7 @@ RETRO_API void retro_get_system_av_info(struct retro_system_av_info *info)
 
 	info->timing.fps = s_osd ? s_osd->refresh_rate() : 60.0;
 	info->timing.sample_rate = double(s_osd && s_osd->audio_rate() ? s_osd->audio_rate() : 48000);
+	m2vk::set_target_fps(info->timing.fps);   // the green/red threshold for the frame-rate read-out
 }
 
 
@@ -842,7 +860,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR",
 			"M2VK_ANALOG_LINEAR", "M2VK_ANALOG_DEADZONE", "M2VK_ANALOG_REACH", "M2VK_S22_FILTER",
 			"M2VK_S22_DEPTH", "M2VK_S22_FOG", "M2VK_S22_NOTEX", "M2VK_S22_HUD", "M2VK_POLYCOUNT",
-			"M2VK_M1_SMOOTH", "M2VK_M2_SMOOTH" })
+			"M2VK_FPS", "M2VK_M1_SMOOTH", "M2VK_M2_SMOOTH" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -893,6 +911,9 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// a harmless no-op on the software renderer.
 	m2vk::set_option_counter(m2opt::get_poly_counter(s_environ_cb));
 
+	// Frame-rate read-out — top-left HUD, on by default. Same Vulkan-only overlay path as the counter.
+	m2vk::set_option_fps(m2opt::get_fps_display(s_environ_cb));
+
 	// Smooth 2D backgrounds — bilinear the under-layer when magnified. Shared composite path, so it
 	// covers every family but System 21 (hidden from its menu; its background is pen-space texelFetch).
 	m2vk::set_option_smooth_2d(m2opt::get_smooth_2d(s_environ_cb));
@@ -907,6 +928,10 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	m2vk_snd::set_option_enabled(sound_thread);
 	if (fam == family::model2)
 		s_log_cb(RETRO_LOG_INFO, "[model2] %s=%s\n", m2opt::KEY_SOUND_THREAD, sound_thread ? "on" : "off");
+
+	// Drive board (model2_drive_board) — seed the park gate; drive_park_frame() applies it on the
+	// emulation thread once the machine runs, and re-applies live when the option changes.
+	m2vk::set_option_drive_park(!m2opt::get_drive_board(s_environ_cb));
 
 	// System 22's 3D texture filter — its own option, declared only on the S22 build (hidden on Model 2
 	// above). Parked in the S22 polygon pass; a harmless no-op on Model 2, whose seam never draws. The
@@ -1028,8 +1053,12 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	if (!systemdir.empty())
 		rompath += ";" + systemdir + "/" + family_dir;
 
-	// MAME paces itself against a wall clock by default; here the frontend does the pacing, so
-	// throttling and frame-skipping have to be off or the two clocks fight.
+	// MAME paces itself against a wall clock by default; normally the frontend does the pacing here,
+	// so throttling and frame-skipping are off or the two clocks fight. model2_self_throttle flips
+	// that: MAME's sleep+spin throttle is precise where the frontend's frame limiter is not
+	// (RetroArch on Android undershoots 57.5 Hz by ~6%), and a frontend limiter that finds
+	// retro_run always exactly on schedule adds no sleep of its own — so the clocks do not fight,
+	// the sloppier one simply never engages.
 	//
 	// -noreadconfig is about reproducibility as much as tidiness: MAME's default inipath includes
 	// the working directory and $HOME/.mame, so without it a stray mame.ini belonging to someone's
@@ -1041,7 +1070,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		"-rompath", rompath,
 		"-noreadconfig",
 		"-video", "none",
-		"-nothrottle",
+		m2opt::get_self_throttle(s_environ_cb) ? "-throttle" : "-nothrottle",
 		"-sound", "auto",
 		"-samplerate", "48000",
 		"-skip_gameinfo",
@@ -1171,11 +1200,43 @@ RETRO_API bool retro_load_game_special(unsigned type, const struct retro_game_in
 	return false;
 }
 
+// Whether retro_run pipelines (releases the emulation thread before its audio push and return).
+// Default ON on Android — the platform whose measured ~2.4 ms/frame frontend round-trip it
+// recovers — and OFF elsewhere: the pipeline delivers every frame one retro_run later, which
+// would shift every recorded harness digest on the host. M2VK_PIPELINE=0|1 overrides (host only;
+// getenv is null on Android).
+static bool pipeline_on()
+{
+	static int s_on = -1;
+	if (s_on < 0)
+	{
+		char const *const env = std::getenv("M2VK_PIPELINE");
+#if defined(__ANDROID__)
+		s_on = (env == nullptr) ? 1 : (std::atoi(env) != 0) ? 1 : 0;
+#else
+		s_on = (env == nullptr) ? 0 : (std::atoi(env) != 0) ? 1 : 0;
+#endif
+	}
+	return s_on != 0;
+}
+
+// Park the emulation thread if a pipelined frame is in flight (see s_frame_in_flight). Every
+// caller that touches machine state — serialize, unload, and retro_run itself — goes through
+// here first. Returns false when the machine died instead of parking.
+static bool drain_frame()
+{
+	if (!s_frame_in_flight)
+		return true;
+	s_frame_in_flight = false;
+	return s_osd->wait_for_frame();
+}
+
 RETRO_API void retro_unload_game(void)
 {
 	if (!s_running)
 		return;
 
+	drain_frame();
 	s_osd->request_exit();
 	if (s_emu_thread.joinable())
 		s_emu_thread.join();
@@ -1225,6 +1286,23 @@ RETRO_API void retro_run(void)
 	if (!s_running)
 		return;
 
+	// This frontend thread is on the frame-critical path — the emulation thread parks on the baton
+	// until it comes back for the next frame, so its wake-up latency on a little core is emulation
+	// time lost. Pin it to the big cluster and keep it there (Android wipes thread affinity on
+	// app-state transitions, hence the periodic re-assert; see m2vk_affinity.h).
+	static unsigned s_run_repin = 0;
+	m2vk_repin_self(s_run_repin);
+
+	// The pipelined frame from the previous retro_run: park the emulation thread before anything
+	// below touches options, input, or machine state. From here to the release below, the classic
+	// parked-between-frames invariant holds.
+	if (!drain_frame())
+	{
+		s_environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, nullptr);
+		s_running = false;
+		return;
+	}
+
 	// Per-game menu hygiene: the six steering options only mean anything on a machine with a wheel (one
 	// that declares IPT_PADDLE), so hide them everywhere else — the gun games (Time Crisis, Virtua Cop),
 	// the fighters (VF2), and everything on System 21. The steering EFFECT is already gated on the same
@@ -1237,7 +1315,7 @@ RETRO_API void retro_run(void)
 		const bool wheel = m2vk::steer().active;
 		for (char const *const key : { m2opt::KEY_STEERING_RESPONSE, m2opt::KEY_STEERING_DEADZONE,
 				m2opt::KEY_STEERING_RANGE, m2opt::KEY_STEERING_DAMP_DRIVE, m2opt::KEY_STEERING_DAMP_RETURN,
-				m2opt::KEY_STEERING_DISPLAY })
+				m2opt::KEY_STEERING_DISPLAY, m2opt::KEY_DRIVE_BOARD })
 			m2opt::set_option_display(s_environ_cb, key, wheel);
 		s_steer_display_applied = true;
 		if (s_log_cb != nullptr)
@@ -1315,7 +1393,10 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_steerbar(steer_display);
 		m2vk::set_option_analog(m2opt::get_analog_deadzone(s_environ_cb), m2opt::get_analog_reach(s_environ_cb));
 		m2vk::set_option_counter(m2opt::get_poly_counter(s_environ_cb));
+		m2vk::set_option_fps(m2opt::get_fps_display(s_environ_cb));
 		m2vk::set_option_smooth_2d(m2opt::get_smooth_2d(s_environ_cb));
+		// Drive board park — live both ways; drive_park_frame() reconciles on the next frame.
+		m2vk::set_option_drive_park(!m2opt::get_drive_board(s_environ_cb));
 
 		// System 22 texture filter, fog, no-textures and No Lighting all apply live — push-constant bits
 		// read at the next draw, nothing to rebuild.
@@ -1353,30 +1434,42 @@ RETRO_API void retro_run(void)
 				m2opt::KEY_RENDERER, m2opt::KEY_DIAGNOSTIC_INPUT);
 	}
 
-	if (s_input_poll_cb != nullptr)
-		s_input_poll_cb();
-
-	// Snapshot the pads into the input module before the emulation thread is let go. It is parked
-	// on the baton right now, which is what makes writing its device state here safe — and it also
-	// means a frame sees exactly one input sample, so a run stays reproducible.
-	if (libretro_m2_input *const input = s_osd->input())
-		input->poll_frontend(s_input_state_cb, s_port_device);
-
-	// Same snapshot, same reason, and it has to be on this side of release_frame(): the software
-	// path's blit happens on the emulation thread, in capture_frame(), so the reticle it draws is the
-	// aim the frame was emulated from rather than the one after it.
-	publish_reticles();
-
-	// let the emulation thread run one frame, then wait for it to park again
-	s_osd->release_frame();
-	if (!s_osd->wait_for_frame())
+	// Input snapshot, shared by both paths below. Only valid while the emulation thread is parked
+	// on the baton — that is what makes writing its device state safe, and it also means a frame
+	// sees exactly one input sample, so a run stays reproducible. publish_reticles() has to be on
+	// this side of the release for the same reason: the software path's blit happens on the
+	// emulation thread, in capture_frame(), so the reticle it draws is the aim the frame was
+	// emulated from rather than the one after it.
+	auto const poll_inputs = []()
 	{
-		// the machine exited on its own; tell the frontend to shut the core down
-		s_environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, nullptr);
-		s_running = false;
-		return;
+		if (s_input_poll_cb != nullptr)
+			s_input_poll_cb();
+		if (libretro_m2_input *const input = s_osd->input())
+			input->poll_frontend(s_input_state_cb, s_port_device);
+		publish_reticles();
+	};
+
+	const bool pipelined = pipeline_on();
+	if (!pipelined)
+	{
+		// Legacy order: emulate this call's frame first, then present it below. Kept the default
+		// on the host so every recorded digest and the documented host-frame offset stay valid.
+		poll_inputs();
+		s_osd->release_frame();
+		if (!s_osd->wait_for_frame())
+		{
+			// the machine exited on its own; tell the frontend to shut the core down
+			s_environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, nullptr);
+			s_running = false;
+			return;
+		}
 	}
 
+	// The frame presented below: in the pipelined path, the one the emulation finished before
+	// parking (the startup frame on the first call, afterwards the frame released at the end of
+	// the previous retro_run); in the legacy path, the frame just emulated above. Present and
+	// video_cb run while the emulation thread is parked, because they read m_fb and the geometry
+	// record it will overwrite.
 	int width = 0, height = 0;
 	const uint32_t *const pixels = s_osd->framebuffer(width, height);
 	const bool have_picture = (pixels != nullptr) && (width > 0) && (height > 0);
@@ -1423,10 +1516,36 @@ RETRO_API void retro_run(void)
 		}
 	}
 
+	if (!pipelined)
+	{
+		// Legacy tail: the audio straight out of m_audio, emulation thread still parked.
+		int samples = 0;
+		const int16_t *const audio = s_osd->frame_audio(samples);
+		if ((audio != nullptr) && (samples > 0) && (s_audio_batch_cb != nullptr))
+			s_audio_batch_cb(audio, size_t(samples));
+		return;
+	}
+
+	// Pipelined tail. Copy this frame's audio out of m_audio before the release — the emulation
+	// thread clears and refills it as it runs the next frame. Small (one frame of stereo), and it
+	// moves the frontend's audio write off the emulation-critical path.
 	int samples = 0;
 	const int16_t *const audio = s_osd->frame_audio(samples);
-	if ((audio != nullptr) && (samples > 0) && (s_audio_batch_cb != nullptr))
-		s_audio_batch_cb(audio, size_t(samples));
+	if ((audio != nullptr) && (samples > 0))
+		s_audio_scratch.assign(audio, audio + size_t(samples) * 2);
+	else
+		s_audio_scratch.clear();
+
+	poll_inputs();
+
+	// Release the emulation thread to run the next frame NOW, so it overlaps the audio push below
+	// and the frontend's inter-frame overhead. It parks again in the drain at the top of the next
+	// retro_run (or in whichever state-touching entry point arrives first).
+	s_osd->release_frame();
+	s_frame_in_flight = true;
+
+	if (!s_audio_scratch.empty() && (s_audio_batch_cb != nullptr))
+		s_audio_batch_cb(s_audio_scratch.data(), s_audio_scratch.size() / 2);
 }
 
 
@@ -1450,6 +1569,14 @@ RETRO_API size_t retro_serialize_size(void)
 {
 	if (!s_running || !s_osd)
 		return 0;
+	// Savestates are dropped in pipelined mode (Android): state.sh fails C != D under the
+	// pipeline — something about the in-flight frame is not captured — and a savestate that loads
+	// a wrong future is worse than none. Reporting 0 makes the frontend disable them cleanly for
+	// the session. The host's legacy path keeps them, and the harness still gates on state.sh.
+	if (pipeline_on())
+		return 0;
+	if (!drain_frame())
+		return 0;
 	return s_osd->state_size();
 }
 
@@ -1457,12 +1584,20 @@ RETRO_API bool retro_serialize(void *data, size_t size)
 {
 	if (!s_running || !s_osd)
 		return false;
+	if (pipeline_on())   // dropped in pipelined mode — see retro_serialize_size
+		return false;
+	if (!drain_frame())   // machine state is only touchable with the emulation thread parked
+		return false;
 	return s_osd->state_save(data, size);
 }
 
 RETRO_API bool retro_unserialize(const void *data, size_t size)
 {
 	if (!s_running || !s_osd)
+		return false;
+	if (pipeline_on())   // dropped in pipelined mode — see retro_serialize_size
+		return false;
+	if (!drain_frame())   // same parked-thread requirement as retro_serialize
 		return false;
 	if (!s_osd->state_load(data, size))
 		return false;

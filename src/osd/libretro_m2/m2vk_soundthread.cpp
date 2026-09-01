@@ -25,6 +25,7 @@
 #include "emu.h"
 
 #include "m2vk_soundthread.h"
+#include "m2vk_affinity.h"
 
 #include "segam1audio.h"
 
@@ -308,6 +309,11 @@ public:
 		if (m_machine == nullptr)
 			return;
 
+		// Keep the worker on the big cluster too — worker_main pins it once, but Android wipes
+		// thread affinity on app-state transitions (see m2vk_affinity.h).
+		static unsigned s_worker_repin = 0;
+		m2vk_repin_self(s_worker_repin);
+
 		// Deliver any pending main->sound transitions onto this machine's scheduler.
 		g_to_sound.pump();
 
@@ -532,6 +538,11 @@ public:
 
 void worker_main()
 {
+	// Big-core pin (see m2vk_affinity.h) — the mask holds the whole big cluster, so the scheduler
+	// still balances this worker and the emulation thread onto separate big cores.
+	if (int const pinned = m2vk_pin_self_to_big_cores())
+		osd_printf_verbose("[m2vk_snd] sound worker pinned to the %d big cores\n", pinned);
+
 	// This whole thread hosts the secondary (sound-board) machine; keep it out of the frontend lua/UI.
 	::mame_suppress_frontend_hooks(true);
 

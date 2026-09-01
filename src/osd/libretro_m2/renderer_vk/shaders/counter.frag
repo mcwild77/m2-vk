@@ -22,9 +22,10 @@ layout(push_constant) uniform Push
 } pc;
 
 // 3 wide x 5 tall digits, bit = row*3 + col (row 0 at top, col 0 at left). Generated to match the table
-// in the build step; see the commit that added this file.
-const uint FONT[10] = uint[10](
-	0x7b6fu, 0x749au, 0x73e7u, 0x79e7u, 0x49edu, 0x79cfu, 0x7bcfu, 0x24a7u, 0x7befu, 0x79efu
+// in the build step; see the commit that added this file. Index 10 is a decimal point — a single cell at
+// the bottom-centre (row 4, col 1 -> bit 13) — so the frame-rate read-out can draw "57.795".
+const uint FONT[11] = uint[11](
+	0x7b6fu, 0x749au, 0x73e7u, 0x79e7u, 0x49edu, 0x79cfu, 0x7bcfu, 0x24a7u, 0x7befu, 0x79efu, 0x2000u
 );
 
 vec3 unpack(uint c)
@@ -52,7 +53,7 @@ void main()
 		{
 			uint digit = (pc.digits >> (idx * 4u)) & 0xfu;
 			uint bit = uint(gy * 3 + gx);
-			if (digit < 10u && (FONT[digit] & (1u << bit)) != 0u)
+			if (digit < 11u && (FONT[digit] & (1u << bit)) != 0u)
 			{
 				out_colour = vec4(unpack(pc.fg), 1.0);
 				return;

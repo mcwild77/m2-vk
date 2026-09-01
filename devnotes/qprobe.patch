@@ -1,0 +1,157 @@
+diff --git a/src/devices/machine/clock.cpp b/src/devices/machine/clock.cpp
+index 670dfba09aa..0b5ab877efb 100644
+--- a/src/devices/machine/clock.cpp
++++ b/src/devices/machine/clock.cpp
+@@ -17,6 +17,9 @@ Output signal at machine start is right after falling edge.
+ #include "emu.h"
+ #include "clock.h"
+ 
++#include <cstdlib>
++#include <cstring>
++
+ DEFINE_DEVICE_TYPE(CLOCK, clock_device, "clock", "Clock")
+ 
+ clock_device::clock_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock) :
+@@ -70,6 +73,25 @@ TIMER_CALLBACK_MEMBER(clock_device::clock_init)
+ 	attotime period = (m_clock > 0) ? attotime::from_hz(m_clock) : m_period;
+ 	assert(!period.is_zero());
+ 
++	// ---- THROWAWAY cost probe (devnotes/plan_model2_quantum.md) ----
++	// M2VK_QPROBE_NOUART=all|main|snd : silence the 500 kHz UART baud clocks. Breaks the sound
++	// link on purpose; this is an upper bound on what removing the ticks is worth, not a candidate.
++	{
++		static const char *const sel = getenv("M2VK_QPROBE_NOUART");
++		if (sel && strstr(tag(), "uart_clock"))
++		{
++			const bool is_snd = strstr(tag(), "m1audio") != nullptr;
++			const bool kill = !strcmp(sel, "all") || (!strcmp(sel, "snd") && is_snd) || (!strcmp(sel, "main") && !is_snd);
++			if (kill)
++			{
++				fprintf(stderr, "[qprobe] silencing clock %s (%u Hz)\n", tag(), m_clock);
++				m_timer_tick->adjust(attotime::never);
++				return;
++			}
++		}
++	}
++	// ---- end throwaway probe ----
++
+ 	if (period.is_never())
+ 	{
+ 		m_timer_tick->adjust(attotime::never);
+diff --git a/src/emu/schedule.cpp b/src/emu/schedule.cpp
+index a475fd9b515..11fbb02de09 100644
+--- a/src/emu/schedule.cpp
++++ b/src/emu/schedule.cpp
+@@ -15,6 +15,19 @@
+ //  DEBUGGING
+ //**************************************************************************
+ 
++// ---- THROWAWAY scheduler probe (quantum experiment, devnotes/plan_model2_quantum.md) ----
++#include <map>
++#include <string>
++#include <cstdlib>
++namespace qprobe {
++	static bool  on()  { static int v = -1; if (v < 0) v = getenv("M2VK_QPROBE") ? 1 : 0; return v != 0; }
++	static u64   rounds = 0, devruns = 0, fires = 0, slices = 0;
++	static std::map<std::string, u64> byname;
++	static int   last_sec = -1;
++	static bool  dumped_cfg = false;
++}
++// ---- end throwaway probe ----
++
+ #define VERBOSE 0
+ 
+ #define LOG(...)  do { if (VERBOSE) machine().logerror(__VA_ARGS__); } while (0)
+@@ -398,6 +411,46 @@ void device_scheduler::timeslice()
+ 	if (UNEXPECTED(m_execute_list == nullptr))
+ 		rebuild_execute_list();
+ 
++	if (UNEXPECTED(qprobe::on()))
++	{
++		qprobe::slices++;
++		if (!qprobe::dumped_cfg && !m_quantum_list.empty())
++		{
++			qprobe::dumped_cfg = true;
++			fprintf(stderr, "[qprobe] configured maximum_quantum = %s\n",
++					machine().config().maximum_quantum(attotime::from_hz(60)).as_string());
++			fprintf(stderr, "[qprobe] perfect interleave (m_quantum_minimum) = %.1f ns\n",
++					double(m_quantum_minimum) / 1e9);
++			fprintf(stderr, "[qprobe] ACTUAL quantum in use = %.1f ns (%.1f Hz)\n",
++					double(m_quantum_list.first()->m_actual) / 1e9,
++					1e18 / double(m_quantum_list.first()->m_actual));
++			for (device_execute_interface *e = m_execute_list; e; e = e->m_nextexec)
++				fprintf(stderr, "[qprobe]   dev %-24s clock %10u  min_quantum %10.1f ns\n",
++						e->device().tag(), e->device().clock(), double(e->minimum_quantum()) / 1e9);
++		}
++		if (m_basetime.seconds() != qprobe::last_sec)
++		{
++			if (qprobe::last_sec >= 0)
++			{
++				fprintf(stderr, "[qprobe] t=%2ds  slices/s=%llu rounds/s=%llu devruns/s=%llu timerfires/s=%llu"
++						"  | per frame @60: rounds=%.0f devruns=%.0f fires=%.0f\n",
++						m_basetime.seconds(),
++						(unsigned long long)qprobe::slices, (unsigned long long)qprobe::rounds,
++						(unsigned long long)qprobe::devruns, (unsigned long long)qprobe::fires,
++						qprobe::rounds / 60.0, qprobe::devruns / 60.0, qprobe::fires / 60.0);
++				std::multimap<u64, std::string> top;
++				for (auto const &kv : qprobe::byname) top.emplace(kv.second, kv.first);
++				int n = 0;
++				for (auto it = top.rbegin(); it != top.rend() && n < 10; ++it, ++n)
++					fprintf(stderr, "[qprobe]     timer %-44s %8llu/s (%.0f/frame)\n",
++							it->second.c_str(), (unsigned long long)it->first, it->first / 60.0);
++			}
++			qprobe::last_sec = m_basetime.seconds();
++			qprobe::rounds = qprobe::devruns = qprobe::fires = qprobe::slices = 0;
++			qprobe::byname.clear();
++		}
++	}
++
+ 	// if the current quantum has expired, find a new one
+ 	while (m_basetime >= m_quantum_list.first()->m_expire)
+ 		m_quantum_allocator.reclaim(m_quantum_list.detach_head());
+@@ -405,6 +458,8 @@ void device_scheduler::timeslice()
+ 	// loop until we hit the next timer
+ 	while (m_basetime < m_timer_list->m_expire)
+ 	{
++		if (UNEXPECTED(qprobe::on())) qprobe::rounds++;
++
+ 		// by default, assume our target is the end of the next quantum
+ 		attotime target(m_basetime + attotime(0, m_quantum_list.first()->m_actual));
+ 
+@@ -450,6 +505,7 @@ void device_scheduler::timeslice()
+ 
+ 						// note that this global variable cycles_stolen can be modified
+ 						// via the call to cpu_execute
++						if (UNEXPECTED(qprobe::on())) qprobe::devruns++;
+ 						exec->m_cycles_stolen = 0;
+ 						m_executing_device = exec;
+ 						*exec->m_icountptr = exec->m_cycles_running;
+@@ -956,6 +1012,11 @@ inline void device_scheduler::execute_timers()
+ 			if (!timer.m_callback.isnull())
+ 			{
+ 				LOG("execute_timers: timer callback %s\n", timer.m_callback.name());
++				if (UNEXPECTED(qprobe::on()))
++				{
++					qprobe::fires++;
++					qprobe::byname[timer.m_callback.name() ? timer.m_callback.name() : "?"]++;
++				}
+ 				timer.m_callback(timer.m_param);
+ 			}
+ 		}
+diff --git a/src/mame/sega/model2.cpp b/src/mame/sega/model2.cpp
+index 9e91e49286f..483f49162f3 100644
+--- a/src/mame/sega/model2.cpp
++++ b/src/mame/sega/model2.cpp
+@@ -2655,6 +2655,12 @@ void model2o_state::model2o(machine_config &config)
+ 	uart_clock.signal_handler().set(m_uart, FUNC(i8251_device::write_txc));
+ 	uart_clock.signal_handler().append(m_uart, FUNC(i8251_device::write_rxc));
+ 
++	// ---- THROWAWAY control (devnotes/plan_model2_quantum.md): a clock nothing listens to. It adds
++	// scheduler break points and changes no emulated state, so the digest must not move. ----
++	if (const char *hz = getenv("M2VK_QPROBE_DUMMY"))
++		CLOCK(config, "qprobe_dummy", atoi(hz));
++	// ---- end throwaway control ----
++
+ 	M2COMM(config, "m2comm");
+ }
+ 

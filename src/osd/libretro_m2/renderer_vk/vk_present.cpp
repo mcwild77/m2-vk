@@ -62,6 +62,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -347,6 +348,54 @@ bool counter_on()
 		s_env_counter = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
 	}
 	return (s_env_counter < 0) ? s_option_counter : (s_env_counter != 0);
+}
+
+// fps_display — a wall-clock frame-rate read-out in the top-LEFT corner, same 3x5 font as the polygon
+// counter. On by default. It measures the rate at which the emulation actually hands us frames (one
+// present_frame call = one emulated frame), smoothed lightly so the number is steady but still updates
+// every frame. The digits go green when the measured rate is holding the machine's native refresh (set
+// via set_target_fps from retro_get_system_av_info) within a tight margin, red when it has fallen behind.
+// M2VK_FPS overrides the option in the same presence-or-value direction as the counter switch above.
+bool     s_option_fps = true;
+int      s_env_fps = -2;    // -2 = not read; -1 = no switch; 0/1 = pinned
+double   s_target_fps = 0.0;
+double   s_measured_fps = 0.0;
+double   s_fps_period = 0.0;   // EMA of the wall-clock frame period, seconds
+bool     s_fps_have_last = false;
+std::chrono::steady_clock::time_point s_fps_last;
+
+bool fps_on()
+{
+	if (s_env_fps == -2)
+	{
+		char const *const env = std::getenv("M2VK_FPS");
+		s_env_fps = (env == nullptr) ? -1 : ((std::atoi(env) != 0) || (*env == '\0')) ? 1 : 0;
+	}
+	return (s_env_fps < 0) ? s_option_fps : (s_env_fps != 0);
+}
+
+// Called once per emulated frame at the top of present_frame. Times the interval since the last call and
+// keeps a light EMA of the period (alpha 0.2 — responsive enough to react in a few frames, damped enough
+// not to jitter the last digit). A gap longer than a quarter second (a pause, a reload, the first frame)
+// resets the average rather than showing a fictitious 3 fps afterwards.
+void tick_fps()
+{
+	const auto now = std::chrono::steady_clock::now();
+	if (!s_fps_have_last)
+	{
+		s_fps_last = now;
+		s_fps_have_last = true;
+		return;
+	}
+	const double dt = std::chrono::duration<double>(now - s_fps_last).count();
+	s_fps_last = now;
+	if (dt <= 0.0 || dt > 0.25)
+	{
+		s_fps_period = 0.0;   // discontinuity — restart the average on the next interval
+		return;
+	}
+	s_fps_period = (s_fps_period <= 0.0) ? dt : (s_fps_period + 0.2 * (dt - s_fps_period));
+	s_measured_fps = (s_fps_period > 0.0) ? (1.0 / s_fps_period) : 0.0;
 }
 
 // model2_smooth_2d — bilinear-filter the opaque 2D under-layer (background tilemaps) when the picture
@@ -1968,28 +2017,17 @@ void draw_steerbar(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 // the steering bar. Sized as a fraction of the attachment so it stays the same on-screen size at every
 // internal resolution. Binds `fallback_set` only to satisfy the shared layout — counter.frag reads no
 // sampler, exactly as steerbar.frag does not.
-void draw_counter(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height, VkDescriptorSet fallback_set)
+// Shared draw for both HUD read-outs (polygon count, top-right; frame rate, top-left). `glyphs` is a
+// left-to-right list of glyph codes (0..9 = digits, 10 = decimal point) drawn in `fg` on a black cell;
+// `left` picks the corner. Same scissored-fullscreen-triangle trick as the steering bar, sized as a
+// fraction of the attachment so it holds its on-screen size at every internal resolution.
+void draw_glyph_box(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height,
+		VkDescriptorSet fallback_set, const uint8_t *glyphs, int count, bool left, uint32_t fg)
 {
-	if (s_pipeline_counter == VK_NULL_HANDLE || !counter_on())
-		return;
-
-	// Format the count into decimal digits, most significant first, into an 8-digit field.
-	uint32_t v = (s_counter_value > 99999999u) ? 99999999u : s_counter_value;
-	uint8_t dec[8];
-	int n = 0;
-	if (v == 0)
-		dec[n++] = 0;
-	else
-	{
-		uint8_t tmp[8];
-		int m = 0;
-		while (v != 0) { tmp[m++] = uint8_t(v % 10u); v /= 10u; }
-		for (int i = m - 1; i >= 0; i--)
-			dec[n++] = tmp[i];
-	}
-	uint32_t packed = 0;                       // nibble 0 = leftmost digit
+	int n = (count < 1) ? 1 : (count > 8 ? 8 : count);   // 8 nibbles is the push field's whole width
+	uint32_t packed = 0;                       // nibble 0 = leftmost glyph
 	for (int i = 0; i < n; i++)
-		packed |= uint32_t(dec[i]) << (i * 4);
+		packed |= uint32_t(glyphs[i] & 0xfu) << (i * 4);
 
 	counter_push push{};
 	const float cell_h = float(draw_height) * 0.030f;
@@ -2002,9 +2040,9 @@ void draw_counter(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height
 	push.iy = cell_h * 0.12f;
 	push.count = uint32_t(n);
 	push.digits = packed;
-	push.fg = 0x35ff35u;                       // bright green digits
+	push.fg = fg;
 	push.bg = 0x000000u;                       // on a black cell (opaque; the pipeline does not blend)
-	push.ox = float(draw_width) - box_w - margin;
+	push.ox = left ? margin : (float(draw_width) - box_w - margin);
 	push.oy = margin;
 	if (push.ox < 0.0f) push.ox = 0.0f;
 
@@ -2031,6 +2069,60 @@ void draw_counter(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height
 	full.offset = { 0, 0 };
 	full.extent = { draw_width, draw_height };
 	s_fns.cmd_set_scissor(cmd, 0, 1, &full);
+}
+
+void draw_counter(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height, VkDescriptorSet fallback_set)
+{
+	if (s_pipeline_counter == VK_NULL_HANDLE || !counter_on())
+		return;
+
+	// Integer primitive count, most significant digit first, into an 8-glyph field.
+	uint32_t v = (s_counter_value > 99999999u) ? 99999999u : s_counter_value;
+	uint8_t glyphs[8];
+	int n = 0;
+	if (v == 0)
+		glyphs[n++] = 0;
+	else
+	{
+		uint8_t tmp[8];
+		int m = 0;
+		while (v != 0) { tmp[m++] = uint8_t(v % 10u); v /= 10u; }
+		for (int i = m - 1; i >= 0; i--)
+			glyphs[n++] = tmp[i];
+	}
+	draw_glyph_box(cmd, draw_width, draw_height, fallback_set, glyphs, n, /*left=*/false, 0x35ff35u);
+}
+
+// The frame-rate read-out, top-left, shown to three decimals (e.g. 57.795). Green while the measured
+// rate is within a tight margin of the machine's native refresh, red once it has dropped below. The
+// margin is deliberately small (1 fps) so a genuine slowdown shows immediately; the light EMA in tick_fps
+// is what keeps that from flickering. Until a target is known (first frames, or a frontend that never
+// reported one) it draws neutral green.
+void draw_fps(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height, VkDescriptorSet fallback_set)
+{
+	if (s_pipeline_counter == VK_NULL_HANDLE || !fps_on())
+		return;
+
+	const double fps = s_measured_fps;
+	// Fixed-point milli-fps, so the three fractional digits come out of integer maths. Capped so the
+	// integer part never exceeds three digits (999.999), which with the dot is 7 glyphs — inside the 8.
+	uint32_t milli = (fps > 999.999) ? 999999u : uint32_t(fps * 1000.0 + 0.5);
+	const uint32_t whole = milli / 1000u;      // 0..999
+	const uint32_t frac  = milli % 1000u;      // 0..999, three digits
+
+	uint8_t glyphs[8];
+	int n = 0;
+	if (whole >= 100u) glyphs[n++] = uint8_t(whole / 100u);
+	if (whole >= 10u)  glyphs[n++] = uint8_t((whole / 10u) % 10u);
+	glyphs[n++] = uint8_t(whole % 10u);        // always at least one integer digit
+	glyphs[n++] = 10;                          // decimal point
+	glyphs[n++] = uint8_t((frac / 100u) % 10u);
+	glyphs[n++] = uint8_t((frac / 10u) % 10u);
+	glyphs[n++] = uint8_t(frac % 10u);
+
+	const bool holding = (s_target_fps <= 0.0) || (fps >= s_target_fps - 1.0);
+	const uint32_t fg = holding ? 0x35ff35u : 0xff3535u;   // green when locked to native, else red
+	draw_glyph_box(cmd, draw_width, draw_height, fallback_set, glyphs, n, /*left=*/true, fg);
 }
 
 // `draw_over` says whether the frame has a foreground layer to composite. Without one this is P2's
@@ -2224,6 +2316,9 @@ bool record_and_submit(frame_slot &slot, uint32_t index, bool draw_over, bool dr
 		s_counter_value = m2vk::geom_frame_polys();
 	draw_counter(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
 
+	// Frame-rate read-out, top-left, over everything. On by default.
+	draw_fps(slot.cmd, draw_width, draw_height, slot.layers[m2vk::LAYER_UNDER].descriptor);
+
 	s_fns.cmd_end_render_pass(slot.cmd);
 
 	// The resolve. A second pass over the ring image, sampling what the first one drew — the render
@@ -2337,6 +2432,10 @@ bool present_frame(const uint32_t *pixels, unsigned width, unsigned height)
 		return false;
 	if ((pixels == nullptr) || (width == 0) || (height == 0))
 		return false;
+
+	// One call = one emulated frame handed across. Time it here, before any early-out below, so the
+	// frame-rate read-out measures the rate the emulation actually sustains.
+	tick_fps();
 
 	// The record the emulation thread finished writing before it parked on the baton. The polygon
 	// stream and the colour tables in it are recorded but not yet drawn — step 2 of P3 hands them
@@ -2675,6 +2774,20 @@ void set_option_smooth_2d(bool on)
 	// Parked; the composite reads smooth_2d_on() each frame to pick the under-layer descriptor, so it
 	// applies on the next presented frame with nothing to rebuild. M2VK_SMOOTH_2D overrides it there.
 	s_option_smooth_2d = on;
+}
+
+void set_option_fps(bool on)
+{
+	// Parked; draw_fps reads fps_on() each frame, so it applies on the next presented frame. M2VK_FPS
+	// overrides it there.
+	s_option_fps = on;
+}
+
+void set_target_fps(double fps)
+{
+	// The machine's native refresh, from retro_get_system_av_info. draw_fps turns the digits green while
+	// the measured rate holds this within a tight margin.
+	s_target_fps = (fps > 0.0) ? fps : 0.0;
 }
 
 bool present_extent(unsigned &width, unsigned &height)

@@ -183,6 +183,20 @@ Android: `./devnotes/build-android.sh` → `model2_libretro_android.so`; `./devn
 The harness does NOT cross-compile — `retrohost`, `ab.sh`, all digests stay on the Mac. See
 `devnotes/android.md`.
 
+🎯 **Deploying core-only to the Quest 3 — set `M2VK_ANDROID_ROMDIR`:**
+```sh
+./devnotes/build-android.sh                                          # incremental (REGENIE=1 only after a scripts/ change)
+M2VK_ANDROID_ROMDIR=/sdcard/Download ./devnotes/deploy-android.sh    # core only, no ROMs
+```
+`deploy-android.sh` resolves an SD-card ROM directory **unconditionally**, before it pushes the core,
+by the fsLabel `RPFlip2` — which is the user's **Odin handheld** card, not the Quest. On the Quest that
+lookup fails and the script exits (`no SD card labelled 'RPFlip2'`) **before the core is ever pushed**,
+even though no ROM args were given. Setting `M2VK_ANDROID_ROMDIR` to any existing dir (`/sdcard/Download`)
+satisfies the gate; with no ROM args nothing is written there but a harmless `mkdir -p`, and the core
+still lands in RetroArch's `downloads/`. The Quest reports `video vulkan` and pkg `com.retroarch.aarch64`.
+Then on the headset: **Load Core → Install or Restore a Core → `libmodelizer_libretro_android.so`**
+(re-do this copy-into-place after every rebuild — RetroArch will not pick up the new `.so` otherwise).
+
 ### Run-invocation gotchas — each of these has already cost a session
 1. **`-window` is mandatory.** Fullscreen is MAME's default and `-video none` still creates a window,
    so omitting `-window` blanks the user's display for the length of the run. Add `-nomaximize`.

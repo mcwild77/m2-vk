@@ -87,6 +87,16 @@ void set_option_resolution(unsigned width, unsigned height);
 // overrides the option. Applies on the next presented frame; nothing to rebuild.
 void set_option_counter(bool on);
 
+// fps_display: draw a wall-clock frame-rate read-out in the top-LEFT corner, same font as the polygon
+// counter. On by default. The digits go green while the emulation holds the machine's native refresh
+// (set_target_fps) within a tight margin, red when it falls behind. Vulkan only. M2VK_FPS overrides the
+// option. Applies on the next presented frame; nothing to rebuild.
+void set_option_fps(bool on);
+
+// The machine's native refresh rate (retro_get_system_av_info), which set_option_fps's read-out uses as
+// the threshold for the green/red colour. Harmless to call every frame.
+void set_target_fps(double fps);
+
 // model2_smooth_2d: bilinear-filter the opaque 2D under-layer (background tilemaps) when the picture is
 // magnified above native by the internal-resolution option. Off by default; a no-op at native. Under
 // layer only — the color-keyed foreground/HUD overlay keeps NEAREST. Vulkan only. M2VK_SMOOTH_2D

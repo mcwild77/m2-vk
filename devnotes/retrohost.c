@@ -1524,6 +1524,12 @@ int main(int argc, char **argv)
 {
 	int arg = 1;
 
+	/* The core defaults the frame-rate read-out (model2_fps_display) ON for players, but it draws
+	 * wall-clock digits that change every run -- poison for a digest comparison. This is the A/B
+	 * harness, so pin it OFF unless the caller explicitly set M2VK_FPS, exactly as the poly counter is
+	 * off by default here. Overwrite=0 leaves an explicit M2VK_FPS=1 (eyeballing the overlay) alone. */
+	setenv("M2VK_FPS", "0", 0);
+
 	for (; arg < argc && argv[arg][0] == '-' && argv[arg][1] == '-'; arg++) {
 		if (!strcmp(argv[arg], "--vk"))
 			g_vk_mode = true;

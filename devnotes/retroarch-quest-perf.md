@@ -63,7 +63,10 @@ it works. Only the deltas below are Quest-3-specific.
 directory explicitly:
 
 ```sh
-export M2VK_ANDROID_ROMDIR=/sdcard/ROMS/model2      # /sdcard = internal, adb-writable
+export M2VK_ANDROID_ROMDIR=/sdcard/Roms/model2      # /sdcard = internal, adb-writable.
+                                                    # NOTE the folder is `Roms` (capital R only), see §2.1;
+                                                    # deploy-android.sh's own default is all-caps ROMS, so this
+                                                    # override is mandatory — do not let it fall through.
 ./devnotes/build-android.sh
 ./devnotes/deploy-android.sh daytona                 # strip + push core to downloads, ROM to ROMDIR
 ```
@@ -126,7 +129,7 @@ into an actual race with the serial link flooded. Detail and digests in `m1audio
 
    ```sh
    adb shell am start -n com.retroarch.aarch64/com.retroarch.browser.retroactivity.RetroActivityFuture \
-     -e ROM      /sdcard/ROMS/model2/daytona.zip \
+     -e ROM      /sdcard/Roms/model2/daytona.zip \
      -e LIBRETRO /data/user/0/com.retroarch.aarch64/cores/libmodelizer_libretro_android.so \
      -e CONFIGFILE /storage/emulated/0/Android/data/com.retroarch.aarch64/files/retroarch.cfg \
      -e DATADIR  /data/user/0/com.retroarch.aarch64
@@ -239,15 +242,50 @@ Android's linker namespace refuses to `dlopen` a core from `/storage/emulated/0/
 mandatory — there is no shell path around it. After it, launch by intent against
 `/data/user/0/com.retroarch.aarch64/cores/…` (not the downloads copy).
 
+### 4.2 The pacing findings that invalidate §4's first bullet — 2026-09-01
+
+**RetroArch cannot pace this core on the Quest, at all.** Established live (full chain in the
+worklog entry of this date):
+
+- `audio_sync = "true"` is **inert** — opensl writes never block here; a free-run reached 90+ fps.
+  Audio crackle is therefore NOT a reliable real-time verdict on this device.
+- The vrr_runloop timer undershoots ~6% (54 of 57.5); the unthreaded vsync path quantizes to 90 Hz
+  vblank pairs (45-54); and a 60 Hz `video_refresh_rate` claim inside the default 5%
+  `audio_max_timing_skew` makes RA time-warp 57.5 Hz content to video timing.
+- Working config: `video_threaded=true`, `video_refresh_rate=90`, `audio_max_timing_skew=0.01`,
+  `vrr_runloop_enable=false`, `video_vsync=false` — every RA limiter off — plus the
+  **`model2_self_throttle` core option (default enabled on Android)**: MAME's own sleep+spin
+  throttle paces the core exactly. Attract/select hold 57.5 flat with it.
+- **The verdict instrument is now the core itself**: the on-screen fps counter
+  (`model2_fps_display`) in-headset, and `m2vk_stallmeter.h` → `adb logcat -s m2stall:V`, which
+  splits each emu-thread frame into cpu / park (frontend round-trip) / other (throttle + sched).
+- Same session: big-core pins with periodic re-assert (`m2vk_affinity.h` — **Android wipes thread
+  affinity on app-state transitions**, cpu0-1 little @1.38 / cpu2-5 big @1.92, and the 2.36 GHz in
+  the freq table is never granted — no clock headroom), frame pipelining on Android (+1 frame
+  latency, savestates dropped there by user decision), and the `model2_drive_board` park.
+  Net: heavy-race worst 50 → ~55.5-56.7; the remaining gap and levers are in
+  [plan_model2_quantum.md](plan_model2_quantum.md).
+
 ---
 
 ## 5. A/B a core change on one binary
 
-Every speed lever is env-gated so one build A/Bs cleanly (`M2VK_SOUND_THREAD`, `M2VK_SOUND_DELAY`,
-`M2VK_ASYNC_PRESENT`, …). Pass the env through the launch so the same installed `.so` runs both arms —
-set it on the app's environment before the intent, or bake it into the run and diff the `m2prof` ranking
-and the sustained FPS across arms. Always re-run the correctness harness (`ab.sh` digests, on the host —
-§6) before believing a speed win is free of an accuracy cost.
+Every speed lever is gated so one build A/Bs cleanly (`M2VK_SOUND_THREAD`, `M2VK_SOUND_DELAY`,
+`M2VK_ASYNC_PRESENT`, …). 🚨 **On Android `getenv` is null, so `M2VK_*` env vars DO NOT reach the core
+here** ([retro_entry.cpp:908](../src/osd/libretro_m2/retro_entry.cpp#L908), and the read site in
+`m2vk_soundthread.cpp` / `vk_present.cpp`). Passing the switch on the app's environment before the intent
+is a **no-op on the Quest** — it works only on the host harness. So:
+
+- **Levers with a core option** (the sound thread → `model2_sound_thread`) A/B on-device through the
+  option, i.e. RetroArch's core-options file, not the env. Set it there (or in the menu) between arms and
+  confirm the core's own `[model2] model2_sound_thread=on|off` log line, then diff the `m2prof` ranking
+  and the sustained FPS.
+- **Env-only levers** (`M2VK_ASYNC_PRESENT`, `M2VK_SOUND_DELAY` — no backing core option) **cannot be
+  toggled on the Quest at all**; they run at their built-in default. A/B those on the host, or add a core
+  option first if an on-device sweep is needed.
+
+Always re-run the correctness harness (`ab.sh` digests, on the host — §6) before believing a speed win is
+free of an accuracy cost.
 
 ---
 

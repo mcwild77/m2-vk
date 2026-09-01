@@ -590,14 +590,104 @@ judder on a 57.5 Hz core (vrr_runloop + rate-control) is a RA config artifact, n
 [m1audio-thread-plan.md](m1audio-thread-plan.md) §Stage 2. Next lever: drive-board Z80 park / interpreter
 hot-path, ordered by a fresh `m2prof` ranking now that sound is off the main thread.
 
-**2026-09-01 — On-screen emulated frame-rate read-out (`model2_fps_counter`, default ON).**
-Added a HUD frame-rate counter, top-LEFT, colour-coded against the machine's own refresh rate — green
-while the emulated game holds its target (Model 2 ≈ 57.5 Hz, read from `s_osd->refresh_rate()`, so no
-hardcoded number and it tracks each family/set), red once it drops more than 5% below. This is the
-**emulated game** rate, not the host present rate: measured in `retro_run` as the wall-clock spacing of the
-one-emulated-frame-per-call advances (EMA-smoothed, a >0.5 s gap reseeds), so a Quest that can't call us
-fast enough shows the game running slow. Answers the "no HUD FPS in this build" gap the sound-thread device
-runs hit. Reuses the poly-counter pipeline/shader unchanged (same 3×5 digit font, only origin + `fg`
-differ) — no new SPIR-V. Option all families, Vulkan only; `M2VK_FPS` overrides. Host-verified: option
-declared `on (default)`, overlay paints top-left (bbox 8,8–26,16), pure green at vf2's 57.5 Hz target.
-Green/red-under-load still wants a user hand-check on the Quest.
+**2026-09-01 — On-screen emulated frame-rate read-out (`model2_fps_display`, default ON).**
+(An earlier attempt at this feature was reverted for breaking the core; this is the clean re-do — see
+the safety proof below.) A HUD frame-rate counter, top-LEFT, colour-coded against the machine's own
+refresh rate — green while the emulated game holds its target (Model 2 ≈ 57.5 Hz, read from
+`s_osd->refresh_rate()` via `set_target_fps`, so no hardcoded number and it tracks each family/set),
+red once it drops more than **1 fps** below (the user asked for a tight band). This is the **emulated
+game** rate: timed in `tick_fps()` at the top of `present_frame` (one call = one emulated frame handed
+across), EMA-smoothed (α 0.2), a >0.25 s gap reseeds so a pause/reload doesn't print a fictitious rate.
+Shown to **three decimals** (e.g. `57.795`), formatted fixed-point from integer milli-fps. Reuses the
+poly-counter pipeline; the drawing was factored into `draw_glyph_box(glyphs,n,left,fg)` (glyph 0..9 =
+digit, 10 = decimal point) with `draw_counter` (integer) and `draw_fps` (`NN.NNN`) both feeding it. The
+only shader change is one added font entry — a bottom-centre dot at `FONT[10]` (bit 13) — so counter.frag
+was recompiled (`build_shaders.sh` / glslc); the digit glyphs are byte-for-byte the old ones.
+Option all families, Vulkan only; `M2VK_FPS` overrides. **Determinism guard:** the digits are wall-clock,
+so an always-on overlay would poison every harness digest — `retrohost` now `setenv("M2VK_FPS","0",0)`
+so all A/B/res/perf/hand digests default it OFF (players on RetroArch, a separate binary, keep default
+ON); explicit `M2VK_FPS=1` still overrides for eyeballing. **Safety-verified (vf2, 1400 frames):**
+FPS-off is byte-identical across runs (`63c764f5aec4c5a2` twice) and a default `retrohost --vk` run now
+equals that baseline; FPS-on differs from FPS-off in exactly **231 px, all inside the top-left box, 0 px
+elsewhere**; no crash/assert; only 6 OSD files + `retrohost.c` touched, zero upstream device/driver
+files. Green/red-under-load still wants a user hand-check on the Quest.
+
+**2026-09-01 — Quest 3 frame-rate session: 50 → ~56 worst-case, 57.5 locked outside the heaviest scenes.**
+Live-debugged on the tethered headset with the user driving. Chain of findings, each measured before fixed:
+1. **The leftover `set-fixed-performance-mode` pin was NOT the gap** (Quest OS holds big cores at 1.92 GHz
+   under load either way; 2.36 GHz exists in the freq table but the OS never grants it — there really is
+   no clock headroom). Pin removed; back to stock defaults.
+2. **Thread placement**: this chip is 2 little (cpu0-1 @1.38 GHz) + 4 big (cpu2-5 @1.92). New
+   `m2vk_affinity.h`: emu thread, sound worker, and the frontend's retro_run thread pin themselves to the
+   big cluster, re-asserted every 128 frames because **Android silently wipes thread affinity on app-state
+   transitions** (observed live). Worth ~3-4 fps.
+3. **RetroArch on the Quest cannot pace this core.** Its cfg claimed a 60 Hz display (real panel 90 Hz),
+   and core 57.52 vs "60" is inside the default 5% `audio_max_timing_skew` → RA time-warped the game to
+   video timing, quantized by FIFO vsync to ~45-54 fps. Worse: opensl audio writes never block here
+   (free-run test hit 90+ fps with `audio_sync=true`), so audio-clock pacing doesn't exist either, and the
+   vrr_runloop timer undershoots ~6%. Config now: `video_threaded=true`, `video_refresh_rate=90`,
+   `audio_max_timing_skew=0.01`, `vrr_runloop_enable=false`, `video_vsync=false`.
+4. **`model2_self_throttle` core option** (new; default enabled on Android only): drops `-nothrottle` so
+   MAME's sleep+spin throttle paces the core itself. With every RA limiter off this gives exact 57.5
+   pacing (attract/select hold 57.5 flat). Host default stays `-nothrottle` (digest determinism).
+5. **`m2vk_stallmeter.h`** (new, Android-only): logcat tag `m2stall`, splits each emu-thread frame into
+   cpu / park (baton wait on the frontend round-trip) / other. Heavy-race worst before pipelining:
+   `19.20 ms = cpu 15.44 + park 2.44 + other 1.33` vs the 17.38 budget.
+6. **Frame pipelining** (Android-only, `M2VK_PIPELINE` overrides on host): retro_run now presents, copies
+   audio, polls input, releases the emu thread, THEN pushes audio and returns — emulation overlaps the
+   frontend tail. +1 frame display latency. Host keeps the legacy order: default digest verified
+   byte-identical to baseline (`63c764f5aec4c5a2`), pipelined path deterministic across runs.
+   **Savestates are DROPPED in pipelined mode** (state.sh fails C!=D under it; user call: no savestates on
+   Quest rather than wrong ones) — `retro_serialize_size` returns 0 there; host savestates unaffected.
+7. **`model2_drive_board` core option** (new, live both ways, wheel-set menus only, default enabled):
+   parks the FFB drive-board Z80 via `SUSPEND_REASON_DISABLE` from the OSD (`m2vk_driveboard.h`, zero
+   upstream edits). daytona 2500-frame attract digest bit-identical parked vs running; engagement log
+   line verified. Live on-device A/B was scene-confounded (~1 ms, inside noise).
+
+**Remaining gap** (heaviest full-grid moments only): `~18-19.7 ms = cpu 14.5-15.8 + park ~2 + other ~1.4`.
+The park is now almost pure present_frame cost and CANNOT be moved after the release without renderer
+surgery: `frame_record.texram` is live pointers into the running machine (m2vk_frame.h documents the
+parked-thread guarantee). Next levers, in order: (a) double-buffer the record + snapshot/gate texram so
+present runs off the critical path (~2 ms); (b) emu-thread priority bump (other ~1.4 ms is mostly
+runqueue wait); (c) interpreter hot-path on the i960/TGP (performance.md §4). All three need the
+manual install-or-restore cycle on the headset to test.
+
+## 2026-09-01 (later) — scheduler-quantum experiment: run, and it redirected the roadmap
+
+Ran `devnotes/plan_model2_quantum.md` end to end on the desktop. The quantum lever is **dead**; the
+lever it was standing next to is worth 34–57 % of emulation-thread compute. Full write-up and every
+number in that file; instrumentation saved as `devnotes/qprobe.patch` (throwaway, env-gated, reverted
+from the tree — the upstream diff is back to what it was).
+
+1. **The quantum cannot be coarsened.** model2o sets none, so `rebuild_execute_list` gives it MAME's
+   default `attotime::from_hz(60)` = 16.67 ms — already the ceiling, and `compute_perfect_interleave`
+   only ever raises the floor. The plan's sweep (18000→1200 Hz = 55→833 µs) was *finer* than the
+   status quo on every arm; running it would have measured slowdowns and concluded the wrong thing.
+2. **The quantum is masked anyway.** `timeslice()` targets `min(basetime + quantum, next timer)`.
+   fvipers (model2b) has the driver's 18000 Hz quantum and still takes 1.006 M slices/s — so
+   `model2.cpp:2915` has no observable effect. Don't cite it as precedent.
+3. **The real cost is a 500 kHz baud clock.** `clock_device::clock_tick` is **99.87 %** of all timer
+   callbacks. `model2.cpp:2586`, `:2654` and `shared/segam1audio.cpp:80` each instantiate a 500 kHz
+   `CLOCK` into `i8251::write_txc`/`write_rxc`; both edges fire, so 1 M callbacks/s per device
+   (daytona has two, coincident; 2A/2B have one). With `m_br_factor = 16`, 15 of every 16 edges only
+   increment a counter — but each is still a full scheduler break: 33 k rounds and 67 k device
+   `run()` dispatches per frame.
+4. **Prize, `perf: core ms/frame`, baud clocks silenced** (`M2VK_QPROBE_NOUART=all`; deliberately
+   breaks the sound link, so it's an upper bound): daytona 3.797→2.018, vf2 3.650→2.047, srallyc
+   3.685→1.570, vcop2 3.538→1.968, fvipers 4.501→2.985.
+5. **The control that makes it a claim.** A `CLOCK` device nothing listens to changes no emulated
+   state, only scheduler granularity. Daytona digest `570fa675693d242f` held across none / 250 kHz /
+   500 kHz / 1 MHz, while core went 3.817 / 3.959 / 3.998 / **5.300** — cost tracks *new* break points
+   (the coincident rates are nearly free), pricing one at **~85 ns** here. +1 M/s = +1.48 ms predicted
+   vs −1.78 ms measured for removal. It is scheduler overhead, not the game doing less.
+6. **The sound thread didn't fix this, it moved half of it.** `m2vk_snd::enabled()` takes m1audio's
+   clock to the worker machine; the main machine keeps 1 M edges/s. Consistent with the Quest 50→57.5.
+
+**Next:** a demand-gated / bit-boundary baud clock (bit-exact for TX by construction; RX must wake on
+`write_rxd` with phase computed on the true grid — naive batching quantises start-bit detection to a
+whole bit and is not safe). Then re-measure before committing to the MB86233 DRC: a recompiler makes
+each dispatch cheaper without making them fewer, and ~40 % of the time is the switching.
+⚠️ The video digest cannot see sound — vf2/srallyc/vcop2 held their digests with the link fully dead.
+Any candidate needs a listening check, not just `ab.sh`.
+**Not run:** the Quest arm. Desktop cores aren't Adreno's; a break point there likely costs more,
+not less.

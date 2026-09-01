@@ -92,10 +92,28 @@ inline constexpr char const *SOUND_THREAD_LABEL = "Threaded Sound";
 inline constexpr char const *SOUND_THREAD_INFO =
 	"Run the sound CPU on its own thread for speed on multi-core devices. Daytona-class sets only; needs a reload.";
 
+// --- Drive Board -------------------------------------------------------------
+inline constexpr char const *DRIVE_BOARD_LABEL = "Drive Board (Force Feedback)";
+inline constexpr char const *DRIVE_BOARD_INFO =
+	"Emulate the wheel cabinet's force-feedback drive board. It has no effect on a gamepad — "
+	"disable to save CPU on weaker devices. Applies immediately.";
+
+// --- Self-Paced Timing -------------------------------------------------------
+inline constexpr char const *SELF_THROTTLE_LABEL = "Self-Paced Timing";
+inline constexpr char const *SELF_THROTTLE_INFO =
+	"The core paces itself to the game's native rate instead of trusting the frontend's frame limiter. "
+	"Fixes frame-rate undershoot on devices whose frontend timer is imprecise (Android). Needs a reload.";
+
 // --- Polygon Count -----------------------------------------------------------
 inline constexpr char const *POLY_COUNTER_LABEL = "Polygon Count";
 inline constexpr char const *POLY_COUNTER_INFO =
 	"Display polygons rendered per frame. Vulkan only.";
+
+// --- Frame Rate --------------------------------------------------------------
+inline constexpr char const *FPS_DISPLAY_LABEL = "Frame Rate Counter";
+inline constexpr char const *FPS_DISPLAY_INFO =
+	"Show the emulated frame rate in the top-left corner. Green while holding the game's native rate, "
+	"red when it drops. Vulkan only.";
 
 // --- Smooth 2D Backgrounds ---------------------------------------------------
 inline constexpr char const *SMOOTH_2D_LABEL = "Smooth 2D Backgrounds";
