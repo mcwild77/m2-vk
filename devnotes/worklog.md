@@ -691,3 +691,122 @@ each dispatch cheaper without making them fewer, and ~40 % of the time is the sw
 Any candidate needs a listening check, not just `ab.sh`.
 **Not run:** the Quest arm. Desktop cores aren't Adreno's; a break point there likely costs more,
 not less.
+
+---
+
+## 2026-09-01 — the demand-gated baud clock, built ([lazy-baud.md](lazy-baud.md))
+
+The lever the entry above found, taken. `src/osd/libretro_m2/m2vk_baud.{h,cpp}` replaces the 500 kHz
+`CLOCK` feeding `i8251::write_txc`/`write_rxc` with a generator that delivers **the same edges on the
+same grid at the same emulated instants** but only arms a timer for one the UART can act on. Default
+**ON**; `M2VK_LAZY_BAUD=0` is the A/B arm. All the logic is in the new file — guarded hooks only, and
+this change is **116 insertions / 1 deletion across 4 upstream files** (`git diff --shortstat` vs
+`mame0289`, which is the merged baseline now, not `mame0288`; whole-fork total 906/18 over 15 files).
+
+**Measured** (`retrohost --vk`, 2500 frames, second boot, own `M2_SAVE_DIR`): daytona 3.644→**2.322**,
+vf2 3.824→**2.357**, srallyc 3.962→**2.066**, vcop2 3.432→**2.040**, fvipers 4.728→**2.949**. That is
+−36 % to −48 %, essentially at the `NOUART` upper bound the previous entry measured. System 22/21 are
+unaffected (the no-op control). Model 1 gains only 2–6 % because `model1.cpp`'s own `m1uart_clock` is
+still a stock `CLOCK` — the obvious follow-up, left alone because that file scopes on `M1VK`.
+
+1. **Three skips, each exact, none of them a batch.** TX bulk-adds the counter and schedules the bit
+   boundary; RX bulk-subtracts and schedules the sample point; an RX waiting for a start bit sleeps
+   outright and wakes on `write_rxd`. Start-bit detection still runs at the full 16× rate, so it never
+   quantises to a whole bit. Two details carry it: on waking, up to 16 real idle edges are replayed so
+   the 16-bit shift register ends bit-identical (**without at least one, a start bit after power-on is
+   missed** — the register starts at 0 while the line idles at 1, so no 1→0 transition is ever seen);
+   and every register write goes through the generator, because a mode byte rewrites `m_br_factor` and
+   zeroes both dividers.
+2. **The plan's "idle TX needs no timer" is wrong and was not built.** An idle bit boundary still
+   reaches `sound_ready_w`, which re-asserts IRQ bit 10 whenever TxRDY is high — observable if the CPU
+   cleared `m_intreq` in between. TX keeps its 31.25 kHz boundary; that is under 4 % of the break
+   points removed, and the numbers land at the floor regardless.
+3. **What it does change is scheduler interleaving, and the control proves it is only that.** Three of
+   five picture digests hold bit-exactly; vf2 and vcop2 move. Running the previous entry's dummy-clock
+   control *in reverse* — lazy clock **on** plus a `CLOCK` that restores the break points and drives
+   nothing — returns vf2 to `3fe1c65ec124e202`, vcop2 to `959289e28ea8f11e`, and daytona's **audio** to
+   `d0d75dbf470ad402` rms 3258.5, all bit-identical to stock. `M2VK_LAZY_BAUD=2` (eager: this device,
+   a timer per edge) does the same. The residual is a sub-pixel geometry phase — 0–0.06 % of pixels on
+   the frames sampled, vf2's final frame bit-identical.
+4. 🚨 **The previous entry's warning was right, and it cost a real bug.** `retrohost` now prints an
+   `audio:` line (FNV digest + RMS over every sample) beside the picture digest. It immediately caught
+   **Model 1 going silent** under a bit-perfect video digest: `model1.cpp` feeds the board's RxD
+   through `segam1audio_device::write_txd`, which was not routed through the generator. Fixed inside
+   the board device, so model1.cpp, manxttdx and the sound-thread worker are all covered by one path.
+   vf/swa/vr now match on video **and** audio; srallyc and fvipers match on both without any control.
+5. **`subdevice<T>()` is a `downcast`, not a `dynamic_cast`.** With `M2VK_LAZY_BAUD=0` it hands back
+   the stock `clock_device` reinterpreted as a generator and the next call segfaults. Cost: one crash
+   in the sound-thread bridge. Use `dynamic_cast` on the untyped `subdevice()`.
+6. **Verification.** `ab.sh` across 14 fixtures — all pass exit criterion 1, `white = 0`, zero interior
+   disagreement. `dynabb97`/`waverunr` sit off `ab-baselines.md` at LB=1 only because frame 2500 lands
+   on a different moment; **LB=0 reproduces the baselines exactly** (92.119 / 91.334). Savestates
+   **8/8 PASS**. Sound thread: same video digest, no crash (its audio ring reads rms 0.0 under
+   `retrohost` in *both* arms — pre-existing).
+
+### 2026-09-01 (later) — the first cut was broken, and only a hand-check found it
+
+The user played it. Daytona: engine stuck at one cadence, **no SFX, no crashes**, music and voice fine.
+Same with the sound thread. Cause was a real bug in `sync_tx()`, not interleaving.
+
+1. **The false invariant.** The first cut bulk-added every elapsed TX edge on a wake, arguing "the
+   boundary edge is always the one we scheduled, so a wake can never step over it." MAME lets a CPU
+   overshoot a pending timer by up to one instruction inside a timeslice. Measured on daytona: the game
+   wrote to the UART at 55.929,940,040 s, **40 ns after** a boundary due at .940,000 whose callback had
+   not run. The bulk add walked `m_txc_count` onto exactly `m_br_factor` with `transmit_clock()` never
+   running; it only resets on *equality*, so the next tick made it factor+1 and **TX was dead for the
+   rest of the run**. Fix: a bulk advance stops one short of a boundary and leaves it to the timer
+   (which arms at zero delay); delivery accepts an edge whose time has passed; `arm()` clamps a past
+   target. RX's sample point had the same hazard and the same fix. `arm_tx()` now permanently guards
+   the divider overtaking the factor.
+2. 🚨 **Attract mode is not the emulator, and this is the lesson worth keeping.** 14 `ab.sh` fixtures,
+   8 savestate fixtures and a new audio digest were all green with the transmitter dead, because every
+   one of them ran attract mode, where daytona moves 48 bytes in 43 s. The stall first fires **56 s into
+   a race**. The check that finds it is a scripted-gameplay byte-stream diff: log `data_w` /
+   `receive_character` with timestamps on both UARTs and compare per-UART sequences. daytona is the
+   fixture because its **video digest is identical in both arms** under an input script, so the i960
+   provably ran the same code and any byte difference is the link. After the fix: **3246 bytes vs 3246**,
+   each UART's sequence byte-for-byte identical (1623 each way); before it, 3246 vs 1196. SCSP games
+   diverge under script, so compare lazy+dummy-clock against stock: vf2 402/402, fvipers 492/492,
+   sequences identical.
+3. **Two things I called wrong and should not be repeated.** "The dummy-clock control passes, so the
+   difference is benign interleaving" — the control was passing *while TX was dead*; it isolates the
+   UART from interleaving but says nothing about a path the run never reaches. And "audio RMS within
+   2 % means the sound is fine" — it read that for total TX death.
+4. **Dead end, do not re-propose: `set_maximum_quantum`.** With the baud clock gone it finally binds, so
+   it looks like a way to buy interleave back. A 2 µs quantum restores daytona's stock audio digest
+   (core 2.970 vs stock 3.611) but **breaks srallyc's**, which is bit-identical under plain lazy, and
+   gives vcop2 a third video digest belonging to neither arm. It is just a different arbitrary
+   interleave.
+5. **Still open:** the user also reports vf2 "sound volume very soft, music normal". Not explained and
+   not shown to be a regression — its RMS is ~2062 in every arm including stock and its byte stream is
+   exact given matched interleave. Needs an `M2VK_LAZY_BAUD=0` A/B by ear before chasing it.
+
+### 2026-09-01 (later still) — the hand-check's real culprit was the SOUND THREAD, not the baud clock
+
+The user's daytona report survived the transmitter-stall fix. Cause: their live
+`config/m2-vk/m2-vk.opt` carries `model2_sound_thread = "enabled"` from the Quest validation, and the
+Game Launcher uses whatever is in that config. **With the sound thread on, the serial bridge stops
+delivering ~11 s in — the board receives 96 of 1622 bytes.** Identical at `M2VK_LAZY_BAUD=0` and `=1`,
+so it is a pre-existing fault in `m2vk_snd`, not this work. Written up as an open bug in
+[m1audio-thread-plan.md](m1audio-thread-plan.md). Disabling the option restored the game's sound.
+
+1. **Check which options the user's config actually has before interpreting a hand-check.** Two rounds
+   of ear-testing were spent attributing a sound-thread fault to the baud clock. Their `.opt` file is
+   one `cat` away and would have said so immediately. The "same problem with threaded audio" line in
+   the first report was the tell.
+2. **The baud clock is now DEFAULT OFF**, opt-in via `M2VK_LAZY_BAUD=1`. Verified that the no-env build
+   is bit-identical to stock (daytona video `b90f8192848a723b`, audio `d0d75dbf470ad402` rms 3258.5).
+3. **The Quest "Stage 2 VALIDATED" note is narrower than it reads** — it measured frame rate
+   (daytona ~50→57.5), not that the sound board was still being fed. The video digest cannot see the
+   serial link, so nothing in that validation would have caught an 11-second cliff.
+4. **Frame rate question, answered and not a bug.** The core reports **57.5242 fps**, exactly
+   16 MHz/(656×424) from `model2.cpp`'s `set_raw`. The core's own `model2_fps_display` reads *wall-clock*
+   `retro_run` rate, so a steady 60 means the frontend is pacing to a 60 Hz display rather than to the
+   content — the game then runs ~4.3 % fast. RetroArch's "Sync to Exact Content Framerate" or the core's
+   own `model2_self_throttle` ("Self-Paced Timing", currently `disabled` in the user's config) each fix
+   it. Pre-existing, unrelated to any of today's work.
+
+**Next:** the Quest arm, still not run — `build-android.sh` → `deploy-android.sh` → the manual
+Install-or-Restore → `adb logcat -s m2stall:V m2prof:V` on a heavy daytona race. A break point there
+likely costs more than the 85 ns measured here, not less. Then re-measure the per-device profile
+before committing to the MB86233 DRC. ⚠️ **The listening hand-check is open** — see `lazy-baud.md`.

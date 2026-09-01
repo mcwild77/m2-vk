@@ -151,6 +151,7 @@ inline constexpr char const *KEY_M2_SMOOTH_SHADING = "model2_smooth_shading";
 // path is the default. Hidden from the other families' menus. Reload-gated — the board split is decided
 // when the machine is built. m2vk_snd::set_option_enabled() seeds it; M2VK_SOUND_THREAD wins (harness).
 inline constexpr char const *KEY_SOUND_THREAD = "model2_sound_thread";
+inline constexpr char const *KEY_LAZY_BAUD    = "model2_lazy_baud";
 inline constexpr char const *KEY_SELF_THROTTLE = "model2_self_throttle";
 inline constexpr char const *KEY_DRIVE_BOARD = "model2_drive_board";
 
@@ -316,6 +317,10 @@ bool get_smooth_shading(retro_environment_t environ_cb);
 // KEY_SOUND_THREAD resolved to the bool m2vk_snd::set_option_enabled() takes. "enabled" tested, so an
 // unreadable or stale value lands on the accurate single-threaded default (off).
 bool get_sound_thread(retro_environment_t environ_cb);
+
+// KEY_LAZY_BAUD resolved to the bool m2vk_baud::set_option_enabled() takes. "enabled" tested, so an
+// unreadable value lands on the stock CLOCK, which is the safe arm.
+bool get_lazy_baud(retro_environment_t environ_cb);
 
 // KEY_SELF_THROTTLE resolved to whether retro_load_game passes -throttle (MAME paces itself) instead
 // of -nothrottle (the frontend paces). "enabled" tested; the fallback default differs per platform —

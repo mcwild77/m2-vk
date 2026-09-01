@@ -208,3 +208,40 @@ is the lever if it bothers a player.
 **Next lever** (Stage 1's win banked): the drive-board Z80 park (~6–9 % on the wheel cabs, zero on a pad)
 and/or the broadened interpreter hot-path work — order by what a fresh `m2prof` ranking says now that the
 sound bucket is off the main thread.
+
+---
+
+## 🚨 OPEN BUG (found 2026-09-01): the serial bridge dies ~11 s in
+
+**Symptom, heard by the user in RetroArch:** daytona plays its opening music and voice, then the engine
+sticks at one cadence and no SFX, crashes or car sounds ever arrive. Reported twice, once as "stuck"
+and once as "delayed by multiple seconds".
+
+**Measured** (`retrohost --vk`, daytona, 6000 frames, scripted coin-up
+`600:select:20,900:start:20,1300:start:20,1700:start:20`, a throwaway log in `i8251_device::data_w`
+and `receive_character`):
+
+| `model2_sound_thread` | main CPU transmits | board receives | last byte the board saw |
+|---|---|---|---|
+| **enabled** | 1622 bytes, out to 104.2 s | **96** | **10.93 s** |
+| disabled | 1622 bytes | **1622** | 104.2 s |
+
+So `g_to_sound` stops delivering about eleven seconds in and never resumes: **94 % of the command
+stream never reaches the board.** Everything after that point is silence, which is exactly what the
+game sounds like.
+
+**It is not the demand-gated baud clock.** The numbers above are identical at `M2VK_LAZY_BAUD=0` and
+`=1`, and `m2vk_soundthread.cpp`'s only edit for that feature is null when it is off (the
+`dynamic_cast` returns null and the lambda falls through to the original `g_main_uart->write_rxd`).
+This is a pre-existing fault in the bridge itself.
+
+**Not yet diagnosed.** Prime suspects, in order: `serial_line`'s time-tagged replay queue (both
+machines start at t=0, but if the worker's pacing point stops advancing past the main machine's time,
+`pump()` would stop dispatching), and `pump_main`/the worker's pacing loop stalling while the worker
+machine keeps running. Start by logging the queue depth and the worker's published time each frame and
+find what stops moving at ~11 s.
+
+⚠️ **The Quest validation did not cover this.** Worklog 2026-09-01 records Stage 2 "VALIDATED on Quest
+(daytona ~50→57.5 fps)" — that was a *frame-rate* measurement. Nothing in it checked that the sound
+board was still receiving, and the video digest cannot see the serial link at all. The check that finds
+it is the byte-stream comparison above.

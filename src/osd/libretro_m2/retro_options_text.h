@@ -99,6 +99,12 @@ inline constexpr char const *DRIVE_BOARD_INFO =
 	"disable to save CPU on weaker devices. Applies immediately.";
 
 // --- Self-Paced Timing -------------------------------------------------------
+inline constexpr char const *LAZY_BAUD_LABEL = "Fast Sound-Link Timing";
+inline constexpr char const *LAZY_BAUD_INFO =
+	"Clock the sound board's serial link only when it can act, instead of a million times an emulated "
+	"second. Large speed-up where the CPU is the limit; the bytes on the link are unchanged, but device "
+	"timing shifts slightly, so a few games render a frame differently. Needs a reload.";
+
 inline constexpr char const *SELF_THROTTLE_LABEL = "Self-Paced Timing";
 inline constexpr char const *SELF_THROTTLE_INFO =
 	"The core paces itself to the game's native rate instead of trusting the frontend's frame limiter. "

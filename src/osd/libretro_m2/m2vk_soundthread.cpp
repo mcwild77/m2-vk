@@ -31,6 +31,8 @@
 
 #include "machine/i8251.h"
 
+#include "m2vk_baud.h"
+
 #include "emuopts.h"
 #include "main.h"
 #include "osdepend.h"
@@ -216,6 +218,11 @@ i8251_device *g_main_uart = nullptr;
 // The sound board in the worker machine, so g_to_sound can drive its TXD (== the board UART's RXD). Set
 // on the worker thread in the driver's machine_start, read on the worker thread in g_to_sound's sink.
 segam1audio_device *g_board = nullptr;
+
+// The main UART's demand-gated baud clock (m2vk_baud.h), when it is in use: its RxD has to arrive
+// through the generator so a sleeping receiver is woken. Null when M2VK_LAZY_BAUD=0, in which case the
+// line goes straight at the UART as before. The sound board routes its own RxD (segam1audio.cpp).
+m2vk_baud_device *g_main_baud = nullptr;
 
 // The main machine, so the worker's machine_start can attach g_to_main to it. Set on the main thread in
 // start() before the worker launches (happens-before via thread start); read once on the worker thread.
@@ -635,11 +642,18 @@ void prepare_main(running_machine &main)
 	// The main UART, so sound->main replies can be delivered onto its RXD. Tag "uart" (model2.h). The
 	// device object exists post-config even before its own device_start.
 	g_main_uart = main.root_device().subdevice<i8251_device>("uart");
+	g_main_baud = dynamic_cast<m2vk_baud_device *>(main.root_device().subdevice("uart_clock"));
 
 	// sound -> main: allocate the reply line's timer on the MAIN machine NOW, while its save-state
 	// registration is still open (this runs inside running_machine::start(), from osd().init()).
 	// Allocating it later is refused by MAME. It is pumped and fires only on this (main) thread.
-	g_to_main.attach(main, [](int state) { if (g_main_uart) g_main_uart->write_rxd(state); });
+	g_to_main.attach(main, [](int state)
+		{
+			if (g_main_baud)
+				g_main_baud->rxd_w(state);
+			else if (g_main_uart)
+				g_main_uart->write_rxd(state);
+		});
 }
 
 void start(running_machine &main)
@@ -699,6 +713,7 @@ void stop()
 	g_board = nullptr;
 	g_worker_machine = nullptr;
 	g_main_uart = nullptr;
+	g_main_baud = nullptr;
 	g_main_machine = nullptr;
 	g_board_split = false;
 	g_running.store(false, std::memory_order_release);

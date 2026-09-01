@@ -23,6 +23,8 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
+class m2vk_baud_device;
+
 class segam1audio_device : public device_t
 {
 public:
@@ -60,6 +62,12 @@ private:
 	required_memory_bank m_mpcmbank2;
 
 	devcb_write_line   m_rxd_handler;
+
+	// Demand-gated baud clock for this board's UART, when the machine config installed one in place of
+	// the CLOCK feeding its TxC/RxC (src/osd/libretro_m2/m2vk_baud.h). The board's RxD has to arrive
+	// through it or a sleeping receiver is never woken. Null on the untouched path, and in any build
+	// whose driver project does not compile the generator. Resolved in device_start().
+	m2vk_baud_device *m_baud = nullptr;
 
 	void output_txd(int state);
 

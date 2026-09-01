@@ -244,6 +244,12 @@ function createProjects_mame_modelizer(_target, _subtarget)
         -- symbols resolve at the final link, as the render seams do. Inert unless the flag is set.
         MAME_DIR .. "src/osd/libretro_m2/m2vk_soundthread.h",
         MAME_DIR .. "src/osd/libretro_m2/m2vk_soundthread.cpp",
+
+        -- HAND-ADDED: M2VK_LAZY_BAUD — the demand-gated i8251 baud clock. Same reason as above: it is
+        -- a device_t and needs the full MAME/devices headers this project has, and both model2.cpp and
+        -- segam1audio.cpp (compiled here) reference it. Inert when M2VK_LAZY_BAUD=0.
+        MAME_DIR .. "src/osd/libretro_m2/m2vk_baud.h",
+        MAME_DIR .. "src/osd/libretro_m2/m2vk_baud.cpp",
     }
 
     -- HAND-ADDED: the seam in model2_v.cpp calls into the sink in

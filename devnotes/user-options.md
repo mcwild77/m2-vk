@@ -528,3 +528,51 @@ evidence. The checks that mean something:
    expensive than the feature is worth. A scripted `vf2` run should be unchanged.
 
 Nothing here touches the renderer, the seam or the 30-line upstream diff.
+
+## Self-Paced Timing (`model2_self_throttle`) — default ON since 2026-09-01
+
+Maps to MAME's `-throttle` (the core paces itself) instead of `-nothrottle` (the frontend's limiter
+paces it). Reload-gated. **Default was Android-only; it is now on everywhere**, by user call.
+
+The desktop reason is the mirror image of the Android one. A Model 2 screen is
+`set_raw(32_MHz_XTAL/2, 656, …, 424, …)` = **57.5242 Hz**, and the core reports exactly that in
+`retro_get_system_av_info`. But with vsync to a 60 Hz panel and RetroArch's "Sync to Exact Content
+Framerate" off, the frontend calls `retro_run` 60 times a second anyway — the game runs **~4.3 % fast**
+and only dynamic audio rate control hides it. The core's own `model2_fps_display` reads wall-clock
+`retro_run` rate, so a steady `60.0` on a 57.5 Hz machine is exactly this and is worth recognising.
+(Android's fault was the same limiter undershooting: 54 of 57.5 fps on a Quest 3.)
+
+⚠️ **It is wrong for a measurement run** — pacing to wall clock caps `retrohost` at 1× when digest
+sweeps run 4×+. `retrohost` therefore pins the option off for itself in `option_value()`;
+`M2OPT_model2_self_throttle=enabled` still overrides that. Digests do not move either way (daytona
+600 frames: `2a3ccdffd51dcdeb` at both 420 % and 99.95 %) — emulation is deterministic and this only
+decides when the OSD sleeps.
+
+⚠️ **A new default does not reach an existing install.** RetroArch persists every chosen value, so a
+`config/m2-vk/m2-vk.opt` that already names the key keeps its old value. Change it in the core options
+menu, or delete the line with RetroArch closed.
+
+
+## Fast Sound-Link Timing (`model2_lazy_baud`) — default ON, reload-gated
+
+The core option half of the demand-gated baud clock ([lazy-baud.md](lazy-baud.md)). Replaces the
+500 kHz `CLOCK` feeding an i8251's TxC/RxC with a generator that only arms a timer for an edge the UART
+can act on. Worth **35–48 % of emulation-thread time** on desktop, and it is the lever that matters on a
+CPU-bound device.
+
+Visible on **Model 2 and Model 1** only — those are the two families whose machines carry such a clock
+(`model2.cpp` x2, `shared/segam1audio.cpp`). Hidden from System 22/21/23, where it would be a dead entry.
+
+**It exists as an option because `getenv` is dead on Android**, so `M2VK_LAZY_BAUD` cannot reach the
+Quest. The switch still overrides the option in both directions on desktop:
+
+| option | switch | result |
+|---|---|---|
+| (default) | — | on |
+| `disabled` | — | off |
+| `disabled` | `M2VK_LAZY_BAUD=1` | **on** |
+| `enabled` | `M2VK_LAZY_BAUD=0` | **off** |
+
+⚠️ What it changes besides speed: MAME's **device interleave**, not the serial link. The bytes on the
+link are identical (verified byte-for-byte through a scripted race); but a few games render a frame
+slightly differently. See lazy-baud.md for the control that separates the two.

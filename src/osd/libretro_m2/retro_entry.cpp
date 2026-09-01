@@ -36,6 +36,12 @@
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 #include "m2vk_soundthread.h"
+
+// m2vk_baud.h is not includable here: it declares a device_t and pulls in machine/i8251.h, which this
+// OSD library does not build against. The module is compiled into the mame_model2 driver project and
+// the symbol resolves at the final link, exactly as the render seams and the sound-thread worker do —
+// so forward-declare just the gate this file needs. Keep in step with m2vk_baud.h.
+namespace m2vk_baud { void set_option_enabled(bool on); bool enabled(); }
 #include "m2vk_affinity.h"
 #include "s22_seam.h"
 #include "s21_seam.h"
@@ -416,6 +422,9 @@ void apply_family_cascade(family fam)
 		// Threaded Sound splits the model2o Model 1 sound board; System 22 has its own 68000 board, not
 		// wired into the worker hook, so the toggle would be dead here.
 		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
+		// Fast Sound-Link Timing replaces the 500 kHz CLOCK feeding an i8251 on the Model 2 / Model 1
+		// machines; this family has no such device, so the toggle would be dead here.
+		m2opt::hide_option(m2opt::KEY_LAZY_BAUD);
 	}
 	else if (fam == family::system21)
 	{
@@ -442,6 +451,9 @@ void apply_family_cascade(family fam)
 		m2opt::hide_option(m2opt::KEY_SMOOTH_2D);
 		// Threaded Sound is the model2o board split; S21 is a different family, not wired into the worker hook.
 		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
+		// Fast Sound-Link Timing replaces the 500 kHz CLOCK feeding an i8251 on the Model 2 / Model 1
+		// machines; this family has no such device, so the toggle would be dead here.
+		m2opt::hide_option(m2opt::KEY_LAZY_BAUD);
 	}
 	else if (fam == family::model1)
 	{
@@ -467,6 +479,9 @@ void apply_family_cascade(family fam)
 		// Threaded Sound splits the model2o board (the model2.cpp hook); the Model 1 family has its own
 		// sound hardware, not wired into the worker, so the toggle is dead here.
 		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
+		// Fast Sound-Link Timing stays visible: model1.cpp's board is a SEGAM1AUDIO, whose own uart_clock
+		// the generator replaces (segam1audio.cpp). Its gain is small here — model1.cpp's separate
+		// m1uart_clock is still a stock CLOCK — but the toggle is live, not dead.
 	}
 	else if (fam == family::system23)
 	{
@@ -487,6 +502,9 @@ void apply_family_cascade(family fam)
 		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
 		// Threaded Sound is the model2o board split; S23 is a different family, not wired into the worker hook.
 		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
+		// Fast Sound-Link Timing replaces the 500 kHz CLOCK feeding an i8251 on the Model 2 / Model 1
+		// machines; this family has no such device, so the toggle would be dead here.
+		m2opt::hide_option(m2opt::KEY_LAZY_BAUD);
 	}
 	else
 	{
@@ -860,7 +878,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			"M2VK_STEER_DAMP_DRIVE", "M2VK_STEER_DAMP_RETURN", "M2VK_STEERBAR",
 			"M2VK_ANALOG_LINEAR", "M2VK_ANALOG_DEADZONE", "M2VK_ANALOG_REACH", "M2VK_S22_FILTER",
 			"M2VK_S22_DEPTH", "M2VK_S22_FOG", "M2VK_S22_NOTEX", "M2VK_S22_HUD", "M2VK_POLYCOUNT",
-			"M2VK_FPS", "M2VK_M1_SMOOTH", "M2VK_M2_SMOOTH" })
+			"M2VK_FPS", "M2VK_M1_SMOOTH", "M2VK_M2_SMOOTH", "M2VK_LAZY_BAUD" })
 	{
 		if (std::getenv(sw) != nullptr)
 			s_log_cb(RETRO_LOG_INFO, "[model2] %s is set; it overrides the matching core option\n", sw);
@@ -926,6 +944,22 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// resolved inside m2vk_snd::enabled(). Hidden from every non-model2 menu (apply_family_cascade).
 	const bool sound_thread = m2opt::get_sound_thread(s_environ_cb);
 	m2vk_snd::set_option_enabled(sound_thread);
+
+	// Fast Sound-Link Timing (model2_lazy_baud) — seed the baud-generator gate now, for the same reason
+	// and at the same point: the model2.cpp / segam1audio.cpp config hooks read it when they decide
+	// whether to create the generator in place of the CLOCK. On Android, where getenv is null, this
+	// option is the only way in; M2VK_LAZY_BAUD still wins on the harness. Hidden from the System
+	// 22/21/23 menus (apply_family_cascade) — those families have no i8251 baud clock.
+	const bool lazy_baud = m2opt::get_lazy_baud(s_environ_cb);
+	m2vk_baud::set_option_enabled(lazy_baud);
+	if (fam == family::model2 || fam == family::model1)
+	{
+		// Report what the generator actually resolved to, not the option value — M2VK_LAZY_BAUD may have
+		// overridden it (the sweep above prints the override notice), and a log that disagrees with the
+		// running configuration is worse than none.
+		s_log_cb(RETRO_LOG_INFO, "[model2] %s=%s\n", m2opt::KEY_LAZY_BAUD,
+			m2vk_baud::enabled() ? "on" : "off");
+	}
 	if (fam == family::model2)
 		s_log_cb(RETRO_LOG_INFO, "[model2] %s=%s\n", m2opt::KEY_SOUND_THREAD, sound_thread ? "on" : "off");
 

@@ -94,6 +94,7 @@
 #include "endianness.h"
 
 #ifdef M2VK
+#include "libretro_m2/m2vk_baud.h"
 #include "libretro_m2/m2vk_soundthread.h"
 #endif
 
@@ -1318,7 +1319,13 @@ void model2o_state::model2o_mem(address_map &map)
 	map(0x00200000, 0x0021ffff).ram().flags(i960_cpu_device::BURST);
 	map(0x00220000, 0x0023ffff).rom().region("maincpu", 0x20000).flags(i960_cpu_device::BURST);
 	map(0x01c00000, 0x01c00fff).rw("dpram", FUNC(mb8421_device::right_r), FUNC(mb8421_device::right_w)).umask32(0x00ff00ff); // 2k*8-bit dual port ram
+#ifdef M2VK
+	// M2VK: through the demand-gated baud clock when it is on — a mode/command byte has to
+	// re-phase the generator. See src/osd/libretro_m2/m2vk_baud.h.
+	m2vk_baud::map_uart(map, 0x01c80000, 0x01c80003, m_uart).umask16(0x00ff);
+#else
 	map(0x01c80000, 0x01c80003).rw(m_uart, FUNC(i8251_device::read), FUNC(i8251_device::write)).umask16(0x00ff);
+#endif
 }
 
 /* Daytona "To The MAXX" PIC protection simulation */
@@ -1402,7 +1409,13 @@ void model2a_state::model2a_crx_mem(address_map &map)
 	map(0x00200000, 0x0023ffff).ram().flags(i960_cpu_device::BURST);
 	map(0x01c00000, 0x01c0001f).rw("io", FUNC(sega_315_5649_device::read), FUNC(sega_315_5649_device::write)).umask32(0x00ff00ff);
 	map(0x01c00040, 0x01c00043).nopw();
+#ifdef M2VK
+	// M2VK: through the demand-gated baud clock when it is on — a mode/command byte has to
+	// re-phase the generator. See src/osd/libretro_m2/m2vk_baud.h.
+	m2vk_baud::map_uart(map, 0x01c80000, 0x01c80003, m_uart).umask16(0x00ff);
+#else
 	map(0x01c80000, 0x01c80003).rw(m_uart, FUNC(i8251_device::read), FUNC(i8251_device::write)).umask16(0x00ff);
+#endif
 }
 
 void model2a_state::model2a_5881_mem(address_map &map)
@@ -1437,7 +1450,13 @@ void model2b_state::model2b_crx_mem(address_map &map)
 	map(0x00980014, 0x00980017).r(FUNC(model2b_state::copro_status_r));
 	map(0x00980020, 0x00980023).noprw();    // bank control reg - used during SHARC program upload, all games just set this to 0
 
+#ifdef M2VK
+	// M2VK: through the demand-gated baud clock when it is on — a mode/command byte has to
+	// re-phase the generator. See src/osd/libretro_m2/m2vk_baud.h.
+	m2vk_baud::map_uart(map, 0x009c0000, 0x009c0007, m_uart).umask32(0x000000ff);
+#else
 	map(0x009c0000, 0x009c0007).rw(m_uart, FUNC(i8251_device::read), FUNC(i8251_device::write)).umask32(0x000000ff);
+#endif
 
 	map(0x11000000, 0x110fffff).ram().share("textureram0").flags(i960_cpu_device::BURST); // texture RAM 0 (2b/2c)
 	map(0x11100000, 0x111fffff).ram().share("textureram0").flags(i960_cpu_device::BURST); // texture RAM 0 (2b/2c)
@@ -1481,7 +1500,13 @@ void model2c_state::model2c_crx_mem(address_map &map)
 	map(0x11400000, 0x1140ffff).rw(FUNC(model2c_state::lumaram_r), FUNC(model2c_state::lumaram_w)).umask16(0x00ff).flags(i960_cpu_device::BURST);    // polygon "luma" RAM (2b/2c)
 
 	map(0x01c00000, 0x01c0001f).rw("io", FUNC(sega_315_5649_device::read), FUNC(sega_315_5649_device::write)).umask32(0x00ff00ff);
+#ifdef M2VK
+	// M2VK: through the demand-gated baud clock when it is on — a mode/command byte has to
+	// re-phase the generator. See src/osd/libretro_m2/m2vk_baud.h.
+	m2vk_baud::map_uart(map, 0x01c80000, 0x01c80003, m_uart).umask16(0x00ff);
+#else
 	map(0x01c80000, 0x01c80003).rw(m_uart, FUNC(i8251_device::read), FUNC(i8251_device::write)).umask16(0x00ff);
+#endif
 }
 
 void model2c_state::model2c_5881_mem(address_map &map)
@@ -2574,7 +2599,6 @@ void model2_state::model2_scsp(machine_config &config)
 	SCSP(config, m_scsp, 45.1584_MHz_XTAL / 2); // 45.158MHz XTAL at Video board(Model 2A-CRX)
 	m_scsp->set_addrmap(0, &model2_state::scsp_map);
 	m_scsp->irq_cb().set(FUNC(model2_state::scsp_irq));
-	m_scsp->midi_out_cb().set(m_uart, FUNC(i8251_device::write_rxd));
 	m_scsp->add_route(0, "speaker", 1.0, 0);
 	m_scsp->add_route(1, "speaker", 1.0, 1);
 
@@ -2583,9 +2607,22 @@ void model2_state::model2_scsp(machine_config &config)
 	m_uart->rxrdy_handler().set(FUNC(model2_state::sound_ready_w));
 	m_uart->txrdy_handler().set(FUNC(model2_state::sound_ready_w));
 
+#ifdef M2VK
+	// M2VK: the demand-gated baud clock in place of a 500 kHz CLOCK that pokes TxC/RxC a million times
+	// an emulated second. Same edges at the same instants, but only the ones the UART can act on get a
+	// timer, and the receiver's RxD comes through the generator so a sleeping one is woken.
+	// See src/osd/libretro_m2/m2vk_baud.h.
+	if (m2vk_baud_device *const baud = m2vk_baud::install(config, "uart_clock", 500000, m_uart))
+		m_scsp->midi_out_cb().set(*baud, FUNC(m2vk_baud_device::rxd_w));
+	else
+#endif
+	{
+	m_scsp->midi_out_cb().set(m_uart, FUNC(i8251_device::write_rxd));
+
 	clock_device &uart_clock(CLOCK(config, "uart_clock", 500000)); // 16 times 31.25kHz (standard Sega/MIDI sound data rate)
 	uart_clock.signal_handler().set(m_uart, FUNC(i8251_device::write_txc));
 	uart_clock.signal_handler().append(m_uart, FUNC(i8251_device::write_rxc));
+	}
 }
 
 /* original Model 2 */
@@ -2619,6 +2656,10 @@ void model2o_state::model2o(machine_config &config)
 	MB8421(config, "dpram");
 
 #ifdef M2VK
+	// M2VK: the demand-gated baud clock in place of the 500 kHz CLOCK below; null when it is off.
+	// See src/osd/libretro_m2/m2vk_baud.h.
+	m2vk_baud_device *const baud = m2vk_baud::install(config, "uart_clock", 16_MHz_XTAL / 2 / 16, m_uart);
+
 	// M2VK_SOUND_THREAD: run the Model 1 sound board in a second machine on a worker thread. When on,
 	// the board is not instantiated here; the main UART's TXD crosses a bridge to it and its replies
 	// come back on the UART's RXD a frame later. When off (the default), this is the untouched path.
@@ -2627,6 +2668,11 @@ void model2o_state::model2o(machine_config &config)
 #endif
 	{
 	SEGAM1AUDIO(config, m_m1audio);
+#ifdef M2VK
+	if (baud)
+		m_m1audio->rxd_handler().set(*baud, FUNC(m2vk_baud_device::rxd_w));
+	else
+#endif
 	m_m1audio->rxd_handler().set(m_uart, FUNC(i8251_device::write_rxd));
 	}
 #ifdef M2VK
@@ -2651,9 +2697,14 @@ void model2o_state::model2o(machine_config &config)
 	m_uart->rxrdy_handler().set(FUNC(model2o_state::sound_ready_w));
 	m_uart->txrdy_handler().set(FUNC(model2o_state::sound_ready_w));
 
+#ifdef M2VK
+	if (!baud)
+#endif
+	{
 	clock_device &uart_clock(CLOCK(config, "uart_clock", 16_MHz_XTAL / 2 / 16)); // 16 times 31.25kHz (standard Sega/MIDI sound data rate)
 	uart_clock.signal_handler().set(m_uart, FUNC(i8251_device::write_txc));
 	uart_clock.signal_handler().append(m_uart, FUNC(i8251_device::write_rxc));
+	}
 
 	M2COMM(config, "m2comm");
 }
@@ -2830,6 +2881,13 @@ void model2a_state::manxttdx(machine_config &config)
 	manxtt(config);
 
 	SEGAM1AUDIO(config, m_m1audio);
+#ifdef M2VK
+	// M2VK: the board -> main direction through the main UART's generator. The other direction goes
+	// through segam1audio_device::write_txd, which routes itself. See m2vk_baud.h.
+	if (m2vk_baud_device *const baud = m2vk_baud::find(config, "uart_clock"))
+		m_m1audio->rxd_handler().set(*baud, FUNC(m2vk_baud_device::rxd_w));
+	else
+#endif
 	m_m1audio->rxd_handler().set(m_uart, FUNC(i8251_device::write_rxd));
 
 	m_uart->txd_handler().append(m_m1audio, FUNC(segam1audio_device::write_txd));

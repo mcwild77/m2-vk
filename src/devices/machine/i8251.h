@@ -48,6 +48,22 @@ public:
 	int txrdy_r();
 	int rxrdy_r();
 
+#ifdef M2VK
+	// M2VK: read-only views of the two baud dividers plus the two setters the demand-gated baud clock
+	// needs to bulk-skip edges that provably do nothing. All the policy lives in
+	// src/osd/libretro_m2/m2vk_baud.h; nothing here changes this device. Inline and guarded, so no
+	// data member, no virtual and no layout change: the block is simply absent in a TU without M2VK.
+	int  m2vk_br_factor() const     { return m_br_factor; }
+	int  m2vk_txc_count() const     { return m_txc_count; }
+	int  m2vk_rxc_count() const     { return m_rxc_count; }
+	void m2vk_set_txc_count(int n)  { m_txc_count = n; }
+	void m2vk_set_rxc_count(int n)  { m_rxc_count = n; }
+	bool m2vk_rx_enabled() const    { return BIT(m_command, 2); }
+	bool m2vk_rx_synced() const     { return is_receive_register_synchronized(); }
+	bool m2vk_sync_mode() const     { return m_sync_byte_count != 0; }
+	int  m2vk_rxd() const           { return m_rxd; }
+#endif
+
 protected:
 	enum
 	{

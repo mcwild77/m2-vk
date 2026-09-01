@@ -114,7 +114,10 @@ repo). Launch with `--add-dir /Users/mcwildmacbookair/Documents/GitHub/Polydiver
   a handful of guarded hook calls. 🚨 **The real upstream diff to mame0288, measured 2026-08-22, is
   135 insertions / 2 deletions across 5 files** (`scsp.cpp` +6, `scsp.h` +5/−2, `model2.flt` +1,
   `model2.cpp` +37, `model2_v.cpp` +86; everything in `src/osd/libretro_m2/` is a new file). Measure
-  with `git diff --shortstat mame0288 -- src/devices src/mame`. **The old "still 30 lines" claim was
+  with `git diff --shortstat <newest merged release tag> -- src/devices src/mame`. 🚨 **That tag is
+  `mame0289`, not `mame0288`** — 0289 has been merged, so measuring against 0288 reports the whole
+  upstream release delta (4526 files) and is meaningless. Measured 2026-09-01 vs `mame0289`:
+  **906 insertions / 18 deletions across 15 files**. **The old "still 30 lines" claim was
   false** — do not repeat any fixed diff-size number; quote the measurement or say nothing.
 
 ## Repo / upstream conventions
@@ -296,7 +299,13 @@ The key `M2VK_*` switches: `M2VK_SW_3D=1` puts MAME's rasteriser back in charge 
 `renderer=software`); `M2VK_NO_3D=1` background-only reference; `M2VK_OPAQUE_ONLY=1` opaque-path guard;
 `M2VK_ONLY_POLY=<n>` one polygon; `M2VK_NO_EARLY_Z=1` the one *pure no-op* switch (must not move a
 pixel); `M2VK_NO_RETICLE=1`, `M2VK_NO_SCISSOR=1`, `M2VK_SS=<n>`, `M2VK_RES=<w>x<h>`.
-**Full reference for all 57 runtime switches: [devnotes/switches.md](devnotes/switches.md).**
+`M2VK_LAZY_BAUD=0` restores the stock 500 kHz i8251 `CLOCK` — the demand-gated baud clock ships as the
+`model2_lazy_baud` core option ("Fast Sound-Link Timing", **default ON**, reload-gated, Model 2 + Model 1
+menus only) and is worth 35–48 % of core ms/frame ([devnotes/lazy-baud.md](devnotes/lazy-baud.md)).
+⚠️ `retrohost` pins `model2_self_throttle` off for itself — that option now ships ON and maps to MAME's
+`-throttle`, which would cap every harness run at 1×.
+**Full reference: [devnotes/switches.md](devnotes/switches.md)** — that file carries the count; do not
+quote one here.
 
 ## 🎮 Just playing it? None of the harness commands. Use `~/Desktop/Model 2.app`
 **Playing and measuring must not share a command line** — every invocation above pins options and

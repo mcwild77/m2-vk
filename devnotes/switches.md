@@ -2,7 +2,8 @@
 
 Every runtime env switch the code actually reads, audited 2026-08-22 against the tree (not prose);
 **+4 core switches added 2026-08-25** (`M2VK_POLYCOUNT`, `M2VK_S22_FOG`/`NOTEX`/`HUD` — the R3 option set).
-**61 distinct switches**: 46 read by the shipped core, 15 host-only in `retrohost.c`. A matching
+**62 distinct switches**: 47 read by the shipped core, 15 host-only in `retrohost.c`
+(**+1 2026-09-01**: `M2VK_LAZY_BAUD`). A matching
 `M2VK_*` switch **overrides its core option** and the core logs a line when one is doing so.
 
 Not switches (excluded from the count): the `*_H` include guards, the `M2VK_RESOLVE_DEVICE` and
@@ -48,6 +49,7 @@ to hold. `DEFINITIONS[]` in `retro_options.cpp` is the option authority.
 | `M2VK_RETICLE` | force the reticle on a non-gun game (for testing it); `M2VK_NO_RETICLE` still wins |
 | `M2VK_SS` / `M2VK_SS_POINT` | render at n× and resolve back to 496×384 — resolution-invariance harness (`res.sh`). `POINT=1` + odd scale carries the claim |
 | `M2VK_ONLY_POLY` / `M2VK_ONLY_FRAME` | draw one polygon (in the run's last rendered frame) and nothing else — single-polygon A/B |
+| `M2VK_LAZY_BAUD` | the demand-gated i8251 baud clock — the switch half of the `model2_lazy_baud` option ("Fast Sound-Link Timing", default ON) and worth 36–48 % of core ms/frame ([lazy-baud.md](lazy-baud.md)). `=0` restores the stock 500 kHz `CLOCK`, which is the A/B arm. `=2` eager (this device, a timer for every edge — reproduces stock digests exactly, so it separates "the mechanism is wrong" from "the machine noticed the missing scheduler breaks"); `=3`/`=4` gate only TX / only RX |
 
 ## Diagnostic read-outs (KEEP — cheap, and reused by the System 22 port)
 | Switch | Role |

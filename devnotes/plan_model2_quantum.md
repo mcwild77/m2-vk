@@ -102,6 +102,16 @@ existing ones: **+1 M break points/s = +1.48 ms/frame ≈ 85 ns each on this des
 currently carries ~1 M/s of them, and removing them measured −1.78 ms. The two numbers agree. The
 saving is real scheduler overhead.
 
+## ✅ BUILT 2026-09-01 — see [lazy-baud.md](lazy-baud.md)
+
+Both shapes below are implemented in `src/osd/libretro_m2/m2vk_baud.{h,cpp}`, default ON
+(`M2VK_LAZY_BAUD=0` restores the stock `CLOCK`). Measured **−36 % to −48 %** of desktop core ms/frame,
+essentially at the `NOUART` upper bound in the table above. The UART itself is bit-exact — proved by
+the dummy-clock control run in reverse (lazy clock **on** *plus* a dummy `CLOCK` restoring only the
+break points reproduces the stock video **and audio** digests exactly). What does move is MAME's
+device interleaving, on vf2 and vcop2. The rest of this section is the design as written before the
+build; `lazy-baud.md` is what was actually built and what it measures.
+
 ## What to build instead — a lazy baud clock
 
 The mechanism has to keep the *observable* i8251 events (TxD transitions, TxRDY/TxEMPTY/RxRDY, the

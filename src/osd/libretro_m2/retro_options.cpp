@@ -427,6 +427,28 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		"enabled"
 	},
 	{
+		m2opt::KEY_LAZY_BAUD,
+		m2txt::LAZY_BAUD_LABEL,
+		nullptr,
+		m2txt::LAZY_BAUD_INFO,
+		nullptr,
+		nullptr,
+		// Model 2 and Model 1 only — those are the families whose machines carry a 500 kHz CLOCK into an
+		// i8251's TxC/RxC (model2.cpp x2, shared/segam1audio.cpp). System 22/21/23 have no such device, so
+		// the toggle is hidden from their menus (apply_family_cascade). Reload-gated: whether the generator
+		// replaces the CLOCK is decided when the machine is built.
+		//
+		// Default ON. Worth 35-48 % of emulation-thread time on desktop and the lever that matters on a
+		// CPU-bound device; see devnotes/lazy-baud.md for the measurements and for what it does change
+		// (MAME's device interleave, not the serial link).
+		{
+			{ "disabled", m2txt::V_OFF },
+			{ "enabled",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"enabled"
+	},
+	{
 		m2opt::KEY_SELF_THROTTLE,
 		m2txt::SELF_THROTTLE_LABEL,
 		nullptr,
@@ -435,19 +457,25 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		// All families — the frame-limiter slop it works around is the frontend's, not any one
 		// machine's. Reload-gated: -throttle/-nothrottle is fixed when the machine is built.
-		// Default ON only on Android, where RetroArch's limiter measurably undershoots (54 of
-		// 57.5 fps on the Quest 3); the host harness and desktop keep the frontend-paced default
-		// so digest runs stay free of any wall-clock coupling.
+		//
+		// Default ON everywhere (2026-09-01, user call). Android needed it already — RetroArch's
+		// limiter measurably undershoots there (54 of 57.5 fps on the Quest 3) — and on desktop the
+		// frontend-paced default has the mirror-image fault: with vsync to a 60 Hz panel and no
+		// exact-content-framerate sync, RetroArch calls retro_run 60 times a second against a machine
+		// whose real refresh is 57.5242 Hz (16 MHz / (656 x 424)), so the game runs ~4.3 % fast and
+		// only dynamic audio rate control hides it.
+		//
+		// ⚠️ This maps to MAME's -throttle, which paces the emulation to WALL CLOCK. That is wrong for
+		// a measurement run: it caps retrohost at 1x (digest sweeps run 4x+ that) and couples timing
+		// to the host. retrohost therefore pins the option off for itself unless a run asks otherwise
+		// — see option_value() in devnotes/retrohost.c. Digests are unaffected either way; emulation
+		// is deterministic and this only decides when the OSD sleeps.
 		{
 			{ "disabled", m2txt::V_OFF },
 			{ "enabled",  m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
-#if defined(__ANDROID__)
 		"enabled"
-#else
-		"disabled"
-#endif
 	},
 	{
 		m2opt::KEY_DIAGNOSTIC_INPUT,
@@ -796,6 +824,11 @@ bool m2opt::get_drive_board(retro_environment_t environ_cb)
 	// "enabled" tested with the enabled arm as fallback: an unreadable value keeps the board
 	// running (the accurate default); parking is the explicit opt-in.
 	return get(environ_cb, KEY_DRIVE_BOARD) != "disabled";
+}
+
+bool m2opt::get_lazy_baud(retro_environment_t environ_cb)
+{
+	return get(environ_cb, KEY_LAZY_BAUD) == "enabled";
 }
 
 bool m2opt::get_self_throttle(retro_environment_t environ_cb)

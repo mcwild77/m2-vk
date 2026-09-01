@@ -131,6 +131,15 @@ static const char *option_value(const char *key)
 	for (n = 0; n < g_option_count; n++)
 		if (!strcmp(g_options[n].key, key))
 			return g_options[n].value;
+
+	/* Self-Paced Timing ships ON, which is right for a player and wrong for a measurement: it maps to
+	 * MAME's -throttle, so the emulation paces itself to WALL CLOCK and every run here is capped at 1x
+	 * (these sweeps run 4x+ that). Pin it off for the harness unless the run asked for it above --
+	 * M2OPT_model2_self_throttle=enabled still wins, since that is checked first. Digests do not move
+	 * either way; this only decides whether the OSD sleeps. */
+	if (!strcmp(key, "model2_self_throttle"))
+		return "disabled";
+
 	return NULL;
 }
 
@@ -1100,8 +1109,27 @@ static void video_cb(const void *data, unsigned width, unsigned height, size_t p
 	note_frame(data, width, height, pitch);
 }
 
-static void audio_sample_cb(int16_t l, int16_t r) { (void)l; (void)r; g_audio_samples++; }
-static size_t audio_batch_cb(const int16_t *data, size_t frames) { (void)data; g_audio_samples += frames; return frames; }
+/* The video digest CANNOT see sound: vf2/srallyc/vcop2 held their picture digests with the serial
+ * link to the sound board fully dead (devnotes/plan_model2_quantum.md). So the audio gets its own
+ * whole-run digest, on the same FNV-1a the picture uses, plus an RMS for a run whose audio is
+ * produced asynchronously (the sound thread) and so is not bit-reproducible. */
+static uint64_t g_audio_digest = 1469598103934665603ULL;
+static double g_audio_sumsq;
+
+static void audio_note(int16_t v)
+{
+	g_audio_digest ^= (uint64_t)(uint16_t)v;
+	g_audio_digest *= 1099511628211ULL;
+	g_audio_sumsq += (double)v * (double)v;
+}
+
+static void audio_sample_cb(int16_t l, int16_t r) { audio_note(l); audio_note(r); g_audio_samples++; }
+static size_t audio_batch_cb(const int16_t *data, size_t frames)
+{
+	for (size_t i = 0; i < frames * 2; i++) audio_note(data[i]);
+	g_audio_samples += frames;
+	return frames;
+}
 
 /* --- the button script ------------------------------------------------------------------- */
 
@@ -1798,6 +1826,8 @@ int main(int argc, char **argv)
 	printf("presented: %ux%u\n", g_w, g_h);
 	printf("digest: %016llx over %lu frames\n", (unsigned long long)g_digest,
 	       g_digest_from ? g_digest_frames : g_frames_with_video);
+	printf("audio: %016llx rms %.1f over %lu sample frames\n", (unsigned long long)g_audio_digest,
+	       g_audio_samples ? sqrt(g_audio_sumsq / (double)(g_audio_samples * 2)) : 0.0, g_audio_samples);
 	if (rss_every > 0) {
 		size_t rss = resident_bytes();
 		if (rss > rss_peak) rss_peak = rss;

@@ -14,13 +14,23 @@
 #include "machine/clock.h"
 #include "speaker.h"
 
+#ifdef M2VK
+#include "libretro_m2/m2vk_baud.h"
+#endif
+
 #include <cstdlib>
 
 void segam1audio_device::segam1audio_map(address_map &map)
 {
 	map(0x000000, 0x03ffff).rom();
 	map(0x080000, 0x09ffff).rom().region("sndcpu", 0x20000); // mirror of upper ROM socket
+#ifdef M2VK
+	// M2VK: through the demand-gated baud clock when it is on — a mode/command byte has to re-phase
+	// the generator. See src/osd/libretro_m2/m2vk_baud.h.
+	m2vk_baud::map_uart(map, 0xc20000, 0xc20003, m_uart).umask16(0x00ff);
+#else
 	map(0xc20000, 0xc20003).rw(m_uart, FUNC(i8251_device::read), FUNC(i8251_device::write)).umask16(0x00ff);
+#endif
 	map(0xc40000, 0xc40007).rw(m_multipcm_1, FUNC(multipcm_device::read), FUNC(multipcm_device::write)).umask16(0x00ff);
 	map(0xc40012, 0xc40013).nopw();
 	map(0xc50000, 0xc50001).w(FUNC(segam1audio_device::m1_snd_mpcm_bnk1_w));
@@ -77,9 +87,17 @@ void segam1audio_device::device_add_mconfig(machine_config &config)
 	m_uart->rxrdy_handler().set_inputline(m_audiocpu, M68K_IRQ_2);
 	m_uart->txd_handler().set(FUNC(segam1audio_device::output_txd));
 
+#ifdef M2VK
+	// M2VK: the demand-gated baud clock in place of a 500 kHz CLOCK that pokes TxC/RxC a million times
+	// an emulated second. The board's RxD comes from the main UART's TXD, which the driver routes into
+	// this generator directly. See src/osd/libretro_m2/m2vk_baud.h.
+	if (!m2vk_baud::install(config, "uart_clock", 16_MHz_XTAL / 2 / 16, m_uart))
+#endif
+	{
 	clock_device &uart_clock(CLOCK(config, "uart_clock", 16_MHz_XTAL / 2 / 16)); // 16 times 31.25kHz (standard Sega/MIDI sound data rate)
 	uart_clock.signal_handler().set(m_uart, FUNC(i8251_device::write_txc));
 	uart_clock.signal_handler().append(m_uart, FUNC(i8251_device::write_rxc));
+	}
 
 	// DAC output clocks measures:
 	// BYTECLK = 10/8 (1.25MHz)
@@ -115,6 +133,12 @@ segam1audio_device::segam1audio_device(const machine_config &mconfig, const char
 
 void segam1audio_device::device_start()
 {
+#ifdef M2VK
+	// dynamic_cast, not subdevice<T>(): that is a downcast, so with M2VK_LAZY_BAUD=0 it would hand back
+	// the stock clock_device reinterpreted as a generator.
+	m_baud = dynamic_cast<m2vk_baud_device *>(subdevice("uart_clock"));
+#endif
+
 	m_mpcmbank1->configure_entries(0, 4, m_multipcm1_region->base(), 0x100000);
 	m_mpcmbank2->configure_entries(0, 4, m_multipcm2_region->base(), 0x100000);
 
@@ -149,6 +173,15 @@ void segam1audio_device::m1_snd_mpcm_bnk2_w(uint16_t data)
 
 void segam1audio_device::write_txd(int state)
 {
+#ifdef M2VK
+	// M2VK: through the demand-gated baud clock when it is on, so a sleeping receiver is woken. Doing
+	// it here rather than at every caller covers model1.cpp and manxttdx too. See m2vk_baud.h.
+	if (m_baud)
+	{
+		m_baud->rxd_w(state);
+		return;
+	}
+#endif
 	m_uart->write_rxd(state);
 }
 
