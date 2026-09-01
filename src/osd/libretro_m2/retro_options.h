@@ -141,6 +141,13 @@ inline constexpr char const *KEY_SMOOTH_SHADING = "model1_smooth_shading";
 // parks it; M2VK_M2_SMOOTH wins. Applies live (a vertex value, no reload).
 inline constexpr char const *KEY_M2_SMOOTH_SHADING = "model2_smooth_shading";
 
+// Model 2 only (functional on the model2o / Model 1 sound-board / Daytona-class sets) — run the SEGAM1AUDIO
+// board (the sound 68000) on its own worker thread, so a heavy frame's wall time approaches the slowest
+// single device rather than the sum. A performance option, off by default; the accurate, single-threaded
+// path is the default. Hidden from the other families' menus. Reload-gated — the board split is decided
+// when the machine is built. m2vk_snd::set_option_enabled() seeds it; M2VK_SOUND_THREAD wins (harness).
+inline constexpr char const *KEY_SOUND_THREAD = "model2_sound_thread";
+
 // System 22 only — whether the 2D HUD/text overlay is drawn back over the GPU 3D. On by default (the
 // accurate picture); off hides the score/HUD/text layer, leaving the 3D above the 2D background. A
 // look, not an accuracy fix. Hidden from the Model 2 and System 21 menus. Vulkan only.
@@ -299,6 +306,10 @@ bool get_flat_luma(retro_environment_t environ_cb);
 // KEY_SMOOTH_SHADING resolved to the bool m1::set_option_smooth() takes. "on" tested, so an unreadable or
 // invented value lands on the accurate flat default.
 bool get_smooth_shading(retro_environment_t environ_cb);
+
+// KEY_SOUND_THREAD resolved to the bool m2vk_snd::set_option_enabled() takes. "enabled" tested, so an
+// unreadable or stale value lands on the accurate single-threaded default (off).
+bool get_sound_thread(retro_environment_t environ_cb);
 
 // KEY_M2_SMOOTH_SHADING resolved to the bool m2vk::set_option_smooth() takes. "on" tested, same reason.
 bool get_m2_smooth_shading(retro_environment_t environ_cb);

@@ -87,6 +87,11 @@ inline constexpr char const *M2_SMOOTH_SHADING_LABEL = "Smooth Shading";
 inline constexpr char const *M2_SMOOTH_SHADING_INFO =
 	"Smooth Model 2's flat per-face shading across surfaces. Enhancement, not accurate.";
 
+// --- Threaded Sound (Model 2 / Daytona-class) --------------------------------
+inline constexpr char const *SOUND_THREAD_LABEL = "Threaded Sound";
+inline constexpr char const *SOUND_THREAD_INFO =
+	"Run the sound CPU on its own thread for speed on multi-core devices. Daytona-class sets only; needs a reload.";
+
 // --- Polygon Count -----------------------------------------------------------
 inline constexpr char const *POLY_COUNTER_LABEL = "Polygon Count";
 inline constexpr char const *POLY_COUNTER_INFO =

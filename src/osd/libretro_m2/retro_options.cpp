@@ -377,6 +377,25 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		"100%"
 	},
 	{
+		m2opt::KEY_SOUND_THREAD,
+		m2txt::SOUND_THREAD_LABEL,
+		nullptr,
+		m2txt::SOUND_THREAD_INFO,
+		nullptr,
+		nullptr,
+		// "disabled"/"enabled" for the inline on/off toggle switch (see the flat_luma note above).
+		// get_sound_thread() tests "enabled". Model-2-family only, and functional only on the model2o
+		// (Model 1 sound-board / Daytona-class) machines whose config splits the board; a no-op toggle on
+		// the SCSP model2a/b/c sets, hidden from the other families' menus. Reload-gated: the split is
+		// decided when the machine is built.
+		{
+			{ "disabled", m2txt::V_OFF },
+			{ "enabled",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"disabled"
+	},
+	{
 		m2opt::KEY_DIAGNOSTIC_INPUT,
 		m2txt::DIAGNOSTIC_INPUT_LABEL,
 		nullptr,
@@ -709,6 +728,13 @@ bool m2opt::get_flat_luma(retro_environment_t environ_cb)
 bool m2opt::get_smooth_shading(retro_environment_t environ_cb)
 {
 	return get(environ_cb, KEY_SMOOTH_SHADING) == "on";
+}
+
+bool m2opt::get_sound_thread(retro_environment_t environ_cb)
+{
+	// "enabled" is the value key (the boolean toggle-switch pair, as with flat_luma). Any other value —
+	// a stale config, an unreadable one — lands on the "disabled" default, matching the env gate's OFF.
+	return get(environ_cb, KEY_SOUND_THREAD) == "enabled";
 }
 
 bool m2opt::get_m2_smooth_shading(retro_environment_t environ_cb)

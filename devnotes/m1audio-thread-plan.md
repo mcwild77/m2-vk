@@ -168,9 +168,43 @@ How it fits together:
    measures on-device; the desktop number is not predictive.**
 3. Optional core option (menu toggle) — the env var drives it today; the menu entry is a shippable-pass nicety.
 
-## Stage 2 — measure on the Quest (AoJ / device side)
+## Stage 2 — measure on the Quest — ✅ VALIDATED 2026-09-01 (RetroArch loop, not AoJ)
 
-Build the Android `.so`, repackage into the AoJ APK, drive a heavy Daytona race, read the `[speed]`
-line. Expect to recover most of the ~4 ms the sound 68000 costs → `realtime` up toward the target
-(heavy-frame `retro_run` ≤ 17.4 ms, `realtime` ≥ ~0.99×). If it lands short, evaluate threading the
-TGP copro next, and/or the broadened interpreter hot-path work.
+Measured on the Quest 3 under RetroArch's Vulkan driver, clock pinned, daytona driven into a heavy
+full-grid race. The on-device enable is the **`model2_sound_thread` core option** (env is dead on
+Android — `am start` does not propagate it — so the option is the only gate; wired 2026-09-01, see
+`user-options.md`). A/B by editing `.../RetroArch/config/m2-vk/m2-vk.opt` and relaunching by intent
+(RetroArch **Restart** = `retro_reset`, which does NOT rebuild the machine, so toggling the reload-gated
+option then hitting Restart ANRs — switch arms by a full relaunch, never Restart).
+
+| Arm | Present FPS | Process CPU |
+| --- | --- | --- |
+| Thread **OFF** (baseline) | **49.96** — below the 57.5 Hz target, i.e. choppy | 103 % (one core maxed, spilling) |
+| Thread **ON** (Stage 1) | **57.86** — at target, realtime | 81 % main + 22 % worker; ~274 % of 6 cores idle |
+
+**The sound thread takes daytona from ~50 fps to the 57.5 Hz target — from missing the frame budget to
+hitting it, ~15 % throughput recovered, matching the profile's 12 % sound-CPU share plus the freed
+scheduling slack.** The user's ear-test agreed decisively ("way freaking worse" on thread-OFF). Worker
+engagement confirmed three ways: a second busy emulation thread (~22 %) in `top -H`, the savestate
+growing 463 B (worker machine serialised, host-side), and the FPS delta itself.
+
+Two measurement notes for a re-run (there is **no RetroArch FPS counter** in this build's HUD, and the
+plain build's `[model2]` log is near-silent to logcat — only a `PROFILER=1` build's `m2prof` writes
+directly):
+- **Present FPS via SurfaceFlinger**, no in-app counter needed:
+  `dumpsys SurfaceFlinger --latency-clear '<layer>'`, wait, `--latency '<layer>'`, then FPS from the
+  actual-present-time column deltas. The live layer is the app-uid `…RetroActivityFuture#<n>` row with
+  non-zero present rows; **its `#<n>` changes on every relaunch**, so re-discover it each arm.
+- **AudioFlinger underruns are NOT the tell here** — both arms read `underruns=2` (startup only), because
+  `audio_rate_control=true` resamples to dodge hard underruns, trading them for the slowdown/pitch-warble
+  the ear hears. The present-FPS delta is the hard number; the ear is the perceptual one.
+
+**Residual, separate from the thread:** even at 57.86 fps there is display judder — a 57.5 Hz core on a
+fixed 90 Hz panel (90/57.5 non-integer → each frame shows for 1 or 2 vsyncs) — worsened by
+`vrr_runloop_enable=true` + `audio_rate_control=true`. That is a RetroArch sync-config artifact, present
+thread-on or -off, not a core problem. Not chased here; a config-tuning pass (vrr off / rate-control off)
+is the lever if it bothers a player.
+
+**Next lever** (Stage 1's win banked): the drive-board Z80 park (~6–9 % on the wheel cabs, zero on a pad)
+and/or the broadened interpreter hot-path work — order by what a fresh `m2prof` ranking says now that the
+sound bucket is off the main thread.

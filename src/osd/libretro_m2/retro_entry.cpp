@@ -35,6 +35,7 @@
 #include "m2vk_reticle.h"
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
+#include "m2vk_soundthread.h"
 #include "s22_seam.h"
 #include "s21_seam.h"
 #include "m1_seam.h"
@@ -396,6 +397,9 @@ void apply_family_cascade(family fam)
 		// The two Smooth Shading enhancements are each their own family's; neither belongs here.
 		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
 		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
+		// Threaded Sound splits the model2o Model 1 sound board; System 22 has its own 68000 board, not
+		// wired into the worker hook, so the toggle would be dead here.
+		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
 	}
 	else if (fam == family::system21)
 	{
@@ -420,6 +424,8 @@ void apply_family_cascade(family fam)
 		// Smooth 2D Backgrounds acts on the shared composite's under-layer draw, which S21 does not take —
 		// its background is composited in pen space with texelFetch (s21_geom), unreachable by the sampler.
 		m2opt::hide_option(m2opt::KEY_SMOOTH_2D);
+		// Threaded Sound is the model2o board split; S21 is a different family, not wired into the worker hook.
+		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
 	}
 	else if (fam == family::model1)
 	{
@@ -442,6 +448,9 @@ void apply_family_cascade(family fam)
 		// Model 1 keeps its own Smooth Shading (model1_smooth_shading, left visible above); the Model 2 one
 		// is not its menu's.
 		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
+		// Threaded Sound splits the model2o board (the model2.cpp hook); the Model 1 family has its own
+		// sound hardware, not wired into the worker, so the toggle is dead here.
+		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
 	}
 	else if (fam == family::system23)
 	{
@@ -460,6 +469,8 @@ void apply_family_cascade(family fam)
 		m2opt::hide_option(m2opt::KEY_TRANSPARENCY);
 		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
 		m2opt::hide_option(m2opt::KEY_M2_SMOOTH_SHADING);
+		// Threaded Sound is the model2o board split; S23 is a different family, not wired into the worker hook.
+		m2opt::hide_option(m2opt::KEY_SOUND_THREAD);
 	}
 	else
 	{
@@ -885,6 +896,17 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// Smooth 2D backgrounds — bilinear the under-layer when magnified. Shared composite path, so it
 	// covers every family but System 21 (hidden from its menu; its background is pen-space texelFetch).
 	m2vk::set_option_smooth_2d(m2opt::get_smooth_2d(s_environ_cb));
+
+	// Threaded Sound (model2_sound_thread) — seed the sound-board worker gate now, before the machine is
+	// built, so the model2.cpp config hook reads the resolved value when it decides whether to split the
+	// board. The split itself gates on the machine (only the model2o Daytona-class sets carry the marker
+	// speaker), so a false seed on the SCSP sets or the other families is a harmless no-op. On Android,
+	// where getenv is null, this option is the only way in; on the harness M2VK_SOUND_THREAD still wins,
+	// resolved inside m2vk_snd::enabled(). Hidden from every non-model2 menu (apply_family_cascade).
+	const bool sound_thread = m2opt::get_sound_thread(s_environ_cb);
+	m2vk_snd::set_option_enabled(sound_thread);
+	if (fam == family::model2)
+		s_log_cb(RETRO_LOG_INFO, "[model2] %s=%s\n", m2opt::KEY_SOUND_THREAD, sound_thread ? "on" : "off");
 
 	// System 22's 3D texture filter — its own option, declared only on the S22 build (hidden on Model 2
 	// above). Parked in the S22 polygon pass; a harmless no-op on Model 2, whose seam never draws. The

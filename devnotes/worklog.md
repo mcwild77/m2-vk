@@ -562,3 +562,42 @@ unchanged: exit-criterion-1 clean (0 outside-coverage diff), parity 3316/3260 (n
 91% of diffs are edges (575 solid-blob px), zero 2D-under/HUD residual. #15738/#15712 (moiré/wireframe)
 don't touch VF — it has neither. Residual stays the inherent GPU-vs-scanline silhouette fill-rule,
 the known M1-6 item. Heatmap: `devnotes/screenshots/2026-08-30-vf-edge-diff-heatmap.png`.
+
+---
+
+**2026-09-01 — Sound-thread Stage 2 VALIDATED on Quest 3, and the `model2_sound_thread` core option wired.**
+The sound-68000 worker thread (Stage 1, built 2026-08-31) proved out on device: daytona, heavy full-grid
+race, clock pinned, RetroArch/Vulkan — thread **OFF 49.96 present-fps** (below the 57.5 Hz target, one core
+maxed at 103%), thread **ON 57.86 fps** (at target, 81% main + 22% worker, cores idle). ~15% recovered =
+it goes from missing the frame budget to hitting it, matching the profile's 12% sound-CPU share. The user's
+ear-test agreed decisively ("way freaking worse" thread-OFF). Worker engagement triple-confirmed: a second
+busy emulation thread in `top -H`, the savestate growing 463 B, and the fps delta itself.
+
+Enabling it on device forced a fix: **getenv is null on Android** (`am start` doesn't propagate env), so the
+`M2VK_SOUND_THREAD` env gate is dead there and `set_option_enabled()` had no caller. Wired the
+**`model2_sound_thread`** core option (Model-2-family menu only, hidden on s21/22/23/model1), seeded in
+`retro_load_game` before the machine builds so the model2.cpp config hook reads it; env still wins when set.
+Host-verified: option off/on both `48bb93c7814cd3f4` (bit-identical video), savestate PASS via the option
+path (C==D, N!=D). Retires shippable R3 #3 (the menu toggle).
+
+Measurement method for the next device run (no RetroArch HUD FPS counter in this build; the plain build's
+`[model2]` log is silent to logcat — only PROFILER=1's `m2prof` writes there): **present-fps via `dumpsys
+SurfaceFlinger --latency <layer>`**, the app-uid `…RetroActivityFuture#<n>` row (its `#<n>` changes each
+relaunch). AudioFlinger underruns are NOT the tell (both arms read 2 — `audio_rate_control` resamples,
+trading underruns for pitch-warble). ⚠️ RetroArch **Restart** = `retro_reset`, does NOT rebuild the machine,
+so toggling this reload-gated option + Restart ANRs — switch arms by a full relaunch. Residual 90 Hz-panel
+judder on a 57.5 Hz core (vrr_runloop + rate-control) is a RA config artifact, not the core. Detail in
+[m1audio-thread-plan.md](m1audio-thread-plan.md) §Stage 2. Next lever: drive-board Z80 park / interpreter
+hot-path, ordered by a fresh `m2prof` ranking now that sound is off the main thread.
+
+**2026-09-01 — On-screen emulated frame-rate read-out (`model2_fps_counter`, default ON).**
+Added a HUD frame-rate counter, top-LEFT, colour-coded against the machine's own refresh rate — green
+while the emulated game holds its target (Model 2 ≈ 57.5 Hz, read from `s_osd->refresh_rate()`, so no
+hardcoded number and it tracks each family/set), red once it drops more than 5% below. This is the
+**emulated game** rate, not the host present rate: measured in `retro_run` as the wall-clock spacing of the
+one-emulated-frame-per-call advances (EMA-smoothed, a >0.5 s gap reseeds), so a Quest that can't call us
+fast enough shows the game running slow. Answers the "no HUD FPS in this build" gap the sound-thread device
+runs hit. Reuses the poly-counter pipeline/shader unchanged (same 3×5 digit font, only origin + `fg`
+differ) — no new SPIR-V. Option all families, Vulkan only; `M2VK_FPS` overrides. Host-verified: option
+declared `on (default)`, overlay paints top-left (bbox 8,8–26,16), pure green at vf2's 57.5 Hz target.
+Green/red-under-load still wants a user hand-check on the Quest.
