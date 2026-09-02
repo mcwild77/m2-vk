@@ -810,3 +810,58 @@ so it is a pre-existing fault in `m2vk_snd`, not this work. Written up as an ope
 Install-or-Restore → `adb logcat -s m2stall:V m2prof:V` on a heavy daytona race. A break point there
 likely costs more than the 85 ns measured here, not less. Then re-measure the per-device profile
 before committing to the MB86233 DRC. ⚠️ **The listening hand-check is open** — see `lazy-baud.md`.
+
+## 2026-09-01 (evening) — vcop "laggy" on the Quest: config, not code
+
+User reported vcop laggy in the headset. `m2stall` over adb read 47–50 fps in gameplay
+(cpu 18.2 ms of a 15.7 ms budget), 56.8 in attract — and the live `m2-vk.opt` on the headset had
+**`model2_sound_thread = "disabled"`**, despite §1.3/1.4 of `plan_optimization_todo.md` recording it
+as enabled-and-intended. (It had drifted — RetroArch persists the menu's last choice; same class of
+trap as the Self-Paced Timing note.) vcop is model2o, so the board split applies to it exactly as to
+daytona/desert.
+
+Fix: force-stopped RA, flipped the key in `/sdcard/RetroArch/config/m2-vk/m2-vk.opt`, relaunched
+vcop by intent, confirmed `[model2] model2_sound_thread=on`. Result over a 150 s attract-demo
+capture: **57.5 fps locked**, cpu 11.1–14.4 ms, 2–5 ms throttle sleep as visible headroom. No code
+changed. User hand-check CLOSED same evening: "works great". (fps + sound integrity — gunshots/voices/music — the
+vcop sound board has not been ear-checked under the thread).
+
+## 2026-09-01 (night) — zerogun 8.7fps → the arm64 DRC back end; rchase2 jutter → billboard park
+
+**zerogun (Model 2B) ran at 8.7 fps on the Quest (cpu 107 ms/frame)** while doaa (2A) held 57.5 —
+the delta is the copro: 2B's ADSP-21062 SHARC ran its UML through the C back end because
+`build-android.sh` passed `--NOASM=1` (the android.md §4.4 "untested consequence", now tested).
+Desktop never showed it: zerogun costs the same ~2.9 ms core/frame as doaa there, native back end.
+Fix: dropped `--NOASM=1`; `PLATFORM=arm64` builds `drcbearm64` + asmjit (link verified by symbol
+count — the first incremental rebuild silently kept the C back end because removing a global define
+dirties nothing; a clean `build/android/obj` wipe was required, same trap as the PROFILER flag).
+Result on-device: zerogun 57.5, user-confirmed ("fantastic").
+
+**rchase2 (2B) then read "a little juttery"**: cpu 13.3–15.8 ms against the ~15.5 ms budget — a
+few-percent clip, not a deficit. PROFILER=1 ranking on a live run (steady through gameplay):
+maincpu 20 / copro_adsp 21 / audiocpu 16–18 / **billboard:billcpu 6** / iocpu 3–4. The SCSP 68K is
+NOT dominant on rchase2, so the SCSP-thread megaproject is not the next move; the billboard Z80 —
+the cabinet LED marquee, write-only from the main CPU, never rendered by this core — is free CPU.
+
+**Built the billboard park** (`m2vk_billboard.h` + `model2_billboard` "Cabinet Billboard" option),
+mirroring the drive-board park: SUSPEND_REASON_DISABLE per-frame reconcile, live both ways, default
+enabled (accurate), menu entry hidden on sets without the device (2O/2C/other families). Verified:
+- Default path is a NO-OP to the bit: vf2 2500f `a8fdc34e55defa3d` identical on a stash-built
+  pre-change core and the new one.
+- ab.sh vf2 + srallyc: metrics reproduce the recorded baseline table to the digit, exact PASS.
+- The park itself shifts device timing slightly (suspending the Z80 changes the interleave):
+  rchase2 digests differ, final frames are the same scene a beat apart in animation phase —
+  the lazy-baud class, stated in the option's INFO text.
+- ⚠️ ab-baselines.md digest tables predate the lazy-baud default-ON flip and no longer match a
+  default run's digests (metrics still reproduce). Regen pending, separate item.
+
+Deployed. User steps: Install-or-Restore, then Core Options → Cabinet Billboard → disabled on the
+Quest. Expected: rchase2's worst cpu ~15.8 → ~14.9, inside budget.
+
+**Addendum:** input loss reported on rchase2 after the park was frontend-side, not the core — it
+resolved on the user's end (desktop repro had already shown coin+start working with the board
+parked, identical digest both arms). And by user call, `model2_billboard` now **defaults to
+disabled** (parked): the board's output is invisible in this core on every set, so the accurate arm
+buys nothing. get_billboard() tests "enabled" so an unreadable value lands parked. ⚠️ Harness
+consequence: a default run now gets the parked machine — a digest that wants the stock machine pins
+`M2VK_BILLBOARD=1`. A/B validity is unaffected (both renderers see the same machine either way).

@@ -154,6 +154,7 @@ inline constexpr char const *KEY_SOUND_THREAD = "model2_sound_thread";
 inline constexpr char const *KEY_LAZY_BAUD    = "model2_lazy_baud";
 inline constexpr char const *KEY_SELF_THROTTLE = "model2_self_throttle";
 inline constexpr char const *KEY_DRIVE_BOARD = "model2_drive_board";
+inline constexpr char const *KEY_BILLBOARD   = "model2_billboard";
 
 // System 22 only — whether the 2D HUD/text overlay is drawn back over the GPU 3D. On by default (the
 // accurate picture); off hides the score/HUD/text layer, leaving the 3D above the 2D background. A
@@ -330,6 +331,11 @@ bool get_self_throttle(retro_environment_t environ_cb);
 // KEY_DRIVE_BOARD resolved to whether the force-feedback drive-board Z80 runs. "enabled" tested, so
 // an unreadable value lands on the accurate default (board running); the park is the opt-in.
 bool get_drive_board(retro_environment_t environ_cb);
+
+// KEY_BILLBOARD resolved to whether the cabinet-billboard Z80 runs (2A/2B sets). Unlike the drive
+// board, the default is PARKED: the board's output is invisible in this core on every set, so an
+// unreadable value lands on the parked arm and running it is the opt-in.
+bool get_billboard(retro_environment_t environ_cb);
 
 // KEY_M2_SMOOTH_SHADING resolved to the bool m2vk::set_option_smooth() takes. "on" tested, same reason.
 bool get_m2_smooth_shading(retro_environment_t environ_cb);

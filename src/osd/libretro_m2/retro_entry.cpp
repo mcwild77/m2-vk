@@ -63,6 +63,7 @@ namespace m2vk_baud { void set_option_enabled(bool on); bool enabled(); }
 // include
 #include "m2vk_analog.h"
 #include "m2vk_steer.h"
+#include "m2vk_billboard.h"
 #include "m2vk_driveboard.h"
 
 #include "corestr.h"
@@ -149,6 +150,10 @@ bool                                       s_steer_display_applied = false;
 // Same, for the two analog-stick options: shown only on the sets that declare an IPT_AD_STICK, hidden
 // on the wheel/gun/fighter sets. Gated on the analog detector, reset on unload. See retro_run().
 bool                                       s_analog_display_applied = false;
+
+// Same, for the billboard option: shown only on the sets that instantiate the billboard board
+// (Model 2A/2B). Gated on bill_park_frame()'s device lookup, reset on unload. See retro_run().
+bool                                       s_bill_display_applied = false;
 
 // Runs the whole MAME frontend. Everything after start_frontend() returns is teardown.
 void emu_thread_main(std::vector<std::string> args)
@@ -967,6 +972,9 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// emulation thread once the machine runs, and re-applies live when the option changes.
 	m2vk::set_option_drive_park(!m2opt::get_drive_board(s_environ_cb));
 
+	// Cabinet billboard (model2_billboard) — same shape: bill_park_frame() applies it per frame.
+	m2vk::set_option_bill_park(!m2opt::get_billboard(s_environ_cb));
+
 	// System 22's 3D texture filter — its own option, declared only on the S22 build (hidden on Model 2
 	// above). Parked in the S22 polygon pass; a harmless no-op on Model 2, whose seam never draws. The
 	// option is hidden there, so it always reads its "off" default, but the read is gated on family
@@ -1280,6 +1288,7 @@ RETRO_API void retro_unload_game(void)
 	// Next game re-runs the steering-visibility decision (its wheel status may differ).
 	s_steer_display_applied = false;
 	s_analog_display_applied = false;
+	s_bill_display_applied = false;
 	s_family = family::model2;   // next game re-derives from its driver source
 
 	// The frontend normally fires context_destroy before this; make the state safe whether or not it
@@ -1373,6 +1382,20 @@ RETRO_API void retro_run(void)
 					stick ? "shown" : "hidden", stick ? "has an analog stick" : "has no analog stick");
 	}
 
+	// The same, for the billboard option: shown only on the sets that carry the billboard board
+	// (Model 2A/2B instantiate SEGA_BILLBOARD; 2O/2C and the other families do not). Gated on
+	// bill_park_frame()'s device lookup, which resolves on the first emulated frame. Visibility
+	// only — a hidden option still reads its declared default.
+	if (!s_bill_display_applied && m2vk::bill().resolved)
+	{
+		const bool billboard = m2vk::bill().present;
+		m2opt::set_option_display(s_environ_cb, m2opt::KEY_BILLBOARD, billboard);
+		s_bill_display_applied = true;
+		if (s_log_cb != nullptr)
+			s_log_cb(RETRO_LOG_INFO, "[model2] billboard option %s (machine %s)\n",
+					billboard ? "shown" : "hidden", billboard ? "has a billboard" : "has no billboard");
+	}
+
 	// Four of the six options apply live; two cannot. The frontend clears the flag as this reads it,
 	// so this runs once per change rather than once per frame.
 	//
@@ -1431,6 +1454,8 @@ RETRO_API void retro_run(void)
 		m2vk::set_option_smooth_2d(m2opt::get_smooth_2d(s_environ_cb));
 		// Drive board park — live both ways; drive_park_frame() reconciles on the next frame.
 		m2vk::set_option_drive_park(!m2opt::get_drive_board(s_environ_cb));
+		// Billboard park — same shape, reconciled by bill_park_frame().
+		m2vk::set_option_bill_park(!m2opt::get_billboard(s_environ_cb));
 
 		// System 22 texture filter, fog, no-textures and No Lighting all apply live — push-constant bits
 		// read at the next draw, nothing to rebuild.

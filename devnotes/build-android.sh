@@ -95,8 +95,9 @@ OUT=libmodelizer_libretro_android.so
 
 # PARAMS is harvested from the makefile rather than retyped, so an upstream change to the flag set
 # reaches this build the way it reaches every other one.  The android-specific half is the same set
-# the upstream android-arm64 rule passes, with --osd swapped: --NOASM=1 because the x86 DRC back end
-# is not buildable here and every Model 2 CPU (i960, MB86233/5, 68000, Z80) has a C interpreter.
+# the upstream android-arm64 rule passes, with --osd swapped. NOASM is deliberately NOT passed
+# (2026-09-01): PLATFORM=arm64 builds the native drcbearm64 UML back end, which the Model 2B SHARC
+# (ADSP-21062) needs — through the C back end zerogun ran at 8.7 fps on the Quest (cpu 107 ms/frame).
 PARAMS=$(printf 'include makefile\n\nm2vk_pp:\n\t@echo $(PARAMS)\n' > build/.android-params.mk \
 	&& make -f build/.android-params.mk m2vk_pp SUBTARGET=modelizer OSD=libretro_m2 NOWERROR=1 $PROF_ARG 2>/dev/null | tail -1)
 rm -f build/.android-params.mk
@@ -106,7 +107,7 @@ if [ "$REGENIE" = 1 ] || [ ! -f "$PROJDIR/Makefile" ]; then
 	# shellcheck disable=SC2086
 	"$GENIE" $PARAMS \
 		--gcc=android-arm64 --gcc_version="$CLANG_VERSION" \
-		--osd=libretro_m2 --targetos=android --PLATFORM=arm64 --NOASM=1 \
+		--osd=libretro_m2 --targetos=android --PLATFORM=arm64 \
 		gmake
 fi
 

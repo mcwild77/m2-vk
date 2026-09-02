@@ -98,6 +98,13 @@ inline constexpr char const *DRIVE_BOARD_INFO =
 	"Emulate the wheel cabinet's force-feedback drive board. It has no effect on a gamepad — "
 	"disable to save CPU on weaker devices. Applies immediately.";
 
+// --- Billboard ---------------------------------------------------------------
+inline constexpr char const *BILLBOARD_LABEL = "Cabinet Billboard";
+inline constexpr char const *BILLBOARD_INFO =
+	"Emulate the cabinet's LED marquee board. Its display is never shown by this core, so it is "
+	"off by default to save CPU. Device timing shifts slightly between the two settings. "
+	"Applies immediately.";
+
 // --- Self-Paced Timing -------------------------------------------------------
 inline constexpr char const *LAZY_BAUD_LABEL = "Fast Sound-Link Timing";
 inline constexpr char const *LAZY_BAUD_INFO =

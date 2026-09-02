@@ -11,6 +11,7 @@
 #include "m2vk_soundthread.h"
 #include "m2vk_affinity.h"
 #include "m2vk_stallmeter.h"
+#include "m2vk_billboard.h"
 #include "m2vk_driveboard.h"
 
 #include "emu.h"
@@ -381,6 +382,7 @@ void libretro_m2_osd_interface::update(bool skip_redraw)
 	// Reconcile the drive-board Z80 with the model2_drive_board option (live both ways). Same
 	// emulation-thread every-frame slot as the profiler, for the same machine-access reason.
 	m2vk::drive_park_frame(machine());
+	m2vk::bill_park_frame(machine());
 
 	if (!skip_redraw)
 		capture_frame();

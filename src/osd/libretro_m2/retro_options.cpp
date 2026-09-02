@@ -403,11 +403,11 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		// the SCSP model2a/b/c sets, hidden from the other families' menus. Reload-gated: the split is
 		// decided when the machine is built.
 		{
-			{ "disabled", m2txt::V_OFF },
 			{ "enabled",  m2txt::V_ON },
+			{ "disabled", m2txt::V_OFF },
 			{ nullptr, nullptr }
 		},
-		"disabled"
+		"enabled"
 	},
 	{
 		m2opt::KEY_DRIVE_BOARD,
@@ -425,6 +425,25 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 			{ nullptr, nullptr }
 		},
 		"enabled"
+	},
+	{
+		m2opt::KEY_BILLBOARD,
+		m2txt::BILLBOARD_LABEL,
+		nullptr,
+		m2txt::BILLBOARD_INFO,
+		nullptr,
+		nullptr,
+		// 2A/2B sets only — those are the configs that instantiate SEGA_BILLBOARD (model2.cpp); the
+		// menu entry is hidden elsewhere once bill_park_frame() has looked for the device. Applies
+		// live both ways: bill_park_frame() reconciles suspend/resume on the next emulated frame.
+		// Default DISABLED (parked) by user call 2026-09-01: the board's output is invisible in this
+		// core on every set, so the accurate arm buys nothing and costs ~6% of the frame on-device.
+		{
+			{ "disabled", m2txt::V_OFF },
+			{ "enabled",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+		"disabled"
 	},
 	{
 		m2opt::KEY_LAZY_BAUD,
@@ -824,6 +843,13 @@ bool m2opt::get_drive_board(retro_environment_t environ_cb)
 	// "enabled" tested with the enabled arm as fallback: an unreadable value keeps the board
 	// running (the accurate default); parking is the explicit opt-in.
 	return get(environ_cb, KEY_DRIVE_BOARD) != "disabled";
+}
+
+bool m2opt::get_billboard(retro_environment_t environ_cb)
+{
+	// "enabled" tested with the disabled arm as fallback: an unreadable value parks the board (the
+	// default — its output is invisible in this core); running it is the explicit opt-in.
+	return get(environ_cb, KEY_BILLBOARD) == "enabled";
 }
 
 bool m2opt::get_lazy_baud(retro_environment_t environ_cb)

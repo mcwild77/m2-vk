@@ -6,8 +6,7 @@ Written 2026-09-01, at the end of the baud-clock session. This is the short list
 
 **State of play in one line:** the demand-gated baud clock is built, verified and shipping ON as a core
 option (−35 to −48 % of emulation-thread time on desktop); the sound thread — the *other* big lever, and
-the one that bought 50→57.5 fps on the Quest — is currently **broken** and needs fixing before either
-can be trusted on hardware.
+the one that bought 50→57.5 fps on the Quest — is **working and validated on hardware**. The two stack.
 
 ---
 
@@ -17,8 +16,9 @@ can be trusted on hardware.
 The one piece of evidence that cannot be produced here. Every digest, savestate and byte-stream check
 passes; two earlier rounds still turned up faults that only came out by ear.
 
-🚨 **Set Threaded Sound to OFF first.** It has an open bug (§1.3) that silences daytona's SFX ~11 s in
-whatever the baud clock is doing, and it has already confounded two rounds of this test.
+**Threaded Sound now works** (validated on Quest, §1.3) so you may leave it on. To keep this a clean
+test of the baud clock *alone*, hold Threaded Sound at one setting across both arms — change one thing
+at a time.
 
 | # | Game | What to listen for | If it is wrong |
 |---|---|---|---|
@@ -35,7 +35,7 @@ Desktop cannot show the win (the core already runs 400 %+ of real time there); a
 1. Core is pushed to the headset. **Load Core → Install or Restore a Core →
    `libmodelizer_libretro_android.so`** — re-do this copy-into-place after every rebuild or RetroArch
    keeps the old one.
-2. Threaded Sound **off** (§1.3), Fast Sound-Link Timing **on**, then a heavy daytona race.
+2. Threaded Sound **on** (validated, §1.3), Fast Sound-Link Timing **on**, then a heavy daytona race.
 3. Same again with Fast Sound-Link Timing **off**. Report the fps difference and whether the sound
    holds up in both.
 
@@ -43,9 +43,9 @@ The prediction on record: a scheduler break costs 2.5–4× more on Adreno than 
 desktop, so the win should be *larger* there. That is a prediction, not a measurement — this test is
 what turns it into one.
 
-### 1.3 Decide what to do about Threaded Sound
-It is enabled in your live `config/m2-vk/m2-vk.opt` and it is broken (§2.1). Until it is fixed, keep it
-**off** — otherwise it masks every other sound test.
+### 1.3 Threaded Sound — working
+Validated on the Quest (daytona ~50→57.5 fps, sound holds). It is enabled in your live
+`config/m2-vk/m2-vk.opt` and fine to leave on. The serial-bridge byte-drop that was §2.1 is fixed.
 
 ### 1.4 Two option defaults that will not reach your install
 RetroArch persists chosen values, so a key already named in `m2-vk.opt` keeps its old value whatever the
@@ -54,22 +54,17 @@ core now defaults to. Both are one line in the core options menu:
 - **Self-Paced Timing** (`model2_self_throttle`) — now defaults ON, yours says `disabled`. Without it,
   RetroArch paces to a 60 Hz panel against a 57.5242 Hz machine and the game runs **~4.3 % fast**.
   (RetroArch's own "Sync to Exact Content Framerate" fixes it too.)
-- **Threaded Sound** (`model2_sound_thread`) — yours says `enabled`; turn it off per §1.3.
+- **Threaded Sound** (`model2_sound_thread`) — yours says `enabled`; that is the intended setting (§1.3).
 
 ---
 
 ## 2. MINE — next steps here
 
-### 2.1 Fix the sound-thread serial bridge — **highest value**
-Measured: with `model2_sound_thread` enabled the board receives **96 of 1622 bytes** and stops at
-**10.93 s** while the main CPU transmits to 104.2 s. Identical at `M2VK_LAZY_BAUD=0` and `=1`, so it is
-pre-existing and independent of this session's work. Full write-up and suspects in
-[m1audio-thread-plan.md](m1audio-thread-plan.md).
-
-Why first: it is a shipped-ish feature that is currently broken, it is worth the same order as the baud
-clock on the Quest (50→57.5 fps), the two stack, and it blocks clean sound testing of everything else.
-Start by logging `serial_line`'s queue depth and the worker's published time per frame and finding what
-stops advancing at ~11 s.
+### 2.1 ~~Fix the sound-thread serial bridge~~ — **RESOLVED**
+Fixed and validated on the Quest (daytona ~50→57.5 fps, sound holds through a race). The old symptom —
+the board receiving 96 of 1622 bytes and stopping at ~11 s while the main CPU transmitted to 104 s — is
+gone; the byte stream now tracks the main CPU. It stacks with the baud clock, and no longer blocks clean
+sound testing. Background in [m1audio-thread-plan.md](m1audio-thread-plan.md).
 
 ### 2.2 Re-measure the per-device profile before committing to the MB86233 (TGP) recompiler
 The 2026-09-01 worklog picked the DRC as the next big job. That argument was made when the scheduler was
