@@ -281,6 +281,12 @@ project ("osd_" .. _OPTIONS["osd"])
 		}
 	configuration { }
 
+	-- Expose the M2VK-guarded i8251 baud accessors (i8251.h) and m2vk_sink.h paths
+	-- to the OSD sources; the driver project (mame_model2) already defines this.
+	defines {
+		"M2VK",
+	}
+
 	files {
 		MAME_DIR .. "src/osd/osdepend.h",
 		MAME_DIR .. "src/osd/libretro_m2/libretro.h",
