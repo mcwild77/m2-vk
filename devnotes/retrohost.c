@@ -1,4 +1,8 @@
-/* Minimal libretro host for testing model2_libretro.dylib without RetroArch.
+/* Minimal libretro host for testing the Modelizer core without RetroArch.
+ *
+ * Builds and runs on macOS, Windows (MSYS2/mingw64) and Linux; the core is named
+ * modelizer_libretro.dylib / .dll / .so respectively and the examples below say .dylib only
+ * because that is the host they were written on.
  *
  * Loads the core, boots a ROM, runs N frames as fast as it can, and writes the last frame as a
  * PPM. Enough to prove the whole libretro path — load, av_info, the per-frame baton, video and
@@ -6,7 +10,7 @@
  * and P0 measured runs to be bit-repeatable.
  *
  *   devnotes/build-retrohost.sh          (cc line, include paths, and why)
- *   ./devnotes/retrohost ./model2_libretro.dylib devnotes/roms/vf2.zip 1200 /tmp/f.ppm
+ *   ./devnotes/retrohost ./modelizer_libretro.dylib devnotes/roms/vf2.zip 1200 /tmp/f.ppm
  *
  * With --vk it is also a Vulkan frontend: it dlopens MoltenVK, creates an instance and a device of
  * its own, implements retro_hw_render_interface_vulkan, and reads the image the core hands to
@@ -14,7 +18,7 @@
  * both renderers converge on one code path for the PPM, the digest and the frame accounting, and
  * the A/B comparison is a cmp of two files this program wrote the same way:
  *
- *   ./devnotes/retrohost --vk ./model2_libretro.dylib devnotes/roms/vf2.zip 1200 /tmp/vk.ppm
+ *   ./devnotes/retrohost --vk ./modelizer_libretro.dylib devnotes/roms/vf2.zip 1200 /tmp/vk.ppm
  *
  * There is no window, no swapchain and no surface extension, which makes this a *smaller* job than
  * RetroArch's, not a larger one. What it must get exactly right is the contract in
@@ -30,7 +34,7 @@
  *
  * The gun is the reason for --gun and for the aim payload:
  *
- *   ./devnotes/retrohost --gun 0 ./model2_libretro.dylib devnotes/roms/vcop.zip 1400 /tmp/f.ppm \
+ *   ./devnotes/retrohost --gun 0 ./modelizer_libretro.dylib devnotes/roms/vcop.zip 1400 /tmp/f.ppm \
  *       "1200:gun=0.0/0.5:20,1220:gun=0.5/0.5:20,1240:gun=1.0/0.5:20,1260:trigger:10"
  *
  * --gun <port> is retro_set_controller_port_device for that port; "gun=<x>/<y>" aims at normalised
@@ -56,8 +60,10 @@
  *
  * Vulkan-side environment variables, all optional, all for exercising paths RetroArch cannot reach:
  *
- *   M2VK_HOST_MOLTENVK=<path>      which libMoltenVK to dlopen (default: Homebrew's, then the one
- *                                  inside RetroArch.app)
+ *   M2VK_HOST_VULKAN=<path>        which Vulkan library to load (default: vulkan-1.dll on Windows,
+ *                                  libvulkan.so.1 on Linux, Homebrew's MoltenVK and then the one
+ *                                  inside RetroArch.app on macOS). M2VK_HOST_MOLTENVK is accepted
+ *                                  as the old name.
  *   M2VK_HOST_SYNC_MASK=0x7        the sync-index mask reported to the core; 0x7 is what RetroArch
  *                                  reports on this machine, so it is the default
  *   M2VK_HOST_MASK_AT=<frame>:<mask>[,...]   change the mask mid-run. The one ring-rebuild trigger
@@ -83,7 +89,6 @@
  *                                  per-bucket table prints regardless, so the choice is visible.
  */
 
-#include <dlfcn.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -92,9 +97,80 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <mach/mach.h>
 #include <time.h>
+
+/* --- host portability -------------------------------------------------------------------------
+ *
+ * Three things differ between the hosts this runs on, and all three are confined here so that the
+ * body of the file stays the one program it was: how a shared library is opened, how the process
+ * asks for its own resident size, and how an environment variable is set without clobbering one
+ * the caller chose.
+ *
+ * The dl_* shim is not an abstraction layer -- it is dlfcn on unix and three lines of Win32 -- but
+ * routing every call through it means a Windows-only failure reads as "the core did not load" with
+ * a real message attached, instead of as a link error in a file nobody edits.
+ *
+ * pthreads and clock_gettime(CLOCK_MONOTONIC) are used as-is on every host: mingw-w64 supplies
+ * both (winpthreads), so there is nothing to shim and no reason to invent one. */
+#if defined(_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <psapi.h>
+
+static char g_dl_error[512];
+
+static void *dl_open(const char *path)
+{
+	HMODULE m = LoadLibraryA(path);
+	if (!m)
+		snprintf(g_dl_error, sizeof g_dl_error, "LoadLibrary(%s) failed, error %lu",
+		         path, (unsigned long)GetLastError());
+	return (void *)m;
+}
+
+static void *dl_sym(void *h, const char *name)
+{
+	FARPROC p = GetProcAddress((HMODULE)h, name);
+	if (!p)
+		snprintf(g_dl_error, sizeof g_dl_error, "GetProcAddress(%s) failed, error %lu",
+		         name, (unsigned long)GetLastError());
+	/* A function pointer is not a void * in ISO C; every loader API on every host makes this same
+	 * round trip, and the cast through a pointer-sized integer is the one that does not warn. */
+	return (void *)(uintptr_t)p;
+}
+
+static const char *dl_error(void) { return g_dl_error[0] ? g_dl_error : "(no error recorded)"; }
+#else
+#  include <dlfcn.h>
+#  include <unistd.h>
+
+/* RTLD_LOCAL is deliberate for both the Vulkan library and the core: nothing here resolves a
+ * symbol except through dl_sym, so neither needs to be in the global namespace. */
+static void *dl_open(const char *path)          { return dlopen(path, RTLD_NOW | RTLD_LOCAL); }
+static void *dl_sym(void *h, const char *name)  { return dlsym(h, name); }
+static const char *dl_error(void)               { const char *e = dlerror(); return e ? e : "(none)"; }
+#endif
+
+#if defined(__APPLE__)
+#  include <mach/mach.h>
+#endif
+
+/* setenv(..., 0): set this variable unless the caller already chose a value.  The core reads these
+ * with getenv() from inside the loaded library, so on Windows both the CRT's copy of the
+ * environment and the process block are written -- the two are the same block only as long as the
+ * host and the core happen to share a CRT, and a harness that silently stopped passing a switch
+ * would be the worst possible failure mode here. */
+static void env_default(const char *name, const char *value)
+{
+#if defined(_WIN32)
+	if (getenv(name) != NULL)
+		return;
+	_putenv_s(name, value);
+	SetEnvironmentVariableA(name, value);
+#else
+	setenv(name, value, 0);
+#endif
+}
 
 /* The real headers, not local approximations of them. retro_hw_render_callback and
  * retro_hw_render_interface_vulkan are far too big to retype by hand, and a field at the wrong
@@ -154,11 +230,32 @@ static bool g_shutdown;
  * failing loudly: this is a diagnostic and it must never be the reason a run stops. */
 static size_t resident_bytes(void)
 {
+#if defined(__APPLE__)
 	mach_task_basic_info_data_t info;
 	mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
 	if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &count) != KERN_SUCCESS)
 		return 0;
 	return (size_t)info.resident_size;
+#elif defined(_WIN32)
+	/* WorkingSetSize is the Windows spelling of the same quantity: pages of this process currently
+	 * resident in physical memory.  PeakWorkingSetSize is also in the struct and is deliberately
+	 * not used, for the reason the comment above gives about ru_maxrss. */
+	PROCESS_MEMORY_COUNTERS pmc;
+	if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof pmc))
+		return 0;
+	return (size_t)pmc.WorkingSetSize;
+#else
+	/* /proc/self/statm field 2 is resident pages. */
+	FILE *f = fopen("/proc/self/statm", "r");
+	unsigned long total = 0, rss = 0;
+	if (!f)
+		return 0;
+	if (fscanf(f, "%lu %lu", &total, &rss) != 2)
+		rss = 0;
+	fclose(f);
+	(void)total;
+	return (size_t)rss * (size_t)sysconf(_SC_PAGESIZE);
+#endif
 }
 
 /* --- the perf timers, for M2VK_HOST_PERF -----------------------------------------------------
@@ -432,33 +529,46 @@ static uint32_t slots_for_mask(uint32_t mask)
 static bool vk_load_lib(void)
 {
 	static const char *const CANDIDATES[] = {
+#if defined(_WIN32)
+		/* The ICD loader, installed by every GPU driver.  There is no second candidate worth
+		 * naming: a Windows box with no vulkan-1.dll has no Vulkan, and saying so beats loading
+		 * something else that happens to export the symbol. */
+		"vulkan-1.dll",
+#elif defined(__APPLE__)
 		"/opt/homebrew/lib/libMoltenVK.dylib",
 		"/opt/homebrew/opt/molten-vk/lib/libMoltenVK.dylib",
 		"/usr/local/lib/libMoltenVK.dylib",
 		"/Applications/RetroArch.app/Contents/Frameworks/MoltenVK.framework/MoltenVK",
 		"libMoltenVK.dylib",
+#else
 		"libvulkan.so.1",
+#endif
 	};
-	const char *from_env = getenv("M2VK_HOST_MOLTENVK");
+	/* M2VK_HOST_VULKAN is the name; M2VK_HOST_MOLTENVK is what every script and note written on
+	 * the Mac says, so it keeps working. */
+	const char *from_env = getenv("M2VK_HOST_VULKAN");
 	unsigned n;
 
+	if (!from_env)
+		from_env = getenv("M2VK_HOST_MOLTENVK");
+
 	if (from_env) {
-		vk.lib = dlopen(from_env, RTLD_NOW | RTLD_LOCAL);
+		vk.lib = dl_open(from_env);
 		if (!vk.lib) {
-			fprintf(stderr, "[host] M2VK_HOST_MOLTENVK=%s: %s\n", from_env, dlerror());
+			fprintf(stderr, "[host] M2VK_HOST_VULKAN=%s: %s\n", from_env, dl_error());
 			return false;
 		}
 	} else {
 		for (n = 0; n < sizeof CANDIDATES / sizeof CANDIDATES[0] && !vk.lib; n++)
-			vk.lib = dlopen(CANDIDATES[n], RTLD_NOW | RTLD_LOCAL);
+			vk.lib = dl_open(CANDIDATES[n]);
 		if (!vk.lib) {
-			fprintf(stderr, "[host] no Vulkan library found. brew install molten-vk, or set "
-			                "M2VK_HOST_MOLTENVK.\n");
+			fprintf(stderr, "[host] no Vulkan library found (last: %s). Install the loader "
+			                "(macOS: brew install molten-vk), or set M2VK_HOST_VULKAN.\n", dl_error());
 			return false;
 		}
 	}
 
-	*(void **)&vk.get_instance_proc_addr = dlsym(vk.lib, "vkGetInstanceProcAddr");
+	*(void **)&vk.get_instance_proc_addr = dl_sym(vk.lib, "vkGetInstanceProcAddr");
 	if (!vk.get_instance_proc_addr) {
 		fprintf(stderr, "[host] the Vulkan library exports no vkGetInstanceProcAddr\n");
 		return false;
@@ -1546,7 +1656,7 @@ static bool apply_scripted_events(long frame)
 
 /* --- main ------------------------------------------------------------------------------------ */
 
-#define SYM(v, n) do { *(void **)(&v) = dlsym(h, n); if (!v) { fprintf(stderr, "missing %s\n", n); return 1; } } while (0)
+#define SYM(v, n) do { *(void **)(&v) = dl_sym(h, n); if (!v) { fprintf(stderr, "missing %s\n", n); return 1; } } while (0)
 
 int main(int argc, char **argv)
 {
@@ -1556,7 +1666,7 @@ int main(int argc, char **argv)
 	 * wall-clock digits that change every run -- poison for a digest comparison. This is the A/B
 	 * harness, so pin it OFF unless the caller explicitly set M2VK_FPS, exactly as the poly counter is
 	 * off by default here. Overwrite=0 leaves an explicit M2VK_FPS=1 (eyeballing the overlay) alone. */
-	setenv("M2VK_FPS", "0", 0);
+	env_default("M2VK_FPS", "0");
 
 	for (; arg < argc && argv[arg][0] == '-' && argv[arg][1] == '-'; arg++) {
 		if (!strcmp(argv[arg], "--vk"))
@@ -1605,7 +1715,7 @@ int main(int argc, char **argv)
 	}
 
 	if (argc - arg < 3) {
-		fprintf(stderr, "usage: %s [--vk] [--gun <port>] [--modern <port>] [--classic <port>] [--cabinet <port>] <core.dylib> <content> <frames> [out.ppm] [control-script]\n"
+		fprintf(stderr, "usage: %s [--vk] [--gun <port>] [--modern <port>] [--classic <port>] [--cabinet <port>] <core> <content> <frames> [out.ppm] [control-script]\n"
 		                "  --vk: act as a Vulkan frontend and read the core's image back off the GPU\n"
 		                "  --gun <port>: select RETRO_DEVICE_LIGHTGUN for that port (repeatable)\n"
 		                "  --modern <port>: select the second generic pad layout (repeatable)\n"
@@ -1656,8 +1766,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	void *h = dlopen(corepath, RTLD_NOW);
-	if (!h) { fprintf(stderr, "dlopen: %s\n", dlerror()); return 1; }
+	void *h = dl_open(corepath);
+	if (!h) { fprintf(stderr, "loading %s: %s\n", corepath, dl_error()); return 1; }
 
 	void (*set_environment)(retro_environment_t);
 	void (*set_video_refresh)(retro_video_refresh_t);

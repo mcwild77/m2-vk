@@ -49,7 +49,8 @@ GAME=${1:?usage: perf.sh <game> [frames] [skip] [outdir]}
 FRAMES=${2:-2500}
 SKIP=${3:-1000}
 OUT=${4:-/tmp/perf}
-CORE=${CORE:-./modelizer_libretro.dylib}
+. "$(dirname "$0")/hostenv.sh"
+CORE=${CORE:-./modelizer_libretro$CORE_EXT}
 ROMS=${ROMS:-devnotes/roms}
 REPEATS=${REPEATS:-3}
 MODE=${MODE:-}
@@ -57,7 +58,14 @@ MODE=${MODE:-}
 mkdir -p "$OUT"
 REPORT="$OUT/$GAME.txt"
 
-busy=$(ps -Ac -o comm= | grep -Ec 'retrohost|RetroArch|mamemodel2|make' || true)
+# "is anything else running" — the process listing differs per host, and on Windows the interesting
+# processes are native ones that MSYS2's own `ps` does not see without -W.
+case "$(uname -s)" in
+	Darwin)               proclist='ps -Ac -o comm=' ;;
+	MINGW*|MSYS*|CYGWIN*) proclist='ps -W' ;;
+	*)                    proclist='ps -A -o comm=' ;;
+esac
+busy=$($proclist 2>/dev/null | grep -Ec 'retrohost|RetroArch|mamemodel|modelizer|make' || true)
 {
 	echo "game        $GAME"
 	echo "frames      $FRAMES  (headline over the last $((FRAMES - SKIP)), skipping $SKIP)"
@@ -66,7 +74,7 @@ busy=$(ps -Ac -o comm= | grep -Ec 'retrohost|RetroArch|mamemodel2|make' || true)
 	echo "core        $CORE"
 	echo "date        $(date '+%Y-%m-%d %H:%M:%S')"
 	echo "head        $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
-	echo "load        $(uptime | sed 's/.*averages*: //')"
+	echo "load        $(uptime 2>/dev/null | sed 's/.*averages*: //' || echo '(no uptime on this host)')"
 	[ "$busy" -gt 0 ] && echo "⚠️  OTHER RUNS IN FLIGHT ($busy) — these numbers are contended, see performance.md §7"
 	echo
 	printf '%-6s %-9s %-9s %-9s %-9s %-9s %-9s %s\n' \
@@ -84,7 +92,7 @@ run_config() {
 		local ENV=()
 		[ -n "$MODE" ] && read -r -a ENV <<< "$MODE"
 		[ -n "$extra" ] && ENV+=("$extra")
-		ENV+=(M2VK_HOST_PERF=1 "M2VK_HOST_PERF_SKIP=$SKIP" "M2_SAVE_DIR=$SAVE"
+		ENV+=(M2VK_HOST_PERF=1 "M2VK_HOST_PERF_SKIP=$SKIP" "M2_SAVE_DIR=$(hostpath "$SAVE")"
 		      "M2OPT_model2_renderer=$renderer")
 
 		# `--vk` or nothing, spelled without an empty array: bash 3.2 is what /bin/bash is here and

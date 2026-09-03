@@ -56,9 +56,10 @@ OUT=${4:-/tmp/state}
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 # CORE defaults to the Model 2 build; override for the Namco cores, e.g.
-#   CORE=$PWD/namcos21_libretro.dylib ./devnotes/state.sh winrun
-CORE=${CORE:-$ROOT/modelizer_libretro.dylib}
-HOST=$HERE/retrohost
+#   CORE=$PWD/modelizer_libretro.dylib ./devnotes/state.sh winrun   (.dll on Windows, .so on Linux)
+. "$HERE/hostenv.sh"
+CORE=${CORE:-$ROOT/modelizer_libretro$CORE_EXT}
+HOST=$HERE/retrohost$EXE
 # The System 21/22 sets live in roms/system22/ (which also carries their C67/C68 BIOS, so the
 # containing dir becoming the rompath self-satisfies them). Fall back to it when the flat dir misses.
 ROM=$HERE/roms/$GAME.zip
@@ -67,6 +68,8 @@ ROM=$HERE/roms/$GAME.zip
 
 # The second rompath, which daytona and doaa need (CLAUDE.md gotcha 2). Harmless when unused.
 : "${M2_SYSTEM_DIR:=/tmp/m2sys}"
+mkdir -p "$M2_SYSTEM_DIR"
+M2_SYSTEM_DIR=$(hostpath "$M2_SYSTEM_DIR")
 export M2_SYSTEM_DIR
 
 # Coin, start, start again, then two face buttons — enough to take a game out of attract and put it
@@ -107,7 +110,7 @@ run() {
 	# boots from someone else's saved state — and it reads exactly like an incomplete savestate
 	# registry. That is CLAUDE.md gotcha 7, and this file quoted it in its own header and then got it
 	# wrong anyway: it produced three false FAILs before it was caught.
-	env M2_SAVE_DIR="$OUT/save-$GAME-$tag" "$@" "${args[@]}" >"$log" 2>&1
+	env M2_SAVE_DIR="$(hostpath "$OUT/save-$GAME-$tag")" "$@" "${args[@]}" >"$log" 2>&1
 	# The core's own options line, because a run labelled one thing and configured another has
 	# passed unnoticed here before.
 	grep -q "\[model2\] options:" "$log" || echo "  ⚠️  $tag: no options line in the log" >&2
@@ -121,7 +124,7 @@ echo "dirtying script: $SCRIPT"
 echo
 
 # D first — C depends on its state file, and taking both from THIS run is the point (see the header).
-D=$(run D "$FRAMES" 1 M2VK_HOST_DIGEST_FROM="$DIGEST_FROM" M2VK_HOST_SAVE_AT="$SAVEPOINT:$STATE")
+D=$(run D "$FRAMES" 1 M2VK_HOST_DIGEST_FROM="$DIGEST_FROM" M2VK_HOST_SAVE_AT="$SAVEPOINT:$(hostpath "$STATE")")
 if [ ! -s "$STATE" ]; then
 	echo "FAIL: no state file was written — read $OUT/$GAME-D.log"
 	echo "exit 1"
@@ -134,7 +137,7 @@ A=$(run A "$FRAMES" 0)
 R=$(run R "$FRAMES" 0 M2VK_HOST_ROUNDTRIP_AT="$SAVEPOINT")
 N=$(run N "$FRAMES" 0 M2VK_HOST_DIGEST_FROM="$DIGEST_FROM")
 E=$(run E "$FRAMES" 1 M2VK_HOST_DIGEST_FROM="$DIGEST_FROM")
-C=$(run C "$FRAMES" 0 M2VK_HOST_DIGEST_FROM="$DIGEST_FROM" M2VK_HOST_LOAD_AT="$SAVEPOINT:$STATE")
+C=$(run C "$FRAMES" 0 M2VK_HOST_DIGEST_FROM="$DIGEST_FROM" M2VK_HOST_LOAD_AT="$SAVEPOINT:$(hostpath "$STATE")")
 
 echo "A  clean, no savestate activity           $A"
 echo "R  clean, round-trip in place at $SAVEPOINT      $R"

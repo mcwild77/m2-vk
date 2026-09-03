@@ -34,7 +34,15 @@
 #include "m2vk_baud.h"
 
 #include "emuopts.h"
+#include "drivenum.h"
 #include "main.h"
+// osdepend.h forward-declares ui::menu_item and then declares
+// `virtual std::vector<ui::menu_item> get_slider_list()`.  libstdc++ 16 instantiates that vector's
+// defaulted constructor (and so its destructor) from the declaration alone, which an incomplete
+// element type cannot satisfy -- so a translation unit that includes osdepend.h directly now needs
+// the complete type.  Upstream's own OSD sources already pull menuitem.h in for the same reason
+// (osdobj_common.cpp, osdwindow.h); this is that include, not a new dependency.
+#include "../frontend/mame/ui/menuitem.h"
 #include "osdepend.h"
 #include "save.h"
 #include "render.h"
@@ -43,6 +51,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <deque>
@@ -531,6 +540,10 @@ GAME(2026, m1snd, 0, m1snd, m1snd, m1snd_driver, empty_init, ROT0, "m2vk", "M2VK
 std::thread g_worker;
 std::unique_ptr<emu_options> g_worker_opts;
 
+// The name the worker's copy of the m1snd descriptor is given — see the comment in worker_main().
+// Set by start() from the main machine, on the main thread, before the worker is spawned.
+char g_worker_driver_name[MAX_DRIVER_NAME_CHARS + 1] = { 0 };
+
 // A minimal machine_manager: no UI, no cheats, the stub OSD. Everything the base leaves virtual is a
 // no-op, which is exactly right for a headless sound board.
 class sound_manager_shim : public machine_manager
@@ -570,7 +583,28 @@ void worker_main()
 		// running_machine::run() unconditionally calls manager().http()->clear(); the frontend normally
 		// creates the http_manager. Ours is inactive (the http option defaults off) but must exist.
 		manager.start_http_server();
-		machine_config config(GAME_NAME(m1snd), *g_worker_opts);
+		// 🚨 The worker machine is built from a COPY of the m1snd descriptor, renamed to the main
+		// system's short name, and that is a correctness fix rather than cosmetics.
+		//
+		// driver_device's constructor caches a search path by walking its own clone chain:
+		//     driver_list::clone(m_system) -> { index = find(m_system); assert(index >= 0); ... }
+		// m1snd is deliberately absent from the generated driver list (that is the point of the
+		// anonymous namespace), so find() returns -1, the assert is compiled out of a release build,
+		// and the call proceeds to driver(std::size_t(-1)) — an out-of-bounds index into
+		// s_drivers_sorted. Undefined behaviour, and it behaves like it: on Windows it segfaults
+		// inside driver_device's constructor before the worker machine exists, killing every model2o
+		// set (daytona, desert, vcop) the moment the sound thread is on. macOS and Android happened to
+		// read a survivable value off the end and carried on, which is why this shipped.
+		//
+		// The main system's name is in the list by construction, so find() succeeds and the walk is
+		// over the real set's ancestry. The path it caches is then the one this board's ROMs would
+		// actually live under, which is more right than "m1snd" ever was. game_driver::name is an
+		// inline char array, so the copy owns its string; `worker_driver` is declared before the
+		// config and the machine and so outlives both.
+		game_driver worker_driver = GAME_NAME(m1snd);
+		std::snprintf(worker_driver.name, sizeof(worker_driver.name), "%s", g_worker_driver_name);
+
+		machine_config config(worker_driver, *g_worker_opts);
 		running_machine machine(config, manager);
 		manager.set_machine(&machine);
 
@@ -662,6 +696,21 @@ void start(running_machine &main)
 		return;
 	if (g_running.load(std::memory_order_acquire) || g_worker.joinable())
 		return;
+
+	// The name the worker's driver_device will be constructed under. It MUST resolve in the driver
+	// list — see the long comment in worker_main() for what happens when it does not — so this is
+	// checked here, on the main thread, where refusing to split the board is still an option.
+	std::snprintf(g_worker_driver_name, sizeof(g_worker_driver_name), "%s", main.system().name);
+	if (driver_list::find(g_worker_driver_name) < 0)
+	{
+		// Cannot happen — the main machine came out of the driver list — but the consequence of being
+		// wrong is a segfault rather than a bad frame, so it is checked. The board has already been
+		// removed from the main machine by the config hook at this point, so this arm is silent sound,
+		// not unthreaded sound. Silent beats crashing.
+		osd_printf_error("[m2vk_snd] '%s' is not in the driver list; the sound board will not run\n",
+				g_worker_driver_name);
+		return;
+	}
 
 	// Capture the main machine's already-loaded ROM regions; the worker fills its identical regions
 	// from these before its CPU runs.

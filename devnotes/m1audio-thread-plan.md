@@ -211,6 +211,50 @@ sound bucket is off the main thread.
 
 ---
 
+## ✅ FIXED (2026-09-03): the worker machine's construction was undefined behaviour
+
+**Symptom on Windows:** every model2o set (daytona, desert, vcop) killed RetroArch with
+`0xC0000005` — an access violation — the moment the sound thread was on. Never reached a frame.
+
+**Cause, and it was never a Windows bug.** `worker_main()` built the worker machine from
+`GAME_NAME(m1snd)`, and `driver_device`'s constructor caches a search path by walking its own clone
+chain:
+
+```
+driver_list::clone(m_system) -> { index = find(m_system); assert(index >= 0); return clone(index); }
+```
+
+`m1snd` is deliberately absent from the generated driver list — that is the entire point of the
+anonymous namespace — so `find()` returns **-1**, the `assert` is compiled out of a release build,
+and the call proceeds to `driver(std::size_t(-1))`: an out-of-bounds index into `s_drivers_sorted`.
+macOS and Android read a survivable value off the end of that array and carried on, which is why
+this shipped and why Stage 2 validated on the Quest. Windows reads a bad pointer and segfaults
+inside the constructor, before the worker machine exists.
+
+**Fix** (`m2vk_soundthread.cpp`, no upstream file touched): the worker is built from a **copy** of
+the m1snd descriptor whose `name` is the main system's short name — which is in the list by
+construction, so `find()` succeeds and the ancestor walk is the real set's. `game_driver::name` is an
+inline `char` array, so the copy owns its string, and the copy is declared before the config and the
+machine so it outlives both. `start()` checks the name resolves before spawning the worker, on the
+main thread, where declining is still an option.
+
+**Verified** (`retrohost --vk`, 1500 frames, Windows):
+
+| set | threaded | unthreaded |
+|---|---|---|
+| `daytona` | `4e127a7a92c659de` | `4e127a7a92c659de` |
+| `desert` | `44b335a236d4407f` | `44b335a236d4407f` |
+| `vcop` | `dc3602ff58e3316c` | `8f63cd7961a07b6c` |
+| `vf2` (model2a control, never split) | `7afdc41b80d8c5f9` | `7afdc41b80d8c5f9` |
+
+daytona and desert are bit-identical with the thread on or off; vcop's digest moves between arms,
+which is the board split shifting device interleave — the lazy-baud class, not this fix.
+User hand-check on Windows/RetroArch: daytona "looks and sounds correct".
+
+⚠️ **This does not touch the serial-bridge bug above.** Different failure, different place: that one
+is a live worker that stops delivering, this one was a worker that never got built.
+
+
 ## 🚨 OPEN BUG (found 2026-09-01): the serial bridge dies ~11 s in
 
 **Symptom, heard by the user in RetroArch:** daytona plays its opening music and voice, then the engine

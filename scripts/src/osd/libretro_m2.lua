@@ -43,12 +43,32 @@ dofile("modules.lua")
 --
 ---------------------------------------------------------------------------
 
+-- The default is a candidate list rather than one path because genie is a NATIVE binary on every
+-- host: under MSYS2 it does not resolve the shell's "/mingw64/include", so the POSIX prefix the
+-- build shell exports as MINGW_PREFIX is of no use here and the drive-letter form has to be named.
+-- The env var overrides the lot; the error below names it.
 VULKAN_INCLUDEDIR = os.getenv("M2VK_VULKAN_INCLUDEDIR")
 if (VULKAN_INCLUDEDIR == nil) or (VULKAN_INCLUDEDIR == "") then
+	local candidates
 	if _OPTIONS["targetos"]=="macosx" then
-		VULKAN_INCLUDEDIR = "/opt/homebrew/include"
+		candidates = { "/opt/homebrew/include", "/usr/local/include" }
+	elseif _OPTIONS["targetos"]=="windows" then
+		candidates = { "c:/msys64/mingw64/include", "c:/msys64/ucrt64/include", "c:/msys64/clang64/include" }
+		-- An installed LunarG SDK is a fine source of headers too, and it is the one prefix a
+		-- Windows box is likely to have without MSYS2.
+		local sdk = os.getenv("VULKAN_SDK")
+		if (sdk ~= nil) and (sdk ~= "") then
+			table.insert(candidates, 1, path.join(sdk, "Include"))
+		end
 	else
-		VULKAN_INCLUDEDIR = "/usr/include"
+		candidates = { "/usr/include", "/usr/local/include" }
+	end
+	VULKAN_INCLUDEDIR = candidates[1]
+	for _, dir in ipairs(candidates) do
+		if os.isfile(path.join(dir, "vulkan", "vulkan.h")) then
+			VULKAN_INCLUDEDIR = dir
+			break
+		end
 	end
 end
 
@@ -56,7 +76,8 @@ if not os.isfile(path.join(VULKAN_INCLUDEDIR, "vulkan", "vulkan.h")) then
 	error("\n"
 		.. "vulkan/vulkan.h was not found under '" .. VULKAN_INCLUDEDIR .. "'.\n"
 		.. "The Model 2 libretro core needs the Vulkan headers at build time (it links no Vulkan\n"
-		.. "library).  On macOS: brew install vulkan-headers.  Otherwise install your distribution's\n"
+		.. "library).  On macOS: brew install vulkan-headers.  On Windows (MSYS2):\n"
+		.. "pacman -S mingw-w64-x86_64-vulkan-headers.  Otherwise install your distribution's\n"
 		.. "vulkan-headers package, or set M2VK_VULKAN_INCLUDEDIR to the prefix that contains\n"
 		.. "vulkan/vulkan.h and re-run with REGENIE=1.\n", 0)
 end

@@ -23,7 +23,7 @@
 #              coverage.
 #   MODE       extra env for every run, e.g. "M2VK_FORCE_SOLID=2".  Applied to ALL of them, 1x
 #              included, which is the whole point of those switches.
-#   CORE       core path, default ./modelizer_libretro.dylib
+#   CORE       core path, default ./modelizer_libretro.{dylib,dll,so} for the host
 #   ROMS       rom directory, default devnotes/roms
 #
 # Two things are checked before any picture is compared, and if either fails nothing after it means
@@ -42,7 +42,8 @@ GAME=${1:?usage: res.sh <game> [frames] [scales] [outdir]}
 FRAMES=${2:-2500}
 SCALES=${3:-2 4}
 OUT=${4:-/tmp/res}
-CORE=${CORE:-./modelizer_libretro.dylib}
+. "$(dirname "$0")/hostenv.sh"
+CORE=${CORE:-./modelizer_libretro$CORE_EXT}
 ROMS=${ROMS:-devnotes/roms}
 MODE=${MODE:-}
 POINT=${POINT:-}
@@ -79,7 +80,7 @@ run() {
 		ENV+=("M2VK_SS=$scale")
 		[ -n "$POINT" ] && ENV+=(M2VK_SS_POINT=1)
 	fi
-	ENV+=("M2_SAVE_DIR=$save" "M2OPT_model2_renderer=vulkan")
+	ENV+=("M2_SAVE_DIR=$(hostpath "$save")" "M2OPT_model2_renderer=vulkan")
 
 	env "${ENV[@]}" ./devnotes/retrohost --vk "$CORE" "$ROMS/$GAME.zip" "$FRAMES" "$ppm" > "$log" 2>&1
 	status=$?

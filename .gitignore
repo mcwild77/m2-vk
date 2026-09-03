@@ -56,4 +56,5 @@ regtests/jedutil/output
 /devnotes/shortcuts/
 /devnotes/__pycache__/
 /devnotes/retrohost
+/devnotes/retrohost.exe
 *.bak

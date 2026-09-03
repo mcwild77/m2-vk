@@ -865,3 +865,137 @@ disabled** (parked): the board's output is invisible in this core on every set, 
 buys nothing. get_billboard() tests "enabled" so an unreadable value lands parked. ⚠️ Harness
 consequence: a default run now gets the parked machine — a digest that wants the stock machine pins
 `M2VK_BILLBOARD=1`. A/B validity is unaffected (both renderers see the same machine either way).
+
+## 2026-09-03 — development moved to Windows: host build, retrohost port, harness green
+
+The Mac is no longer the reference machine. Before today the Windows box could only cross-build the
+Android core; the desktop build had never been attempted and every verification instrument was
+Mac-only. Now the host core, `retrohost`, `ab.sh` and `state.sh` all work here. Plan and phases in
+[windows-move-plan.md](windows-move-plan.md); the standing host reference is [windows.md](windows.md).
+
+1. **The host build needed three things, none of them large.** A per-host Vulkan-header candidate
+   list in `libretro_m2.lua` (the old non-macOS default `/usr/include` is `C:\msys64\usr\include`
+   under MSYS2 and holds nothing; genie is a *native* binary, so the drive-letter form has to be
+   named — it cannot resolve the shell's `/mingw64/include`). One include in
+   `m2vk_soundthread.cpp`: **libstdc++ 16** instantiates `std::vector<ui::menu_item>`'s defaulted
+   constructor from `osdepend.h`'s `get_slider_list()` declaration alone, which the forward
+   declaration cannot satisfy — upstream's own OSD sources already include `ui/menuitem.h` for this,
+   and ours is the only file that includes `osdepend.h` directly. And `OS=Windows_NT` in the
+   environment, which makefile:144 gates the entire Windows branch on and which a bash started from
+   Git-for-Windows bash does not inherit. **The win32 branches in `libretro_m2.lua` were right as
+   written** — the predicted `winutf8.cpp` link error and the missing `ws2_32` never materialised.
+   Result: `Linking modelizer_libretro.dll`, 25 exported `retro_*` entry points.
+2. **`retrohost` ported.** `<dlfcn.h>` → a `dl_open`/`dl_sym`/`dl_error` shim over
+   `LoadLibraryA`/`GetProcAddress`; `<mach/mach.h>` RSS → `GetProcessMemoryInfo` (and
+   `/proc/self/statm` for Linux, which the file never supported either); the MoltenVK candidate list
+   → per-platform with `vulkan-1.dll` on Windows and `M2VK_HOST_VULKAN` as the override name
+   (`M2VK_HOST_MOLTENVK` still accepted); `setenv` → `env_default()`. pthreads and
+   `clock_gettime(CLOCK_MONOTONIC)` needed nothing.
+3. 🚨 **The one real trap: MSYS2 rewrites POSIX paths in command-line arguments and NOT in
+   environment variables.** Every path the harness hands the core through an env var —
+   `M2_SAVE_DIR`, `M2VK_HOST_SAVE_AT`, `M2VK_HOST_LOAD_AT`, `M2_SYSTEM_DIR` — arrived as the literal
+   `/tmp/...`, which native `fopen` resolves against the current drive root and fails to open.
+   `state.sh` said `no state file was written`; **`ab.sh` PASSED while writing no NVRAM at all**, so
+   the per-run save isolation the script exists to provide was silently not happening. New
+   `devnotes/hostenv.sh` carries `CORE_EXT`, `EXE` and `hostpath()` (`cygpath -m` on Windows, a
+   no-op elsewhere) and is sourced by all four harness scripts. `perf.sh`'s `ps -Ac -o comm=` and
+   `uptime` are host-aware now too (MSYS2's own `ps` needs `-W` to see native processes).
+4. **Verification, and it is the good kind.** `ab.sh vf2 2500`: covered 107568/107569, agreement
+   **1.0000**, A-only 1, B-only 2, interior disagreements **0**, white **0**, same colour 95.554 %,
+   ssim covered **0.996983** — the Mac's `ab-baselines.md` row for vf2 **to the digit**, and the
+   background-reference digest `c3aaa56633c1c4f7` bit-identical to the Mac's. `state.sh vf2` PASSes
+   all four controls (D == E, N != D, C == D, A == R). Vulkan arm runs on a real ICD:
+   `NVIDIA GeForce RTX 3070 api 1.4.329`.
+5. ⚠️ **The 3D digests do not match the recorded table and that is not a regression** — Windows
+   reads `5035b4ef3a1e1084` / `e8051a92c7b6bc33` against `9c20f1fac9d9fe92` / `de94f44a06151f71`.
+   `ab-baselines.md` predates the lazy-baud and billboard-park default flips, which move device
+   timing on every host; metrics reproducing while digests move is exactly that signature. **The
+   baselines want regenerating here.**
+6. **Also written:** `devnotes/deploy-aoj.sh` — strips the Android core and installs it into the Age
+   of Joy Unity project. The hand-copy in `Assets/Plugins/Android64` was the unstripped 103 MB
+   build. Not yet exercised through a real Unity build.
+
+**Next:** RetroArch for Windows (the play loop, and the `m2-vk.opt` a hand-check has to be read
+against), then regenerate `ab-baselines.md`/`res-baselines.md` on this host, then rewrite CLAUDE.md
+off its Mac assumptions.
+
+### 2026-09-03 (later) — RetroArch on Windows, and a Game Launcher in front of it
+
+The play loop is closed. RetroArch is at `C:\retroarch-win64` (portable: config beside the exe,
+core options at `config\m2-vk\m2-vk.opt`, exactly the path CLAUDE.md names).
+
+1. **The core plays under RetroArch on Windows.** `retroarch.exe -L modelizer_libretro.dll` with
+   `--appendconfig video_driver="vulkan"`, vf2, `--max-frames 1800`: `Using HW render, vulkan driver
+   forced`, `Using GPU: NVIDIA GeForce RTX 3070`, **1800 frames in 31 s** — 57.52 Hz, full speed —
+   and the end-of-run screenshot is the attract fight rendering correctly at 57.546 fps. That is
+   W1's real acceptance criterion, not "it compiled".
+2. **`devnotes\shortcuts\Game Launcher.bat`** — the play command, standing in for the Mac's
+   `Model 2.app`. Numbered list of the 68 installed sets grouped by family, type a number to play,
+   quit RetroArch and the list is still there. Details in [windows.md](windows.md) §3; the three
+   decisions worth recording:
+   - **It runs the core from the repo** (`-L <repo>\modelizer_libretro.dll`) and prints its build
+     timestamp in the header. The Mac's installed-core symlink silently reverted to a copy at least
+     four times, each time meaning a stale core played while the build log looked healthy. There is
+     now no second copy to go stale, and "am I playing what I just built" is on screen.
+   - **It clears every `M2VK_*` / `M2OPT_*` variable** before launching, so a switch left in a shell
+     cannot pin a play session — the same reasoning as the Mac app's `env -u`.
+   - **It forces exactly one setting**, `video_driver = "vulkan"`, through `--appendconfig`. The core
+     declares `RETRO_HW_CONTEXT_VULKAN` and will not load under any other driver; everything else
+     stays with the menu, which is the whole point of having a separate play command.
+   The catalogue is generated from the compiled driver table (`model1`, `model2`, `namcos21`,
+   `namcos21_c67`, `namcos22`, `namcos23`) and filtered at startup to the zips actually present, so
+   an empty family prints no header. The six device/BIOS zips and `driveyes` (namcos21_de.cpp, not
+   compiled into this core) are deliberately absent.
+3. **Tested without playing a game**: menu rendering, out-of-range / non-numeric / zero / negative
+   input, and the composed command line captured through a stand-in frontend
+   (`-L "…\modelizer_libretro.dll" --appendconfig "…\m2vk-launcher.cfg" "…\roms\vf2.zip"`). One
+   real bug found and fixed in the process — an unguarded `goto menu` on an empty read spins forever
+   at EOF (a piped run), so an empty-read counter now bails after 25.
+4. **Noted, not a core problem:** the connected 8BitDo Ultimate 2C has no RetroArch autoconfig
+   profile (`not configured, using fallback` in the log), so its buttons come from the fallback
+   binding.
+
+### 2026-09-03 (later still) — daytona crashed on Windows: the sound worker's machine was built on UB
+
+First real bug the Windows port turned up, and it is not a Windows bug — it is a latent
+out-of-bounds read that macOS and Android had been getting away with since the sound thread shipped.
+
+**Symptom:** every model2o set (daytona, desert, vcop) killed RetroArch with `0xC0000005` the moment
+`model2_sound_thread` was on — which is the core's default, so the Game Launcher hit it on the user's
+first daytona pick. Reproduced under `retrohost` in one run; `M2OPT_model2_sound_thread=disabled`
+booted fine, `M2VK_LAZY_BAUD=0` made no difference, which isolated it to the thread in four runs.
+
+**Cause**, from a gdb backtrace (`driver_device::driver_device` ← `create_driver<m1snd_driver>` ←
+`machine_config::machine_config` ← `worker_main`): `driver_device`'s constructor walks its own clone
+chain, `driver_list::clone(m_system)` → `find(m_system)` → `assert(index >= 0)` → `driver(index)`.
+`m1snd` is deliberately not in the generated driver list, `find()` returns -1, the assert is compiled
+out of a release build, and `driver(std::size_t(-1))` indexes `s_drivers_sorted` out of bounds.
+Full write-up in [m1audio-thread-plan.md](m1audio-thread-plan.md).
+
+**Fix**, entirely in `m2vk_soundthread.cpp` — no upstream file touched: build the worker from a copy
+of the m1snd descriptor renamed to the main system's short name. It is in the list by construction,
+so the walk is over the real set's ancestry and the cached search path is the one this board's ROMs
+would actually live under. `start()` verifies the name resolves before spawning.
+
+**Verified:** all three model2o sets boot threaded and unthreaded; daytona and desert are
+**bit-identical** either way (`4e127a7a92c659de`, `44b335a236d4407f`), vf2 (model2a, never split) is
+identical either way, vcop's digest moves between arms — board-split interleave, the lazy-baud class.
+RetroArch: daytona 2200 frames in 38 s at full speed with the user's live options. **User hand-check:
+"looks and sounds correct."**
+
+**Lessons worth keeping:**
+1. **A second host is a test.** Three years of green runs on two platforms did not find this; the
+   third platform found it in the first hour of play. The UB was always there.
+2. **Release builds delete your asserts.** `assert(index >= 0)` was sitting directly on top of this
+   and never fired, because nothing here is built with `NDEBUG` off. Guard with an `if` in code that
+   can actually reach the bad path.
+3. **The launcher's error hint was wrong and has been fixed** — it blamed `video_driver` for every
+   nonzero exit. It now names `0xC0000005` as a core crash and prints the `retrohost` line that
+   reproduces it outside the frontend.
+
+**Shipped to the Quest/AoJ side:** Android core rebuilt with the fix and staged into the Unity
+project via the new `deploy-aoj.sh` (99M → 67M stripped; the copy that was in
+`Assets/Plugins/Android64` carried the UB). Unity APK build and device test are the user's.
+
+⚠️ **Still open and unrelated:** the serial bridge dying ~11 s in (m1audio-thread-plan.md). A daytona
+session longer than that in AoJ should be expected to lose SFX; today's fix does not touch it.

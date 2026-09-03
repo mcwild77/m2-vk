@@ -10,7 +10,7 @@
 #   MODE       extra env for all four runs, e.g. "M2VK_OPAQUE_ONLY=1" (step 4's opaque-path guard)
 #              or "M2VK_FORCE_SOLID=2" (step 3's untextured numbers).  Applied to BOTH renderers,
 #              which is the whole point of those switches.
-#   CORE       core path, default ./modelizer_libretro.dylib
+#   CORE       core path, default ./modelizer_libretro.{dylib,dll,so} for the host
 #   ROMS       rom directory, default devnotes/roms
 #
 # Writes <outdir>/<game>-{bg,3d}-{software,vulkan}.ppm, <game>-heat.png and <game>.txt, and prints
@@ -22,7 +22,8 @@ set -u
 GAME=${1:?usage: ab.sh <game> [frames] [outdir]}
 FRAMES=${2:-2500}
 OUT=${3:-/tmp/ab}
-CORE=${CORE:-./modelizer_libretro.dylib}
+. "$(dirname "$0")/hostenv.sh"
+CORE=${CORE:-./modelizer_libretro$CORE_EXT}
 ROMS=${ROMS:-devnotes/roms}
 MODE=${MODE:-}
 
@@ -48,7 +49,7 @@ for layer in bg 3d; do
 		ENV=()
 		[ -n "$MODE" ] && read -r -a ENV <<< "$MODE"
 		[ "$layer" = bg ] && ENV+=(M2VK_NO_3D=1)
-		ENV+=("M2_SAVE_DIR=$SAVE" "M2OPT_model2_renderer=$r")
+		ENV+=("M2_SAVE_DIR=$(hostpath "$SAVE")" "M2OPT_model2_renderer=$r")
 
 		env "${ENV[@]}" \
 			./devnotes/retrohost --vk "$CORE" "$ROMS/$GAME.zip" "$FRAMES" "$PPM" > "$LOG" 2>&1
