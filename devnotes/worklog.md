@@ -11,7 +11,8 @@ Closed history lives in [worklog-archive.md](worklog-archive.md):
 
 This file continues from the **shippable pass** — the work that remains to turn three complete renderers
 into a public release. The scheduled queue is [shippable-plan.md](shippable-plan.md) (R0 triage → R1
-input mapping → R2 savestates/compat → R3 options → R4 polish → R5 release). Renderer/geometry work is
+input mapping → R2 compat → R3 options → R4 polish → R5 release; the savestate half of R2 is void as of
+2026-09-04 — see the last entry). Renderer/geometry work is
 done across all three families.
 
 Upstream diff vs `mame0288`, measured 2026-08-25: **457 insertions / 16 deletions across 11 files**
@@ -1144,3 +1145,34 @@ sides whenever `PROFILER` changes, not just when turning it on** — verify with
 O2 is now closed: both validation steps that were open this morning (Quest re-profile, hand-check) are
 done. Only remaining loose end is crszone's small host-side digest gap (visually identical to the real
 board, not root-caused, not blocking — see the O2 section above) — a follow-up, not a blocker.
+
+---
+
+## 2026-09-04 — savestates disabled core-wide
+
+`retro_serialize_size()` returns **0** for every family; `retro_serialize` / `retro_unserialize`
+return **false**. RetroArch greys the save/load slots out for the session. Core builds clean on the
+Windows host (`modelizer_libretro.dll`).
+
+**Why.** The feature was never uniformly trustworthy across the four families — `vcop2` never passed,
+the Model 1 TGP-copro / `gen_fifo` gap was never verified (`model1update.md`), the pipelined Android
+path already dropped states — and every renderer change was being gated on a harness only half the
+cores could satisfy. A state that loads a wrong future is worse than no state. This is a decision
+about what we *promise*, not a discovery that the code broke.
+
+**What changed, exactly.** Three function bodies in `retro_entry.cpp`, plus the
+`RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS` call and the size line in the load-game log. Nothing
+else. `m2vk_savestate.cpp` (including the `gen_fifo` trailer), `m2vk_snd::state_*` and
+`libretro_m2_osd_interface::state_{size,save,load}` all still compile and still work — re-enabling is
+restoring three bodies.
+
+⚠️ **The startup spin loop in `retro_load_game` that waits on `state_size() != 0` was KEPT** and must
+stay. It is no longer about savestates; it is the thing that fixes how many frames the machine runs
+before `retro_run` #1. Every recorded `ab.sh`/`res.sh` digest and the documented constant −1
+host↔emulated frame offset were measured with it in place, so deleting it would silently shift all of
+them. Its comment now says so.
+
+**Harness consequence.** `devnotes/state.sh` is retired — it now prints why and exits 2 unless
+`STATE_SH_I_KNOW=1`. Savestates are dropped from the exit criteria of `modelizer-plan.md` (the
+per-family merge check), `plan_system23.md` 23-7 and `model1update.md` step 5. `ab.sh`, `res.sh` and
+`perf.sh` are unaffected and remain the gates. The `M2VK_SAVE_*` switch group is inert.

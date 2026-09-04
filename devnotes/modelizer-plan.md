@@ -164,10 +164,12 @@ lines to the three separate cores** for one fixture per family.
 - System 21: `starblad` — digest vs baseline.
 - Per-family menu gating: load one game of each, confirm the option list matches today's per-subtarget menu
   (M0 is what makes this hold in the merged binary).
-- Savestates: one `state.sh` per family (framework is driver-agnostic; already passing 8/8 + S22 3/3).
+- ~~Savestates: one `state.sh` per family.~~ 🚫 **Void — savestates are disabled core-wide as of
+  2026-09-04** (`retro_serialize_size` returns 0; see the savestates section of `CLAUDE.md`). Drop this
+  criterion; `state.sh` is retired and refuses to run.
 
-Green A/B + matching menus + passing savestates across all three families = the merge changed packaging
-only, which is the whole claim.
+Green A/B + matching menus across all three families = the merge changed packaging only, which is the
+whole claim.
 
 ---
 

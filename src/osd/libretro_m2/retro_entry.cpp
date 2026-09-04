@@ -1218,13 +1218,14 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		return false;
 	}
 
-	// 🚨 The savestate size must be answerable before this returns, because the frontend asks
-	// straight afterwards and a frontend that is told 0 disables savestates for the session. It is
-	// not automatic: MAME closes the save registry in allow_registration(false) (machine.cpp:306),
-	// which is AFTER start_all_devices(), while update() — and therefore the baton — is reached
-	// twice before that point. Measured on vf2: the registry passes through 15 and 26 entries before
-	// settling at 4294. So spin frames until the registry is final rather than assuming a picture
-	// implies it.
+	// ⚠️ This loop is NOT about savestates any more — those are disabled (see the savestates banner
+	// further down) — but it must stay, because it is what decides how many frames the machine has
+	// run before retro_run #1. Every recorded harness digest and the documented constant −1 host-to-
+	// emulated frame offset were measured with it in place; deleting it would silently shift all of
+	// them. state_size() returning non-zero is simply the cheapest available "the machine finished
+	// starting" signal: MAME closes the save registry in allow_registration(false) (machine.cpp:306)
+	// after start_all_devices(), while the baton is reached twice before that point. Measured on vf2:
+	// the registry passes through 15 and 26 entries before settling at 4294.
 	for (int i = 0; (i < MAX_STARTUP_FRAMES) && (s_osd->state_size() == 0); i++)
 	{
 		s_osd->release_frame();
@@ -1232,32 +1233,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			break;
 	}
 
-	const size_t state_bytes = s_osd->state_size();
-	if (state_bytes == 0)
-	{
-		s_log_cb(RETRO_LOG_WARN, "[model2] the save registry never closed; savestates are unavailable this session\n");
-	}
-	else
-	{
-		// libretro.h:2702 says retro_init or retro_load_game, not both; this is the one that knows.
-		//
-		// PLATFORM_DEPENDENT only, and the three we deliberately do NOT declare are the interesting
-		// part:
-		//   ENDIAN_DEPENDENT   — MAME records the writer's endianness in the state header and flips
-		//                        every entry on read when it disagrees (save.cpp:472, flip_data),
-		//                        so a cross-endian load is genuinely supported. Declaring it would
-		//                        be a lie that costs netplay.
-		//   MUST_INITIALIZE    — would be true if the size were not ready when this returns. It is:
-		//                        the loop above spins until the save registry closes.
-		//   INCOMPLETE         — means "do not rely on this for netplay or rerecording". Not
-		//                        claimed, because devnotes/state.sh measures the opposite: a state
-		//                        taken from one machine history and loaded into another reproduces
-		//                        the first history's future byte-exactly.
-		uint64_t quirks = RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
-		s_environ_cb(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &quirks);
-	}
-
-	s_log_cb(RETRO_LOG_INFO, "[model2] started '%s'; savestate %zu bytes\n", system.c_str(), state_bytes);
+	s_log_cb(RETRO_LOG_INFO, "[model2] started '%s'\n", system.c_str());
 	return true;
 }
 
@@ -1633,66 +1609,37 @@ RETRO_API void retro_run(void)
 
 
 //============================================================
-//  libretro: savestates
+//  libretro: savestates — DISABLED (2026-09-04)
 //
-//  P1 deferred these and the reason is worth reading before touching them
-//  (devnotes/p1-libretro-core.md): no Model 2 set carries MACHINE_SUPPORTS_SAVE. That is still true,
-//  and it turned out not to gate what it was thought to gate — the flag drives a UI warning, the
-//  -autosave load and a fatalerror on devices that register nothing, while save_manager::do_write and
-//  do_read have no supported() check at all. devnotes/savestates.md is the audit that replaced the
-//  inference, and m2vk_savestate.h carries the three properties this rests on.
+//  Reporting a size of 0 is how a libretro core says "no savestates"; RetroArch then greys the
+//  save/load slots out for the session and never calls the other two. Both of those still return
+//  false rather than being deleted, because a frontend is not obliged to ask the size first.
 //
-//  🚨 All three run on the FRONTEND thread with the emulation thread parked on the baton in
-//  osd->update(). That is what makes them safe, and it is also what makes the state small: the
-//  several-megabyte raster->poly_list, and poly_sorted_list's array of raw pointers, are rebuilt from
-//  m_bufferram at every vblank and are therefore not live at this one point in the frame.
+//  Why: they were never uniformly trustworthy across the four families — one Model 2 fixture
+//  (vcop2) never passed, the Model 1 gap was never verified, and the pipelined (Android) path
+//  dropped them outright — so every renderer change was being regression-tested against a harness
+//  that only half of the cores could satisfy. A savestate that loads a wrong future is worse than
+//  no savestate, and the cost of keeping the guarantee honest outweighed the feature.
+//
+//  What is still here, deliberately: m2vk_savestate.cpp, m2vk_snd::state_*, the FIFO trailer and
+//  libretro_m2_osd_interface::state_{size,save,load} all still build and still work. Nothing calls
+//  them from the ABI any more. Re-enabling is restoring the three bodies below — see git history
+//  for what they were, and devnotes/savestates.md for what they rest on.
 //============================================================
 
 RETRO_API size_t retro_serialize_size(void)
 {
-	if (!s_running || !s_osd)
-		return 0;
-	// Savestates are dropped in pipelined mode (Android): state.sh fails C != D under the
-	// pipeline — something about the in-flight frame is not captured — and a savestate that loads
-	// a wrong future is worse than none. Reporting 0 makes the frontend disable them cleanly for
-	// the session. The host's legacy path keeps them, and the harness still gates on state.sh.
-	if (pipeline_on())
-		return 0;
-	if (!drain_frame())
-		return 0;
-	return s_osd->state_size();
+	return 0;
 }
 
 RETRO_API bool retro_serialize(void *data, size_t size)
 {
-	if (!s_running || !s_osd)
-		return false;
-	if (pipeline_on())   // dropped in pipelined mode — see retro_serialize_size
-		return false;
-	if (!drain_frame())   // machine state is only touchable with the emulation thread parked
-		return false;
-	return s_osd->state_save(data, size);
+	return false;
 }
 
 RETRO_API bool retro_unserialize(const void *data, size_t size)
 {
-	if (!s_running || !s_osd)
-		return false;
-	if (pipeline_on())   // dropped in pipelined mode — see retro_serialize_size
-		return false;
-	if (!drain_frame())   // same parked-thread requirement as retro_serialize
-		return false;
-	if (!s_osd->state_load(data, size))
-		return false;
-
-	// 🚨 MAME's state is not the whole core's state. The frame record still holds the polygon list
-	// from before the load, and the renderer redraws the last list whenever a frame carries no new
-	// geometry — which is exactly what P3 step 8 fixed for the empty-display-list case, and a load
-	// lands in the same shape. Without this the first post-load frame can composite the OLD scene
-	// under the new one. geometry_none() marks the record valid with poly_count = 0 and bumps the
-	// serial: "a new frame that is empty", not "no news".
-	m2vk::geometry_none();
-	return true;
+	return false;
 }
 
 

@@ -1,3 +1,22 @@
+> # 🚫 RETIRED — savestates are DISABLED core-wide (2026-09-04)
+>
+> `retro_serialize_size()` returns **0** for every family and `retro_serialize` /
+> `retro_unserialize` return **false**, so RetroArch greys the save/load slots out. The feature was
+> removed as a *guarantee*, not because the code stopped working: it was never uniformly trustworthy
+> across the four families (`vcop2` never passed, the Model 1 TGP-copro / `gen_fifo` gap was never
+> verified, the pipelined Android path dropped states outright), and gating every renderer change on
+> a harness only half the cores could satisfy cost more than the feature returned.
+>
+> **This file is history from here down.** Do not gate work on it, do not run `state.sh`, do not add
+> a savestate row to a new plan's exit criteria. The as-built code — `m2vk_savestate.cpp` with its
+> `gen_fifo` trailer, `m2vk_snd::state_*`, `libretro_m2_osd_interface::state_*` — all still compiles
+> and still works; only the three ABI bodies in `retro_entry.cpp` were emptied.
+>
+> Three findings here outlived the feature and are still worth reading: the `gen_fifo` **contents**
+> being unsaved upstream (§9.1c), the two display caches that are never invalidated on load (a
+> perfectly restored machine can still show a permanently wrong picture), and the reproducibility
+> trap — a fixture whose own future is nondeterministic reads as a savestate FAIL.
+
 # Savestates — the plan, and what was built
 
 **Status (2026-07-29, fourth session): BUILT AND MOSTLY WORKING. 7 of 8 fixtures pass.**

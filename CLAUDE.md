@@ -18,7 +18,7 @@ the three later commits — control set up / more inputs / shift-to-L-R — are 
 clean. Upstream diff vs `mame0288`: **457 insertions / 16 deletions across 11 files**
 (`git diff --shortstat mame0288 -- src/devices src/mame`).
 
-- **Model 2** — DONE (`aabcd8d5cac` baseline). P0–P5, lightgun, savestates (8/8), twelve core options,
+- **Model 2** — DONE (`aabcd8d5cac` baseline). P0–P5, lightgun, twelve core options,
   per-game pads, the full steering block. Whole raster tail on the GPU; depth is **draw order, not z**.
   Phase detail in `devnotes/pN-*.md`.
 - **System 22 / Super System 22** — renderer DONE ([devnotes/system22plan.md](devnotes/system22plan.md)).
@@ -27,17 +27,43 @@ clean. Upstream diff vs `mame0288`: **457 insertions / 16 deletions across 11 fi
   `devnotes/s{0,1,2}-*.md`.
 - **System 21** — DONE ([devnotes/system21plan.md](devnotes/system21plan.md)). T0 boot → T1 seam → T2 GPU
   geometry (real hardware z-buffer + layer-0 z-mix) → T3 routing/options → T4 Winning Run → T5
-  savestates/pads/A-B/compat. Detail in `devnotes/t{0,1,2}-*.md`.
+  pads/A-B/compat. Detail in `devnotes/t{0,1,2}-*.md`.
 
 **Next: the shippable pass.** Renderer/geometry work is finished across all families; what remains to make
 this a public release is scheduled in **[devnotes/shippable-plan.md](devnotes/shippable-plan.md)** —
 R0 bug/option triage → R1 System 22 input mapping (authored + static-verified, all S22/S21 rows present in
-`input_layouts.json`; only the user hand-check is open) → R2 savestates + combined compat matrix (done) →
+`input_layouts.json`; only the user hand-check is open) → R2 combined compat matrix (done; the savestate
+half of R2 is void — see the savestates section) →
 R3 the S22 option set (open — texture-filter/depth-buffer exist, but the fog/no-lighting/no-textures/gamma
 toggles are unbuilt and S22's menu still shows the three Model 2 debug options) → R4 release chores → R4.5
 joystick-shifter (built, hand-check pending) → R5 optional S21 tails. Build:
 `make SUBTARGET=modelizer OSD=libretro_m2 REGENIE=1 NOWERROR=1 -j10` (the unified core; the three
 per-family subtargets were retired 2026-08-27).
+
+## 🚫 Savestates are DISABLED — do not regression-test against them (2026-09-04)
+`retro_serialize_size()` returns **0** for every family, and `retro_serialize` / `retro_unserialize`
+return **false**. RetroArch greys the save/load slots out for the session. This is deliberate and is
+not a bug to fix.
+
+**Why:** they were never uniformly trustworthy across the four families — `vcop2` never passed, the
+Model 1 TGP-copro / `gen_fifo` gap was never verified (`model1update.md` §"the savestate gap"), and the
+pipelined Android path dropped them outright — so every renderer change was being gated on a harness
+only half the cores could satisfy. A state that loads a wrong future is worse than no state.
+
+**What this means for how you work:**
+- **`devnotes/state.sh` is RETIRED.** Do not run it, do not cite it, do not add a savestate row to any
+  new plan's exit criteria. It will now fail everywhere for the trivial reason (size 0).
+- A/B (`ab.sh`), resolution invariance (`res.sh`) and `perf.sh` are unaffected and remain the gates.
+- `devnotes/savestates.md` is **history**, not a live spec. Same for the savestate steps inside the
+  closed phase plans (`shippable-plan.md` R2, `system21plan.md` T5, `plan_system23.md` 23-7).
+
+**What is still in the tree, deliberately unbuilt-out:** `m2vk_savestate.cpp` (including the
+`gen_fifo` trailer), `m2vk_snd::state_*`, and `libretro_m2_osd_interface::state_{size,save,load}` all
+still compile and still work — only the three ABI entry points in `retro_entry.cpp` were emptied, so
+re-enabling is restoring three function bodies. ⚠️ **The startup spin loop in `retro_load_game` that
+waits on `state_size() != 0` MUST STAY** — it no longer has anything to do with savestates, but it is
+what fixes how many frames the machine runs before `retro_run` #1, and every recorded digest plus the
+documented constant −1 host↔emulated frame offset was measured with it in place.
 
 ## ⚠️ Commit hygiene — READ FIRST
 This repo must stay free of AI/Claude nomenclature (public repos that visibly use AI have been
@@ -67,7 +93,7 @@ When a change needs an in-game input check:
 3. Wait for their answer.
 
 This does **not** ban `retrohost` generally — scripted runs for digests, rendering, resolution,
-savestates and boot-to-a-screen sweeps are fine. The ban is specifically on *pressing buttons to find
+and boot-to-a-screen sweeps are fine. The ban is specifically on *pressing buttons to find
 out what a button does*. `M2VK_INPUT_DUMP` and `M2VK_HOST_DESCRIPTORS` answer input questions
 statically; reach for those first.
 
@@ -83,7 +109,7 @@ All documentation *we* write lives in `devnotes/`. Read `devnotes/README.md` fir
 - `ab-baselines.md` / `res-baselines.md` — what the renderers measure at. **Regenerate with the
   table scripts, never retype a digest** — the reason is at the top of each file.
 - `legalstuff.md` — licence audit (release is clear; the open item is trademark, not copyright).
-- Topic files for each shipped feature: `savestates.md`, `lightgun.md`, `steering-curve.md`,
+- Topic files for each shipped feature: `lightgun.md`, `steering-curve.md`,
   `blended-transparency.md`, `p5-internal-resolution.md`, `padmap-tool.md`, `user-options.md`, etc.
 
 Add new docs here (one topic per file, kebab-case) and add a row to the README index. At a milestone
@@ -125,7 +151,7 @@ repo). Launch with `--add-dir /Users/mcwildmacbookair/Documents/GitHub/Polydiver
 - Remotes: `origin` = the fork; `upstream` = `mamedev/mame`.
 - **Sync = merge monthly release tags** (`mame0289`…) into `main`, rebuild, run A/B. Never track `master`.
 - Own release tags use a prefix (`m2vk-v0.1`) to avoid clashing with upstream `mame*` tags.
-- Never commit ROMs; savestates / `.inp` fixtures OK; golden PNGs via git-lfs.
+- Never commit ROMs; `.inp` fixtures OK; golden PNGs via git-lfs.
 
 ### Local-ignore hack — RETIRED 2026-08-29
 **Abandoned.** Modelizer is moving to its own repo (see `release_plan.md`), so the elaborate hiding of

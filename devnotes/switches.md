@@ -72,6 +72,10 @@ only way to see it.
 
 | Switch | Role |
 |---|---|
+🚫 **The whole `M2VK_SAVE_*` group below is INERT as of 2026-09-04** — savestates are disabled
+core-wide (`retro_serialize_size` returns 0), so nothing in the ABI calls `state_save`/`state_load`
+and these instruments never fire. They are retained because the code they instrument still compiles.
+
 | `M2VK_SAVE_PROBE` [`_FROM`/`_TO`] | the machine's *live* condition (FIFO occupancy, suspend masks, HALT, phase) each frame over a window |
 | `M2VK_SAVE_DIFF` [`_DIFF_MAX`] | registry-entry diff after a load; `_DIFF_MAX=1000000` to see late-sorting timer entries |
 | `M2VK_SAVE_VERIFY` | re-serialise immediately after load and report which registered items churn |

@@ -156,7 +156,8 @@ tail were proven on one game each.
   `gorgon_state` sprite-table variant if Gorgon ever comes into scope (not in the initial two-game
   set — Time Crisis II and Crisis Zone are both `namcos23_state`-family, not Gorgon).
 - **23-7 — widen + polish.** `timecrs2v4a` (confirms the `namcoss23_state` subclass path), options
-  menu (hide S22/S21-only toggles the way T3 did), savestates, per-game pad layout (both are
+  menu (hide S22/S21-only toggles the way T3 did), ~~savestates~~ (🚫 void — disabled core-wide
+  2026-09-04), per-game pad layout (both are
   light-gun games — reuse `lightgun.md`'s reticle/reload/offscreen-reload mechanics directly, they
   don't need re-deriving), compat-matrix rows.
 
@@ -515,7 +516,7 @@ texture source and a sprite branch. Scope it as its own increment when the ROM l
 **No code written this phase** — the finding is a source read; the tree is unchanged, driver diff still
 **105 insertions / 0 deletions** (`git diff --shortstat mame0288 -- src/mame/namco/namcos23.cpp`).
 
-**Next: 23-7** — widen (`timecrs2v4a`), the S23 option set (hide S22/S21-only toggles), savestates,
+**Next: 23-7** — widen (`timecrs2v4a`), the S23 option set (hide S22/S21-only toggles),
 per-game light-gun pad layout (reuse `lightgun.md`), compat rows. 23-7 *is* buildable and verifiable
 with the current ROMs; 23-6 stays parked until a Gorgon ROM is on hand.
 

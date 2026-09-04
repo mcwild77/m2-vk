@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 #
+# ============================================================================================
+# 🚫 RETIRED 2026-09-04 — SAVESTATES ARE DISABLED CORE-WIDE. THIS HARNESS CANNOT PASS.
+#
+# retro_serialize_size() now returns 0 for every family, so every arm below fails for the trivial
+# reason. Do not run this, do not cite it, do not gate a change on it. Kept for the method only.
+# See the savestates section of CLAUDE.md and the banner at the top of devnotes/savestates.md.
+# ============================================================================================
+#
+
+echo "state.sh is RETIRED: savestates are disabled core-wide (retro_serialize_size returns 0)." >&2
+echo "Nothing here can pass. See CLAUDE.md, section 'Savestates are DISABLED'." >&2
+echo "Set STATE_SH_I_KNOW=1 to run it anyway." >&2
+[ -n "$STATE_SH_I_KNOW" ] || exit 2
+#
 # The savestate harness. devnotes/savestates.md §3 step 3 is what this is for.
 #
 #   ./devnotes/state.sh <game> [frames] [savepoint] [outdir]

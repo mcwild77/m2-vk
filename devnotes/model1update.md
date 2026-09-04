@@ -41,7 +41,11 @@ re-derivation, not a mechanical re-apply.
 | `screen_update_model1` — 2D under/over capture (2 sites) | HUD layering reworked (#15597) | Confirm the opaque-under band (6/4/2/0) and over band (7/5/3/1) still hold; the composite depends on it |
 | `fclip_clip_right`, `push_direct` | reworked hunks | Re-place, re-validate |
 
-## ⚠️ The savestate gap is NOT confirmed-closed by this sync
+## ⚠️ The savestate gap is NOT confirmed-closed by this sync — 🚫 MOOT as of 2026-09-04
+
+**Savestates are disabled core-wide** (`retro_serialize_size` returns 0; see `CLAUDE.md`). This gap no
+longer has to be settled and `state.sh vf` is retired — drop step 5 below. Kept for the record.
+
 
 model1plan.md M1-5 assumed the sync would close the TGP-copro / `gen_fifo` savestate failure
 (`state.sh vf` fails: unregistered MB86233 copro / fifo state on the baseline). **The 0289 diff does
