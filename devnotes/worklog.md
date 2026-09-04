@@ -999,3 +999,20 @@ project via the new `deploy-aoj.sh` (99M → 67M stripped; the copy that was in
 
 ⚠️ **Still open and unrelated:** the serial bridge dying ~11 s in (m1audio-thread-plan.md). A daytona
 session longer than that in AoJ should be expected to lose SFX; today's fix does not touch it.
+
+**DEVICE-CONFIRMED 2026-09-03:** the fixed core went into an Age of Joy APK (Unity 2022.3.18f1) and
+onto the headset — user reports it "works great". So the whole chain is closed on Windows:
+edit → `make` → `retrohost`/`ab.sh` → `build-android.sh` → `deploy-aoj.sh` → Unity APK → Quest.
+The Mac is not in it anywhere.
+
+⚠️ **The serial-bridge bug's status is now genuinely unclear, and that is the honest statement.** The
+user has played daytona at length on the fixed build with no audio trouble at all, which is not what
+a bridge dying at 11 s predicts. Two readings, not yet separated: today's fix cured it (the old UB
+was constructing strings out of unmapped memory during the worker's setup, which is the right shape
+for damage that surfaces much later), or it never reproduced outside the Mac. **Do not quote the
+"94 % of the command stream never arrives" figure as current** — it was measured on the Mac, on a
+build whose worker machine was constructed on undefined behaviour.
+
+The cheap way to settle it, when it matters: an env-gated counter on `g_to_sound` / `g_to_main`
+pushes vs deliveries (both are ours, in `m2vk_soundthread.cpp` — no upstream logging hack needed as
+the 2026-09-01 recipe used), over a 6000-frame scripted race, threaded vs unthreaded.
