@@ -472,10 +472,20 @@ bool create_buffer(mapped_buffer &b, VkDeviceSize size, VkBufferUsageFlags usage
 	VkMemoryRequirements reqs{};
 	s_fns.get_buffer_memory_requirements(s_device, b.buffer, &reqs);
 
+	// HOST_VISIBLE | HOST_COHERENT is required; DEVICE_LOCAL on top of it is preferred (BAR memory —
+	// fast to sample, and on unified memory the only type there is). But that preferred type can live
+	// in a tiny heap: on a discrete GPU without resizable BAR the device-local+host-visible heap is the
+	// ~256 MB PCIe aperture, and a frontend that has already spent most of it (RetroArch's own swapchain
+	// and menu textures share the device) leaves too little for our buffers — the allocation then fails
+	// with OUT_OF_DEVICE_MEMORY even though the large plain-host-visible heap (system RAM) is wide open.
+	// So the preferred type is *tried*, and a failed allocation falls back to plain host-visible rather
+	// than being fatal. find_memory_type succeeding is not a promise the heap has room.
 	const VkMemoryPropertyFlags need = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	uint32_t type_index = 0;
-	if (!find_memory_type(s_fns, s_iface->gpu, reqs.memoryTypeBits, need | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, type_index)
-			&& !find_memory_type(s_fns, s_iface->gpu, reqs.memoryTypeBits, need, type_index))
+	uint32_t preferred_type = 0, fallback_type = 0;
+	const bool have_preferred = find_memory_type(s_fns, s_iface->gpu, reqs.memoryTypeBits,
+			need | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, preferred_type);
+	const bool have_fallback = find_memory_type(s_fns, s_iface->gpu, reqs.memoryTypeBits, need, fallback_type);
+	if (!have_preferred && !have_fallback)
 	{
 		vk_log(RETRO_LOG_ERROR, "no host-visible coherent memory type accepts a %llu byte buffer (%s)\n",
 				(unsigned long long)size, what);
@@ -485,9 +495,27 @@ bool create_buffer(mapped_buffer &b, VkDeviceSize size, VkBufferUsageFlags usage
 	VkMemoryAllocateInfo alloc{};
 	alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	alloc.allocationSize = reqs.size;
-	alloc.memoryTypeIndex = type_index;
-	if (!check(s_fns.allocate_memory(s_device, &alloc, nullptr, &b.memory), "vkAllocateMemory"))
+
+	VkResult ar = VK_ERROR_OUT_OF_DEVICE_MEMORY;
+	if (have_preferred)
+	{
+		alloc.memoryTypeIndex = preferred_type;
+		ar = s_fns.allocate_memory(s_device, &alloc, nullptr, &b.memory);
+	}
+	if (ar != VK_SUCCESS && have_fallback && fallback_type != preferred_type)
+	{
+		if (have_preferred)
+			vk_log(RETRO_LOG_WARN, "device-local host-visible heap could not hold a %llu byte buffer (%s); "
+					"falling back to plain host-visible memory\n", (unsigned long long)reqs.size, what);
+		alloc.memoryTypeIndex = fallback_type;
+		ar = s_fns.allocate_memory(s_device, &alloc, nullptr, &b.memory);
+	}
+	if (ar != VK_SUCCESS)
+	{
+		vk_log(RETRO_LOG_ERROR, "vkAllocateMemory failed for a %llu byte buffer (%s): %d\n",
+				(unsigned long long)reqs.size, what, int(ar));
 		return false;
+	}
 	if (!check(s_fns.bind_buffer_memory(s_device, b.buffer, b.memory, 0), "vkBindBufferMemory"))
 		return false;
 	if (!check(s_fns.map_memory(s_device, b.memory, 0, VK_WHOLE_SIZE, 0, &b.mapped), "vkMapMemory"))
