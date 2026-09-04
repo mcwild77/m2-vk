@@ -156,6 +156,21 @@ inline constexpr char const *KEY_SELF_THROTTLE = "model2_self_throttle";
 inline constexpr char const *KEY_DRIVE_BOARD = "model2_drive_board";
 inline constexpr char const *KEY_BILLBOARD   = "model2_billboard";
 
+// System 23 only (timecrs2/timecrs2v4a/crszone) — HLE the JVS I/O board (bus/jvs/namcoio.cpp's
+// namco_tssio_hle) instead of interpreting its Hitachi H8/3334 (namco_tssio/namco_csz1), which does
+// nothing but read a light gun, a foot pedal, and coins. A performance option, same shape as Threaded
+// Sound/Fast Sound-Link Timing above: input plumbing only, so a host A/B against the real board must
+// stay pixel-identical (plan_system23optimization.md, Lever 1 / phase O2). Hidden from the other
+// families' menus (they carry no JVS board at all, or a different one this class does not stand in
+// for). Reload-gated — the board choice is decided when the machine is built.
+//
+// ⚠️ Default value is platform-conditional in DEFINITIONS (retro_options.cpp) itself — "enabled" on
+// an __ANDROID__ build, "disabled" everywhere else — because that is the one platform this lever was
+// built for and there is no real-hardware ground truth to call it accuracy-neutral yet; a host A/B
+// keeps comparing against the real board out of the box until the accuracy hand-check has passed.
+// m2vk_jvs::set_option_enabled() seeds it; M2VK_JVS_HLE wins (harness).
+inline constexpr char const *KEY_S23_JVS_HLE = "system23_jvs_hle";
+
 // System 22 only — whether the 2D HUD/text overlay is drawn back over the GPU 3D. On by default (the
 // accurate picture); off hides the score/HUD/text layer, leaving the 3D above the 2D background. A
 // look, not an accuracy fix. Hidden from the Model 2 and System 21 menus. Vulkan only.
@@ -339,6 +354,11 @@ bool get_billboard(retro_environment_t environ_cb);
 
 // KEY_M2_SMOOTH_SHADING resolved to the bool m2vk::set_option_smooth() takes. "on" tested, same reason.
 bool get_m2_smooth_shading(retro_environment_t environ_cb);
+
+// KEY_S23_JVS_HLE resolved to the bool m2vk_jvs::set_option_enabled() takes. "enabled" tested, so an
+// unreadable or stale value lands on the real-MCU-board default. DEFINITIONS' own default_value is
+// platform-conditional (enabled on an __ANDROID__ build); see the entry in retro_options.cpp.
+bool get_s23_jvs_hle(retro_environment_t environ_cb);
 
 // "on" tested rather than not "off": an unreadable value lands on the quiet answer.
 bool get_steering_display(retro_environment_t environ_cb);

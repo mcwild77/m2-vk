@@ -445,5 +445,7 @@ void jvs_port_devices(device_slot_interface &device)
 	device.option_add("namco_fca11", NAMCO_FCA11);
 	device.option_add("namco_fcb", NAMCO_FCB);
 	device.option_add("namco_tssio", NAMCO_TSSIO);
+	device.option_add("namco_tssio_hle", NAMCO_TSSIO_HLE);
+	device.option_add("namco_csz1_hle", NAMCO_CSZ1_HLE);
 	device.option_add("namco_xmiu1", NAMCO_XMIU1);
 }

@@ -1016,3 +1016,131 @@ build whose worker machine was constructed on undefined behaviour.
 The cheap way to settle it, when it matters: an env-gated counter on `g_to_sound` / `g_to_main`
 pushes vs deliveries (both are ours, in `m2vk_soundthread.cpp` — no upstream logging hack needed as
 the 2026-09-01 recipe used), over a 6000-frame scripted race, threaded vs unthreaded.
+
+## 2026-09-04 (later) — System 23 Lever 1: JVS HLE I/O board built (O2)
+
+Implemented `plan_system23optimization.md` phase O2: `namco_tssio_hle_device`
+(`src/devices/bus/jvs/namcoio.cpp`, next to `namco_em_pri1_01_device`), a game-agnostic
+`jvs_hle_device` subclass standing in for the real Hitachi H8/3334 boards (`namco_tssio`/`namco_csz1`)
+timecrs2/timecrs2v4a/crszone accept. Registered as `NAMCO_TSSIO_HLE` in namcoio.h and
+`"namco_tssio_hle"` in jvs.cpp's `jvs_port_devices` — no build-script edits needed there, since bus/jvs
+is already in every genie config.
+
+Gated it the way the sound-thread/lazy-baud levers are gated: new `m2vk_jvs.h`/`.cpp` in
+`src/osd/libretro_m2/` (added to `libretro_m2.lua`'s OSD project files, same as m2vk_baud), exposing
+`m2vk_jvs::tssio_hle_enabled()` / `set_option_enabled()`, `M2VK_JVS_HLE` env override. The only
+namcos23.cpp edit is the three `set_default_option()` call sites in `timecrs2()`/`timecrs2v4a()`/
+`crszone()`, each wrapped `#ifdef S23VK` to pick `"namco_tssio_hle"` (or `"namco_csz1"`'s HLE stand-in
+for crszone) vs the real board. Also wired a real menu entry, `system23_jvs_hle` ("JVS HLE I/O Board"),
+hidden from every non-System-23 family via `apply_family_cascade`; its DEFINITIONS default is the
+first platform-conditional default in `retro_options.cpp` — `enabled` under `__ANDROID__`, `disabled`
+elsewhere, matching the plan's "default-on Android."
+
+`switch_count=16` (2 bytes) — checked against the actual `JVS_PLAYER1` bit layout in namcos23.cpp's
+`timecrs2`/`crszone` INPUT_PORTS (trigger 0x01, enter 0x02, down/up 0x10/0x20, service 0x40, link-id
+0x4000, pedal 0x8000, crszone's motor-test 0x2000): every used bit is ≤ bit 15, so the spec'd count is
+correct against the driver, not just plausible.
+
+Built clean: `make SUBTARGET=modelizer OSD=libretro_m2 REGENIE=1 NOWERROR=1 -j24` on the Windows box,
+compiled all six touched files and linked `modelizer_libretro.dll` with no errors.
+
+**Not validated yet** — no `timecrs2`/`crszone` ROMs in `devnotes/roms`, so none of O2's three
+validation steps (host A/B digest, boot check, Quest re-profile + hand-check) have run. Do not treat
+the Android default as trustworthy until they have; see the plan doc's O2 section for the checklist.
+
+## 2026-09-04 (later still) — O2 continued: ROMs added, real bug found, boot still not reached
+
+`timecrs2.zip`/`crszone.zip` added to `devnotes/roms`. Boot-checked the HLE board (built earlier today,
+see the prior entry) — both games hang at a firmware self-test screen instead of reaching attract.
+
+Traced it with `jvshle.cpp`'s `VERBOSE` macro (temporarily enabled, reverted before finishing — never
+committed). Root cause: `:subcpu` (H8/3002) is itself the JVS master (its SCI0 is the JVS wire) and its
+own POST sends a Namco vendor command, `0x70` (fixed 3-byte body, `70 04 70 02` on the wire), that the
+real TSS-I/O/CSZ1 firmware answers but the generic `jvs_hle_device` base doesn't — it came back
+UnknownCommand and `:subcpu` restarted the whole JVS enumeration forever. Added a handler in
+`namco_tssio_hle_device::execute()` (namcoio.cpp) acknowledging it; this stops the reset-loop cleanly
+(pacman animation now runs for hundreds of frames instead of erroring at once) but does **not** get
+either game to attract — both still hit "SUBCPU INITIALIZE TIME OUT" a bit later. Tested two response
+contents (bare ack, echo-the-request) with identical results (same digest, same frame the error
+appears), which argues 0x70 is a periodic keepalive, not the actual readiness gate — so the remaining
+block is something else in `:subcpu`'s POST, not yet identified. Candidates noted in the plan doc:
+namco_settings/RTC path on SCI1, or something unrelated to JVS entirely.
+
+Also learned two things blocking further validation on this box: `namco_tssio.zip`/`namco_csz1.zip`
+(the real board's own small MCU ROM, separate from the game ROM) aren't on hand, so the real-board
+comparison that would settle "is this hang pre-existing or HLE-specific" can't run yet; and the GPU
+currently has too little free memory for ANY Vulkan-path run to work (confirmed via a known-good `vf2`
+control test also hitting `VK_ERROR_OUT_OF_DEVICE_MEMORY`), so Vulkan-path testing is on hold until
+that clears.
+
+**Status: O2 code is real progress (a genuine protocol bug found and partially fixed) but is not yet a
+working board.** Full detail, including the exact trace and the honest "not sufficient" framing, is in
+the comment on `namco_tssio_hle_device::execute()` and in `plan_system23optimization.md`'s O2 section.
+Do not ship or rely on the Android default until a game actually reaches attract mode.
+
+## 2026-09-05 — O2 root-caused: timecrs2 boots bit-identical to the real board, crszone boots but not byte-perfect
+
+Continuing 2026-09-04's O2 work: `namco_tssio.7z`/`namco_csz1.7z` (the real JVS I/O boards' own small
+MCU ROM sets) were added to `devnotes/roms`, which unlocked the decisive test the prior session was
+missing — a real-vs-HLE differential trace.
+
+Enabled `h8_sci_device`'s `LOG_DATA` (the H8 SCI *hardware peripheral*, not the board — this traces a
+full-CPU-emulated board too, unlike `jvshle.cpp`'s own VERBOSE which only instruments HLE devices) on
+`:subcpu:sci0` against both real boards. This is what actually cracked it: captured the real boards'
+exact reply to the `0x70` vendor command that was hanging both games (see 2026-09-04's entry), and it
+turned out to be a fixed 11-byte payload, board-specific, not a generic ack — hardcoded it per board via
+a new `jvs_70_reply()` virtual. Also found from the same trace: real `command_revision`/`jvs_revision`
+are 0x11/0x20 (not jvshle's 0x13/0x30 defaults), real `switch_count` is 12 (not the 16 guessed from
+INPUT_PORTS bit positions), and — the big one — crszone's real board is a **CSZ1 MIU-I/O, not a
+TSS-I/O**, with its own device_id, 4 output slots (not 3), and an analog output channel TSS-I/O lacks
+entirely (the kick motor). Added `namco_csz1_hle_device : public namco_tssio_hle_device`, mirroring the
+real boards' own inheritance shape. Also fixed a genuine upstream one-line bug in `jvshle.cpp`'s
+`device_start()`: `screen_position_input_ybits()`'s result was being written into
+`m_screen_position_input_xbits` again instead of `m_screen_position_input_ybits` — invisible for this
+driver (both games use 16 for both), but a real bug for any future user where the two differ.
+
+**Result:** timecrs2, 3000 frames, no input, software renderer: real board and HLE board produce the
+**identical digest** (`3a151f72c23d01db`) — full textured 3D attract intro, matching the plan's own
+"STARLINE NETWORK" baseline description. crszone reaches the same attract scene as the real board (the
+URDA commander) and looks right side-by-side, but the digest doesn't match (`f6b25722eaf584e6` real vs
+`8e4577de95811f98` HLE) — confirmed reproducible, confirmed not a gross protocol failure (same commands,
+same order, no extra retries), ~13% RMSE between final frames. Not root-caused; leading guess is a
+timing artifact from CSZ1's extra ANLOUT round-trip per poll (5 commands vs TSS-I/O's 4) meeting HLE's
+near-zero response latency, but that's unverified speculation, not a finding.
+
+Two of O2's three validation steps are now done: host A/B (timecrs2 clean, crszone close), and boot to
+attract for both games (no scripted input, static digest/screenshot checks only, per CLAUDE.md). Still
+open: the Quest re-profile and the numbered hand-check — needs the headset, which was disconnected for
+this session. Full detail, the exact captured bytes, and the honest state of what's unresolved is in
+`plan_system23optimization.md`'s O2 section and the class comments in `namcoio.cpp`.
+
+## 2026-09-05 (later) — O2 closed out: Quest re-profile + hand-check, both confirmed
+
+Headset came back online same session as the host-side validation above. Full loop run for both
+games: fast build → deploy → user hand-check; profiler build → deploy → user plays → `adb logcat -d -s
+m2prof:V` → fast build restored → deploy. Both games' hand-checks came back clean (gun aim/trigger,
+pedal, coin/start all working, nothing flagged as broken).
+
+**Profiler result: `:jvs:...:iocpu` is gone from the profile entirely, for both games** — better than
+the ~1-2% predicted, because the HLE board has no CPU device at all. Remaining time is `:maincpu`
+(35-46%, scales with scene complexity — crszone's higher share matches its 3-4x polygon count vs
+timecrs2) and `:subcpu` (20-25%, the *separate* H8/3002 sound MCU this work never touched — that's the
+plan's already-identified "Lever 2", not a leftover from this one). Nothing anomalous.
+
+**Fps, user-reported:** timecrs2 "runs smoothly." crszone was ~6fps before this session (never
+individually profiled before now — the plan's headline numbers were timecrs2-only) and is now ~45fps,
+a ~7.5x jump, with the profiler confirming the remaining shortfall is legitimate CPU cost rather than
+a JVS inefficiency.
+
+**Real mistake caught and fixed along the way, worth remembering:** the first "fast" Android rebuild
+this session was only `REGENIE=1` (incremental, no `rm -rf build/android/obj`), and turned out
+byte-identical to the profiler build — stale `.o` files from before this session silently carried over
+despite the regenerated Makefile having different `-DMAME_PROFILER` flags, because plain `make` only
+checks source-file timestamps, not compiler-flag changes. Caught it by hashing/`cmp`-ing the two
+backup `.so` files before trusting either. **Rule going forward: `rm -rf build/android/obj` on BOTH
+sides whenever `PROFILER` changes, not just when turning it on** — verify with `grep -ac m2prof <.so>`
+(0 for a real fast build) before deploying either.
+
+O2 is now closed: both validation steps that were open this morning (Quest re-profile, hand-check) are
+done. Only remaining loose end is crszone's small host-side digest gap (visually identical to the real
+board, not root-caused, not blocking — see the O2 section above) — a follow-up, not a blocker.

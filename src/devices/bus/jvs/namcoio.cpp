@@ -1595,6 +1595,151 @@ public:
 	}
 };
 
+// M2VK: game-agnostic HLE stand-in for the namco_tss_io_device / namco_csz1_device boards (a real
+// Hitachi H8/3334 each, interpreted). No MCU at all: jvs_hle_device already speaks the whole JVS
+// protocol against the same device_jvs_interface hooks configure_jvs() binds for the real boards
+// (system_r/player_r/coin_r/screen_position_x_r/screen_position_y_r), so this class only has to state
+// its feature signature. Per-game gun calibration and button layout live in the namcos23.cpp driver's
+// INPUT_PORTS (timecrs2/crszone), not here, which is what makes one class correct for both games.
+//
+// switch_count=16 covers every JVS_PLAYER1 bit either game uses (namcos23.cpp: trigger 0x01, enter
+// 0x02, down 0x10, up 0x20, service 0x40, link-id 0x4000, pedal 0x8000, crszone's motor-test 0x2000 —
+// all <= bit 15). Not lifted from a real-board FEATCHK trace; if a button misreads on the hand-check,
+// capture the real namco_tssio FEATCHK response and match it exactly. A wrong count degrades a button,
+// not boot, because the enumeration handshake namcos23.cpp performs is generic (see plan_system23optimization.md O1).
+//
+// Outputs are left at 0: timecrs2's gun-recoil solenoid and crszone's kick motor are JVS output/analog-
+// output slots, but configure_jvs() binds neither output() nor analog_output(), so real hardware would
+// also be a no-op here today.
+class namco_tssio_hle_device :
+	public jvs_hle_device
+{
+public:
+	namco_tssio_hle_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0) :
+		namco_tssio_hle_device(mconfig, NAMCO_TSSIO_HLE, tag, owner, clock)
+	{
+	}
+
+protected:
+	namco_tssio_hle_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
+		jvs_hle_device(mconfig, type, tag, owner, clock)
+	{
+	}
+
+public:
+	// device_t
+	virtual void device_add_mconfig(machine_config &config) override ATTR_COLD
+	{
+		add_jvs_port(config);
+	}
+
+	// jvs_hle_device
+	virtual const char *device_id() override
+	{
+		return "namco ltd.;TSS-I/O;Ver2.02;JPN,GUN-EXTENTION";
+	}
+
+	// command_revision/jvs_revision: base class defaults (0x13/0x30) do NOT match the real board.
+	// Captured 2026-09-05 by tracing h8_sci_device's LOG_DATA against the real namco_tssio board
+	// (:subcpu:sci0's FEATCHK reply): the real board reports command rev 1.1 and JVS rev 2.0, not
+	// 1.3/3.0. Whether :subcpu's firmware validates these is untested, but matching the real board
+	// costs nothing and removes a variable.
+	virtual uint8_t command_revision() override { return 0x11; }
+	virtual uint8_t jvs_revision() override { return 0x20; }
+
+	virtual uint8_t player_count() override { return 1; }
+	// switch_count: 12, matching the real board's FEATCHK (traced 2026-09-05), not the 16 originally
+	// guessed from the driver's INPUT_PORTS bit layout (see the O2 planning note this superseded —
+	// the real board's own count is ground truth, not a bit-position guess).
+	virtual uint8_t switch_count() override { return 12; }
+	virtual uint8_t coin_slots() override { return 1; }
+	virtual uint8_t screen_position_input_channels() override { return 1; } // the light gun
+	virtual uint8_t screen_position_input_xbits() override { return 16; }
+	virtual uint8_t screen_position_input_ybits() override { return 16; }
+	// output_slots: the real board reports 3 general-purpose output slots (timecrs2's gun-recoil
+	// solenoid plausibly lives here) — traced 2026-09-05. configure_jvs() binds neither output() nor
+	// analog_output() in the driver, so this stays a no-op callback-wise; declaring it just matches
+	// the real FEATCHK in case :subcpu's POST checks for the feature's presence.
+	virtual uint8_t output_slots() override { return 3; }
+
+	// ROOT-CAUSED 2026-09-05, see plan_system23optimization.md O2. :subcpu's own boot firmware (the
+	// JVS *master* on this board — its SCI0 is wired straight to the JVS port, see namcos23.cpp's
+	// `sci_set_external_clock_period(0, JVSCLOCK/8)`) sends this Namco vendor command as part of its
+	// own POST, on top of the standard enumeration, and will not proceed past "SUBCPU
+	// INITIALIZING..." until it gets back the exact reply the real board's H8/3334 computes for it.
+	// Traced by enabling h8_sci_device's LOG_DATA (temporarily; not part of this change) against the
+	// real namco_tssio/namco_csz1 boards on :subcpu:sci0: the request is a fixed `70 04 70 02` every
+	// time, but the correct 11-byte reply differs PER BOARD (namco_csz1_hle_device below overrides
+	// jvs_70_reply() with its own captured bytes) — this is not a generic ack, it looks like a
+	// canned response to a fixed challenge, not something jvs_hle_device's framework can synthesize
+	// generically. With the right bytes, :subcpu immediately moves on to the steady-state
+	// SWINP/COININP/SCRPOSINP/OUTPUT1 poll bundle and the game reaches attract normally: verified
+	// bit-identical against the real board over a 3000-frame no-input run (timecrs2; digest
+	// 3a151f72c23d01db either way). crszone matches visually but not by digest yet — expected, since
+	// it needs namco_csz1_hle_device's own captured reply, not this class's.
+	virtual const uint8_t *jvs_70_reply()
+	{
+		static constexpr uint8_t reply[11] = { 0xff, 0xff, 0x01, 0x19, 0x98, 0x01, 0x28, 0x03, 0x19, 0x31, 0x21 };
+		return reply;
+	}
+
+	virtual void execute(uint8_t command) override
+	{
+		const uint8_t *parameters;
+		uint8_t *response;
+
+		switch (command)
+		{
+		case 0x70:
+			if (consume(3, parameters) && produce(12, response))
+			{
+				uint8_t const *const reply = jvs_70_reply();
+				response[0] = ReportCode::Normal;
+				for (int i = 0; i < 11; i++)
+					response[i + 1] = reply[i];
+			}
+			break;
+
+		default:
+			jvs_hle_device::execute(command);
+			break;
+		}
+	}
+};
+
+
+// HLE stand-in for namco_csz1_device — same relationship as the real boards (namco_csz1_device
+// derives from namco_tss_io_device). crszone's real board is a CSZ1 MIU-I/O, not a TSS-I/O: its
+// device_id string differs, and its FEATCHK reports 4 general-purpose outputs (not 3) plus one
+// analog output channel TSS-I/O does not have at all (the kick motor namco_csz1_device's own
+// analog_output_w models) — traced 2026-09-05 the same way as namco_tssio_hle_device above. Whether
+// :subcpu's POST actually checks any of this beyond jvs_70_reply() is untested, but matching the
+// real board's numbers removes variables cheaply.
+class namco_csz1_hle_device :
+	public namco_tssio_hle_device
+{
+public:
+	namco_csz1_hle_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock = 0) :
+		namco_tssio_hle_device(mconfig, NAMCO_CSZ1_HLE, tag, owner, clock)
+	{
+	}
+
+protected:
+	virtual const char *device_id() override
+	{
+		return "namco ltd.;MIU-I/O;Ver2.05;JPN,GUN-EXTENTION";
+	}
+
+	virtual uint8_t output_slots() override { return 4; }
+	virtual uint8_t analog_output_channels() override { return 1; }
+
+	virtual const uint8_t *jvs_70_reply() override
+	{
+		static constexpr uint8_t reply[11] = { 0xff, 0xff, 0x01, 0x19, 0x99, 0x09, 0x21, 0x02, 0x15, 0x45, 0x01 };
+		return reply;
+	}
+};
+
 } // anonymous namespace
 
 
@@ -1610,4 +1755,6 @@ DEFINE_DEVICE_TYPE_PRIVATE(NAMCO_FCA10, device_jvs_interface, namco_fca_10_devic
 DEFINE_DEVICE_TYPE_PRIVATE(NAMCO_FCA11, device_jvs_interface, namco_fca_11_device, "namco_fca11", "Namco FCA-1 (Multipurpose + Rotary Encoder,JPN,Ver1.01)")
 DEFINE_DEVICE_TYPE_PRIVATE(NAMCO_FCB, device_jvs_interface, namco_fcb_device, "namco_fcb", "Namco FCB (TouchPanel&Multipurpose,JPN,Ver1.02)")
 DEFINE_DEVICE_TYPE_PRIVATE(NAMCO_TSSIO, device_jvs_interface, namco_tss_io_device, "namco_tssio", "Namco TSS-I/O (GUN-EXTENTION,JPN,Ver2.02)")
+DEFINE_DEVICE_TYPE_PRIVATE(NAMCO_TSSIO_HLE, device_jvs_interface, namco_tssio_hle_device, "namco_tssio_hle", "Namco TSS-I/O (HLE, no MCU)")
+DEFINE_DEVICE_TYPE_PRIVATE(NAMCO_CSZ1_HLE, device_jvs_interface, namco_csz1_hle_device, "namco_csz1_hle", "Namco CSZ1 MIU-I/O (HLE, no MCU)")
 DEFINE_DEVICE_TYPE_PRIVATE(NAMCO_XMIU1, device_jvs_interface, namco_xmiu1_device, "namco_xmiu1", "Namco XMIU1 TSS-I/O (GUN-EXTENTION,JPN,Ver2.11,Ver2.12)")

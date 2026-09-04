@@ -468,6 +468,34 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		"enabled"
 	},
 	{
+		m2opt::KEY_S23_JVS_HLE,
+		m2txt::S23_JVS_HLE_LABEL,
+		nullptr,
+		m2txt::S23_JVS_HLE_INFO,
+		nullptr,
+		nullptr,
+		// System 23 only (apply_family_cascade hides it everywhere else) — HLE stand-in for the JVS
+		// I/O board's Hitachi H8/3334 (namcoio.cpp's namco_tssio_hle vs. namco_tssio/namco_csz1). Input
+		// plumbing only: a host A/B against the real board must stay pixel-identical. Reload-gated —
+		// the board choice is fixed when the machine is built.
+		//
+		// Default value is platform-conditional, the one instance of that in this table: "enabled" on
+		// an __ANDROID__ build (the platform this lever exists for — a full H8 interpreter core costs
+		// ~23% of the Quest 3 profile just to read a gun/pedal/coins), "disabled" everywhere else, so a
+		// desktop/harness A/B keeps comparing against the real board out of the box until the HLE
+		// board's accuracy hand-check (numbered list, no scripted input) has passed.
+		{
+			{ "disabled", m2txt::V_OFF },
+			{ "enabled",  m2txt::V_ON },
+			{ nullptr, nullptr }
+		},
+#if defined(__ANDROID__)
+		"enabled"
+#else
+		"disabled"
+#endif
+	},
+	{
 		m2opt::KEY_SELF_THROTTLE,
 		m2txt::SELF_THROTTLE_LABEL,
 		nullptr,
@@ -855,6 +883,13 @@ bool m2opt::get_billboard(retro_environment_t environ_cb)
 bool m2opt::get_lazy_baud(retro_environment_t environ_cb)
 {
 	return get(environ_cb, KEY_LAZY_BAUD) == "enabled";
+}
+
+bool m2opt::get_s23_jvs_hle(retro_environment_t environ_cb)
+{
+	// "enabled" tested; an unreadable value falls back to default_value() (get()'s own fallback), which
+	// is the platform-conditional default baked into the DEFINITIONS entry above, not a fixed arm here.
+	return get(environ_cb, KEY_S23_JVS_HLE) == "enabled";
 }
 
 bool m2opt::get_self_throttle(retro_environment_t environ_cb)

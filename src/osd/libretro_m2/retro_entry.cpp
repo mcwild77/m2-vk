@@ -36,6 +36,7 @@
 #include "m2vk_steerbar.h"
 #include "m2vk_sink.h"
 #include "m2vk_soundthread.h"
+#include "m2vk_jvs.h"
 
 // m2vk_baud.h is not includable here: it declares a device_t and pulls in machine/i8251.h, which this
 // OSD library does not build against. The module is compiled into the mame_model2 driver project and
@@ -430,6 +431,9 @@ void apply_family_cascade(family fam)
 		// Fast Sound-Link Timing replaces the 500 kHz CLOCK feeding an i8251 on the Model 2 / Model 1
 		// machines; this family has no such device, so the toggle would be dead here.
 		m2opt::hide_option(m2opt::KEY_LAZY_BAUD);
+		// JVS HLE I/O Board is System 23 only (timecrs2/crszone's namco_tssio/namco_csz1); System 22's
+		// JVS boards are not this class.
+		m2opt::hide_option(m2opt::KEY_S23_JVS_HLE);
 	}
 	else if (fam == family::system21)
 	{
@@ -459,6 +463,8 @@ void apply_family_cascade(family fam)
 		// Fast Sound-Link Timing replaces the 500 kHz CLOCK feeding an i8251 on the Model 2 / Model 1
 		// machines; this family has no such device, so the toggle would be dead here.
 		m2opt::hide_option(m2opt::KEY_LAZY_BAUD);
+		// JVS HLE I/O Board is System 23 only; System 21 carries no JVS board.
+		m2opt::hide_option(m2opt::KEY_S23_JVS_HLE);
 	}
 	else if (fam == family::model1)
 	{
@@ -487,6 +493,8 @@ void apply_family_cascade(family fam)
 		// Fast Sound-Link Timing stays visible: model1.cpp's board is a SEGAM1AUDIO, whose own uart_clock
 		// the generator replaces (segam1audio.cpp). Its gain is small here — model1.cpp's separate
 		// m1uart_clock is still a stock CLOCK — but the toggle is live, not dead.
+		// JVS HLE I/O Board is System 23 only; Model 1 carries no JVS board.
+		m2opt::hide_option(m2opt::KEY_S23_JVS_HLE);
 	}
 	else if (fam == family::system23)
 	{
@@ -510,6 +518,8 @@ void apply_family_cascade(family fam)
 		// Fast Sound-Link Timing replaces the 500 kHz CLOCK feeding an i8251 on the Model 2 / Model 1
 		// machines; this family has no such device, so the toggle would be dead here.
 		m2opt::hide_option(m2opt::KEY_LAZY_BAUD);
+		// JVS HLE I/O Board (system23_jvs_hle) stays visible here — this is its family. See
+		// plan_system23optimization.md Lever 1 / phase O2 and m2vk_jvs.h.
 	}
 	else
 	{
@@ -524,6 +534,8 @@ void apply_family_cascade(family fam)
 		m2opt::hide_option(m2opt::KEY_S22_2D_OVERLAY);
 		// Smooth Shading is a Model 1-only enhancement; hide it from the Model 2 menu.
 		m2opt::hide_option(m2opt::KEY_SMOOTH_SHADING);
+		// JVS HLE I/O Board is System 23 only; Model 2 carries no JVS board.
+		m2opt::hide_option(m2opt::KEY_S23_JVS_HLE);
 	}
 }
 
@@ -967,6 +979,18 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	}
 	if (fam == family::model2)
 		s_log_cb(RETRO_LOG_INFO, "[model2] %s=%s\n", m2opt::KEY_SOUND_THREAD, sound_thread ? "on" : "off");
+
+	// JVS HLE I/O Board (system23_jvs_hle) — seed the same way, for the same reason: namcos23.cpp's
+	// timecrs2()/timecrs2v4a()/crszone() config hooks read this before choosing set_default_option()
+	// between the real MCU board and the HLE stand-in (bus/jvs/namcoio.cpp's namco_tssio_hle). A false
+	// seed on the other families is a harmless no-op — none of them build a JVS port through this gate.
+	// M2VK_JVS_HLE still wins on the harness; see m2vk_jvs.h. Hidden from every non-System-23 menu
+	// (apply_family_cascade).
+	const bool jvs_hle = m2opt::get_s23_jvs_hle(s_environ_cb);
+	m2vk_jvs::set_option_enabled(jvs_hle);
+	if (fam == family::system23)
+		s_log_cb(RETRO_LOG_INFO, "[model2] %s=%s\n", m2opt::KEY_S23_JVS_HLE,
+			m2vk_jvs::tssio_hle_enabled() ? "on" : "off");
 
 	// Drive board (model2_drive_board) — seed the park gate; drive_park_frame() applies it on the
 	// emulation thread once the machine runs, and re-applies live when the option changes.

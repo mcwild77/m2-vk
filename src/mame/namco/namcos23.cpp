@@ -1253,6 +1253,7 @@ It can also be used with Final Furlong when wired correctly.
 
 #ifdef S23VK
 #include "libretro_m2/s23_seam.h"
+#include "libretro_m2/m2vk_jvs.h"
 #endif
 
 #include "corefloat.h"
@@ -6914,7 +6915,14 @@ void namcos23_state::panicprk(machine_config &config)
 void namcos23_state::timecrs2(machine_config &config)
 {
 	s23(config);
+#ifdef S23VK
+	// Lever 1 (plan_system23optimization.md O2): HLE the JVS I/O board instead of interpreting its
+	// H8/3334 for a gun/pedal/coin read. Gated so the accurate MCU path stays the default until the
+	// HLE board's host A/B + hand-check have passed; see m2vk_jvs.h for the platform default.
+	m_jvs->set_default_option(m2vk_jvs::tssio_hle_enabled() ? "namco_tssio_hle" : "namco_tssio");
+#else
 	m_jvs->set_default_option("namco_tssio");
+#endif
 }
 
 void namcoss23_state::ss23(machine_config &config)
@@ -6926,7 +6934,12 @@ void namcoss23_state::ss23(machine_config &config)
 void namcoss23_state::timecrs2v4a(machine_config &config)
 {
 	ss23(config);
+#ifdef S23VK
+	// See namcos23_state::timecrs2() above — same lever, same gate.
+	m_jvs->set_default_option(m2vk_jvs::tssio_hle_enabled() ? "namco_tssio_hle" : "namco_tssio");
+#else
 	m_jvs->set_default_option("namco_tssio");
+#endif
 }
 
 void namcoss23_state::_500gp(machine_config &config)
@@ -6980,7 +6993,14 @@ void crszone_state::crszone(machine_config &config)
 	m_maincpu->set_clock(BUSCLOCK * 6);
 	m_maincpu->set_addrmap(AS_PROGRAM, &crszone_state::mips_map);
 
+#ifdef S23VK
+	// Same lever as timecrs2() above. crszone's real board is a CSZ1 MIU-I/O, not a TSS-I/O (a
+	// different device_id, output count, and vendor-command reply — see namco_csz1_hle_device in
+	// namcoio.cpp), so it gets its own HLE class, not namco_tssio_hle.
+	m_jvs->set_default_option(m2vk_jvs::tssio_hle_enabled() ? "namco_csz1_hle" : "namco_csz1");
+#else
 	m_jvs->set_default_option("namco_csz1");
+#endif
 
 	/* debug hardware */
 	ACIA6850(config, m_acia);

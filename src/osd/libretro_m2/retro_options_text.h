@@ -112,6 +112,13 @@ inline constexpr char const *LAZY_BAUD_INFO =
 	"second. Large speed-up where the CPU is the limit; the bytes on the link are unchanged, but device "
 	"timing shifts slightly, so a few games render a frame differently. Needs a reload.";
 
+// --- JVS HLE I/O Board (System 23) -------------------------------------------
+inline constexpr char const *S23_JVS_HLE_LABEL = "JVS HLE I/O Board (Time Crisis 2 / Crisis Zone)";
+inline constexpr char const *S23_JVS_HLE_INFO =
+	"Replace the light-gun cabinet's JVS I/O board CPU with a direct implementation of the JVS "
+	"protocol it speaks, instead of interpreting the board's own processor. Large speed-up on "
+	"weaker devices; the gun, pedal, and coin inputs are read the same way either way. Needs a reload.";
+
 inline constexpr char const *SELF_THROTTLE_LABEL = "Self-Paced Timing";
 inline constexpr char const *SELF_THROTTLE_INFO =
 	"The core paces itself to the game's native rate instead of trusting the frontend's frame limiter. "

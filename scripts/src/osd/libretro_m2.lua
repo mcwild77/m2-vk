@@ -323,6 +323,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_soundthread.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_baud.h",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_baud.cpp",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_jvs.h",
+		MAME_DIR .. "src/osd/libretro_m2/m2vk_jvs.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.h",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_sink.cpp",
 		MAME_DIR .. "src/osd/libretro_m2/m2vk_polytap.h",
