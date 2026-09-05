@@ -108,7 +108,7 @@ inline constexpr char const *KEY_S22_DEPTH_BUFFER = "system22_depth_buffer";
 // m2vk::set_option_counter() parks it; M2VK_POLYCOUNT wins.
 inline constexpr char const *KEY_POLY_COUNTER = "model2_poly_counter";
 
-// Wall-clock frame-rate read-out in the top-left corner. On by default. Vulkan only.
+// Wall-clock frame-rate read-out in the top-left corner. Off by default. Vulkan only.
 // m2vk::set_option_fps() parks it; M2VK_FPS wins.
 inline constexpr char const *KEY_FPS_DISPLAY = "model2_fps_display";
 
@@ -367,8 +367,8 @@ bool get_steering_display(retro_environment_t environ_cb);
 // value leaves the counter off.
 bool get_poly_counter(retro_environment_t environ_cb);
 
-// KEY_FPS_DISPLAY resolved to the bool m2vk::set_option_fps() takes. Defaults on, so "off" is tested and
-// an unreadable value leaves the read-out on.
+// KEY_FPS_DISPLAY resolved to the bool m2vk::set_option_fps() takes. Defaults off, so "on" is tested and
+// an unreadable value leaves the read-out off.
 bool get_fps_display(retro_environment_t environ_cb);
 
 // KEY_SMOOTH_2D resolved to the bool m2vk::set_option_smooth_2d() takes. "on" tested, so an unreadable

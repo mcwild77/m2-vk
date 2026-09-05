@@ -213,7 +213,7 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 			{ "on",  m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
-		"on"
+		"off"
 	},
 	{
 		m2opt::KEY_SMOOTH_2D,
@@ -916,8 +916,8 @@ bool m2opt::get_poly_counter(retro_environment_t environ_cb)
 
 bool m2opt::get_fps_display(retro_environment_t environ_cb)
 {
-	// Defaults on: "off" tested, so an unreadable value leaves the read-out visible.
-	return get(environ_cb, KEY_FPS_DISPLAY) != "off";
+	// Defaults off: "on" tested, so an unreadable value leaves the read-out hidden.
+	return get(environ_cb, KEY_FPS_DISPLAY) == "on";
 }
 
 bool m2opt::get_smooth_2d(retro_environment_t environ_cb)

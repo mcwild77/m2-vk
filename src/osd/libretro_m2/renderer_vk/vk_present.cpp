@@ -351,12 +351,12 @@ bool counter_on()
 }
 
 // fps_display — a wall-clock frame-rate read-out in the top-LEFT corner, same 3x5 font as the polygon
-// counter. On by default. It measures the rate at which the emulation actually hands us frames (one
+// counter. Off by default. It measures the rate at which the emulation actually hands us frames (one
 // present_frame call = one emulated frame), smoothed lightly so the number is steady but still updates
 // every frame. The digits go green when the measured rate is holding the machine's native refresh (set
 // via set_target_fps from retro_get_system_av_info) within a tight margin, red when it has fallen behind.
 // M2VK_FPS overrides the option in the same presence-or-value direction as the counter switch above.
-bool     s_option_fps = true;
+bool     s_option_fps = false;
 int      s_env_fps = -2;    // -2 = not read; -1 = no switch; 0/1 = pinned
 double   s_target_fps = 0.0;
 double   s_measured_fps = 0.0;
