@@ -10,9 +10,10 @@ is a far better proxy for the deployment target than the plan assumed was availa
 picked for convenience and turns out to answer the Quest 3 questions. **§5a is the device read-out,
 and it contradicts `vulkan-target.md` in several places** that were written from MoltenVK.
 
-⚠️ **It still does not un-shelve the Quest 3 port** (CLAUDE.md's 2026-07-27 decision). It is a test
-core and it says nothing about phase order — but the "no live performance work, every §4 item is
-alive only on Adreno" position now has an Adreno to run on.
+✅ **The Quest 3 port is no longer shelved** — the 2026-07-27 decision was overtaken by the Aug–Sep 2026
+Quest work (profiling on Adreno silicon, `model2_lazy_baud` + `model2_sound_thread` landed, 57.5 fps
+locked outside the heaviest scenes; worklog 2026-09-01, `retroarch-quest-perf.md`). The §4 performance
+items now have an Adreno to run on, and several have.
 
 ⚠️ **Nothing about speed or accuracy has been MEASURED yet.** Two games reaching a playable screen is
 first light, not a benchmark, and §6 still stands in full.

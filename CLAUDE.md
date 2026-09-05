@@ -105,7 +105,8 @@ All documentation *we* write lives in `devnotes/`. Read `devnotes/README.md` fir
   Closed-phase history is archived in `worklog-archive.md`.
 - `system22plan.md` — the System 22 port plan (active work).
 - `seam.md`, `roms.md`, `compatibility.md`, `feature-survey.md` — the tree as surveyed.
-- `performance.md` — where the time goes, scoped to the (shelved) Quest 3 target. §2a is the headline.
+- `performance.md` — where the time goes, scoped to the Quest 3 target. §2a is the headline; §6.1 is the
+  confirmed on-silicon per-device split.
 - `ab-baselines.md` / `res-baselines.md` — what the renderers measure at. **Regenerate with the
   table scripts, never retype a digest** — the reason is at the top of each file.
 - `legalstuff.md` — licence audit (release is clear; the open item is trademark, not copyright).
@@ -349,10 +350,16 @@ ls -la ~/Library/Application\ Support/RetroArch/cores/model2_libretro.dylib   # 
 ```
 (Note: `~/Library/Application Support/RetroArch/cores/`, not `~/Documents/RetroArch/cores/`.)
 
+## Quest 3 port — LIVE and hitting frame rate (updated 2026-09-05)
+The 2026-07-27 "SHELVED" decision is **overtaken and no longer applies.** The arm64 core runs on the
+Quest 3's Adreno 740 and hits the target: **57.5 fps locked outside the heaviest scenes, ~56 fps
+worst-case** (worklog 2026-09-01). The two levers that got it there both shipped as core options —
+`model2_lazy_baud` (−37 % to −57 % of core ms/frame, whole Model 2 family) and `model2_sound_thread`
+(model2o only; 49.96 → 57.86 fps on the daytona heavy race). Performance work **is** live; the profiled
+per-device split is real Quest silicon (`retroarch-quest-perf.md` §4.1, `performance.md` §6.1). Correctness
+still gates on the host harness — the Quest is a performance instrument only, no per-frame digest.
+
 ## Shelved / do-not-re-propose
-- **The Quest 3 port is SHELVED** — not cancelled or disproved (`performance.md` §2a/§8 still stand),
-  just not being worked on. Consequence: there is **no live performance work** — every `performance.md`
-  §4 item is measured dead on desktop and alive only on Adreno. Do not start one "while we are in there".
 - **The fork README is the user's to write** — it stays the open item on public release
   (`legalstuff.md` §5.2, §9). Do not draft it unasked.
 - Closed and not to be re-proposed: widescreen/FOV widening, wireframe, scanline/CRT filters,

@@ -26,7 +26,7 @@ inline constexpr char const *V_OFF = "Off";
 // --- 3D Renderer -------------------------------------------------------------
 inline constexpr char const *RENDERER_LABEL = "3D Renderer";
 inline constexpr char const *RENDERER_INFO =
-	"Hardware Vulkan or MAME's software rasteriser. Reload to apply.";
+	"Hardware Vulkan or MAME's software rasterizer. Requires reload.";
 inline constexpr char const *RENDERER_VULKAN   = "Vulkan (hardware)";
 inline constexpr char const *RENDERER_SOFTWARE = "Software (MAME)";
 
@@ -80,7 +80,7 @@ inline constexpr char const *FLAT_LUMA_INFO =
 // --- Smooth Shading (Model 1) ------------------------------------------------
 inline constexpr char const *SMOOTH_SHADING_LABEL = "Smooth Shading";
 inline constexpr char const *SMOOTH_SHADING_INFO =
-	"Phong-shade Model 1's flat-shaded polygons. Enhancement, not accurate.";
+	"Gouraud-shade Model 1's flat-shaded polygons. Enhancement, not accurate. Looks awful, really.";
 
 // --- Smooth Shading (Model 2) ------------------------------------------------
 inline constexpr char const *M2_SMOOTH_SHADING_LABEL = "Smooth Shading";
@@ -90,34 +90,34 @@ inline constexpr char const *M2_SMOOTH_SHADING_INFO =
 // --- Threaded Sound (Model 2 / Daytona-class) --------------------------------
 inline constexpr char const *SOUND_THREAD_LABEL = "Threaded Sound";
 inline constexpr char const *SOUND_THREAD_INFO =
-	"Run the sound CPU on its own thread for speed on multi-core devices. Daytona-class sets only; needs a reload.";
+	"Run the sound CPU on its own thread for speed on multi-core devices. Original Model 2 board sets only; needs a reload.";
 
 // --- Drive Board -------------------------------------------------------------
-inline constexpr char const *DRIVE_BOARD_LABEL = "Drive Board (Force Feedback)";
+inline constexpr char const *DRIVE_BOARD_LABEL = "Drive Board Emulation";
 inline constexpr char const *DRIVE_BOARD_INFO =
-	"Emulate the wheel cabinet's force-feedback drive board. It has no effect on a gamepad — "
-	"disable to save CPU on weaker devices. Applies immediately.";
+	"Emulate the wheel cabinet's force-feedback drive board. No effect on a gamepad."
+	"Keep disabled to save CPU on weaker devices. Applies immediately.";
 
 // --- Billboard ---------------------------------------------------------------
 inline constexpr char const *BILLBOARD_LABEL = "Cabinet Billboard";
 inline constexpr char const *BILLBOARD_INFO =
-	"Emulate the cabinet's LED marquee board. Its display is never shown by this core, so it is "
-	"off by default to save CPU. Device timing shifts slightly between the two settings. "
+	"Emulate the cabinet's LED marquee board. Never used, remains off by default"
+	"to save CPU. Device timing shifts slightly between the two settings. "
 	"Applies immediately.";
 
 // --- Self-Paced Timing -------------------------------------------------------
 inline constexpr char const *LAZY_BAUD_LABEL = "Fast Sound-Link Timing";
 inline constexpr char const *LAZY_BAUD_INFO =
 	"Clock the sound board's serial link only when it can act, instead of a million times an emulated "
-	"second. Large speed-up where the CPU is the limit; the bytes on the link are unchanged, but device "
+	"second. Large speed-up on CPU limited platforms; the bytes on the link are unchanged, but device "
 	"timing shifts slightly, so a few games render a frame differently. Needs a reload.";
 
 // --- JVS HLE I/O Board (System 23) -------------------------------------------
 inline constexpr char const *S23_JVS_HLE_LABEL = "JVS HLE I/O Board (Time Crisis 2 / Crisis Zone)";
 inline constexpr char const *S23_JVS_HLE_INFO =
 	"Replace the light-gun cabinet's JVS I/O board CPU with a direct implementation of the JVS "
-	"protocol it speaks, instead of interpreting the board's own processor. Large speed-up on "
-	"weaker devices; the gun, pedal, and coin inputs are read the same way either way. Needs a reload.";
+	"protocol it speaks, instead of interpreting the board's own processor. Big perf increase on "
+	"weaker devices. Gun, pedal, and coin inputs are read the same way either way. Needs a reload.";
 
 inline constexpr char const *SELF_THROTTLE_LABEL = "Self-Paced Timing";
 inline constexpr char const *SELF_THROTTLE_INFO =
