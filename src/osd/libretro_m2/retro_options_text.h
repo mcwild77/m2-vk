@@ -6,9 +6,9 @@
 // Every string the frontend shows for a core option — the title (`desc`), the help paragraph
 // (`info`), and the prose value labels — lives here, so wording can be edited without opening the
 // option table in retro_options.cpp. Only display copy belongs here. The option keys, the STORED
-// value strings ("vulkan", "5%", "496x384") and the defaults are logic, not copy, and stay in
+// value strings ("vulkan", "5", "496x384") and the defaults are logic, not copy, and stay in
 // retro_options.cpp; likewise a bare numeric/percent/dimension label that merely echoes its value
-// ("2%", "90%", "1024x768") is left inline there — it is not translatable text.
+// ("2", "90", "1024x768") is left inline there — it is not translatable text.
 //
 // To localise later: add a parallel set of these constants for another language and pick between the
 // sets when the table is built. Nothing else in retro_options.cpp needs to change.
@@ -70,7 +70,6 @@ inline constexpr char const *S22_NO_TEXTURES_INFO =
 inline constexpr char const *FLAT_SHADING_LABEL = "Flat Shaded";
 inline constexpr char const *FLAT_SHADING_INFO =
 	"Draws untextured geometry lit by hardware shading.";
-inline constexpr char const *FLAT_SHADING_UNTEXTURED = "Untextured";
 
 // --- Unlit (both renderers) --------------------------------------------------
 inline constexpr char const *FLAT_LUMA_LABEL = "Unlit";
@@ -149,7 +148,7 @@ inline constexpr char const *S22_2D_OVERLAY_INFO =
 // --- Steering Response -------------------------------------------------------
 inline constexpr char const *STEERING_RESPONSE_LABEL = "Steering Response";
 inline constexpr char const *STEERING_RESPONSE_INFO =
-	"Adjust curve on steerin wheel input.";
+	"Adjust curve on steering wheel input.";
 // The five response-curve value names. These double as the STORED option values and are index-locked
 // to STEERING_RESPONSE_GAMMA in retro_options.h — reword freely, but do not reorder.
 inline constexpr char const *STEER_LINEAR_LABEL      = "Linear";
@@ -162,13 +161,13 @@ inline constexpr char const *STEER_VERY_STRONG_LABEL = "Very Strong";
 inline constexpr char const *STEERING_DEADZONE_LABEL = "Steering Deadzone";
 inline constexpr char const *STEERING_DEADZONE_INFO =
 	"Adjust percentage of steering wheel dead zone.";
-inline constexpr char const *PCT_0_OFF = "0% (off)";
+inline constexpr char const *PCT_0_OFF = "0 (off)";
 
 // --- Steering Range ----------------------------------------------------------
 inline constexpr char const *STEERING_RANGE_LABEL = "Steering Range";
 inline constexpr char const *STEERING_RANGE_INFO =
 	"Adjust how much of the full wheel input range is mapped to the stick.";
-inline constexpr char const *PCT_100_FULL_LOCK = "100% (full lock)";
+inline constexpr char const *PCT_100_FULL_LOCK = "100 (full lock)";
 
 // --- Steering Damping --------------------------------------------------------
 // Both damping options share these value labels.
@@ -200,18 +199,7 @@ inline constexpr char const *ANALOG_DEADZONE_INFO =
 inline constexpr char const *ANALOG_REACH_LABEL = "Analog Reach";
 inline constexpr char const *ANALOG_REACH_INFO =
 	"Controls how much of the stick's analog movement is mapped to the game.";
-inline constexpr char const *PCT_100_FULL_DEFLECTION = "100% (full deflection)";
-
-// --- Diagnostic Input --------------------------------------------------------
-inline constexpr char const *DIAGNOSTIC_INPUT_LABEL = "Diagnostic Input (Test Menu)";
-inline constexpr char const *DIAGNOSTIC_INPUT_INFO =
-	"Button combo that flips the TEST switch. Requires restart.";
-// The three combo value names. These double as the STORED option values and are index-locked to the
-// diagnostic_input enum in retro_options.h (the input module keys its combo table on it) — reword
-// freely, but do not reorder. Names are RetroPad controls, not MAME button numbers.
-inline constexpr char const *DIAG_NONE_LABEL        = "None";
-inline constexpr char const *DIAG_L3_R3_LABEL       = "L3 + R3";
-inline constexpr char const *DIAG_HOLD_SELECT_LABEL = "Hold Select";
+inline constexpr char const *PCT_100_FULL_DEFLECTION = "100 (full deflection)";
 
 } // namespace m2txt
 

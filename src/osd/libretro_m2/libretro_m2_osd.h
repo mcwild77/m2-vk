@@ -135,11 +135,6 @@ public:
 	bool state_save(void *data, size_t size);
 	bool state_load(void const *data, size_t size);
 
-	// The model2_diagnostic_input core option, as an m2opt::diagnostic_input. Set from
-	// retro_load_game() before the emulation thread starts; read once, when the input devices are
-	// configured at machine start.
-	void set_diagnostic_input(unsigned diagnostic) { m_diagnostic = diagnostic; }
-
 	// Screen geometry and timing for retro_get_system_av_info. Valid once a frame has been
 	// produced; sampled on the emulation thread, read while it is parked.
 	double refresh_rate() const { return m_refresh_rate; }
@@ -168,8 +163,6 @@ private:
 
 	// keeps the emulated screen "visible" so its SCREEN_UPDATE callback keeps firing
 	render_target *m_target = nullptr;
-
-	unsigned m_diagnostic = 0;   // m2opt::DIAG_NONE
 
 	// the frame, written on the emulation thread while the libretro thread is blocked, so
 	// no locking is needed around it — the baton below is the synchronisation

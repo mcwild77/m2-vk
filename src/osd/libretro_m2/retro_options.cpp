@@ -137,7 +137,7 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		{
 			{ "off",  m2txt::V_OFF },
-			{ "flat", m2txt::FLAT_SHADING_UNTEXTURED },
+			{ "flat", m2txt::V_ON },
 			{ nullptr, nullptr }
 		},
 		"off"
@@ -273,16 +273,16 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		{
 			// The value IS the percentage, parsed by get_steering_deadzone().
-			{ "0%",  m2txt::PCT_0_OFF },
-			{ "2%",  "2%" },
-			{ "5%",  "5%" },
-			{ "8%",  "8%" },
-			{ "10%", "10%" },
-			{ "15%", "15%" },
-			{ "20%", "20%" },
+			{ "0",  m2txt::PCT_0_OFF },
+			{ "2",  "2" },
+			{ "5",  "5" },
+			{ "8",  "8" },
+			{ "10", "10" },
+			{ "15", "15" },
+			{ "20", "20" },
 			{ nullptr, nullptr }
 		},
-		"5%"
+		"5"
 	},
 	{
 		m2opt::KEY_STEERING_RANGE,
@@ -292,15 +292,15 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		nullptr,
 		{
-			{ "100%", m2txt::PCT_100_FULL_LOCK },
-			{ "90%",  "90%" },
-			{ "80%",  "80%" },
-			{ "70%",  "70%" },
-			{ "60%",  "60%" },
+			{ "100", m2txt::PCT_100_FULL_LOCK },
+			{ "90",  "90" },
+			{ "80",  "80" },
+			{ "70",  "70" },
+			{ "60",  "60" },
 			{ nullptr, nullptr }
 		},
 		// 80%, decided by hand-check. See steering-handcheck.md.
-		"80%"
+		"80"
 	},
 	{
 		m2opt::KEY_STEERING_DAMP_DRIVE,
@@ -362,14 +362,14 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		{
 			// The value IS the percentage, parsed by get_analog_deadzone().
-			{ "0%",  m2txt::PCT_0_OFF },
-			{ "2%",  "2%" },
-			{ "5%",  "5%" },
-			{ "10%", "10%" },
-			{ "15%", "15%" },
+			{ "0",  m2txt::PCT_0_OFF },
+			{ "2",  "2" },
+			{ "5",  "5" },
+			{ "10", "10" },
+			{ "15", "15" },
 			{ nullptr, nullptr }
 		},
-		"5%"
+		"5"
 	},
 	{
 		m2opt::KEY_ANALOG_REACH,
@@ -380,15 +380,15 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		nullptr,
 		{
 			// The value IS the percentage, parsed by get_analog_reach().
-			{ "100%", m2txt::PCT_100_FULL_DEFLECTION },
-			{ "95%",  "95%" },
-			{ "90%",  "90%" },
-			{ "85%",  "85%" },
-			{ "80%",  "80%" },
-			{ "75%",  "75%" },
+			{ "100", m2txt::PCT_100_FULL_DEFLECTION },
+			{ "95",  "95" },
+			{ "90",  "90" },
+			{ "85",  "85" },
+			{ "80",  "80" },
+			{ "75",  "75" },
 			{ nullptr, nullptr }
 		},
-		"100%"
+		"100"
 	},
 	{
 		m2opt::KEY_SOUND_THREAD,
@@ -523,23 +523,6 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 			{ nullptr, nullptr }
 		},
 		"enabled"
-	},
-	{
-		m2opt::KEY_DIAGNOSTIC_INPUT,
-		m2txt::DIAGNOSTIC_INPUT_LABEL,
-		nullptr,
-		m2txt::DIAGNOSTIC_INPUT_INFO,
-		nullptr,
-		nullptr,
-		{
-			// One entry per m2opt::diagnostic_input, in that order — get_diagnostic() below returns
-			// the position in this list, so a reordering here silently renames every combo.
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE],        nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_L3_R3],       nullptr },
-			{ m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_HOLD_SELECT], nullptr },
-			{ nullptr, nullptr }
-		},
-		m2opt::DIAGNOSTIC_VALUES[m2opt::DIAG_NONE]
 	},
 	{ nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, { { nullptr, nullptr } }, nullptr }
 };
@@ -789,17 +772,6 @@ std::string m2opt::get(retro_environment_t environ_cb, char const *key)
 	// No frontend value: a frontend with no option support at all, or one that has not yet written
 	// its config. Our own default is the right answer in both cases.
 	return std::string(default_value(key));
-}
-
-unsigned m2opt::get_diagnostic(retro_environment_t environ_cb)
-{
-	const std::string value = get(environ_cb, KEY_DIAGNOSTIC_INPUT);
-	for (unsigned i = 0; i < DIAG_COUNT; i++)
-	{
-		if (value == DIAGNOSTIC_VALUES[i])
-			return i;
-	}
-	return DIAG_NONE;
 }
 
 void m2opt::get_internal_size(retro_environment_t environ_cb, unsigned &width, unsigned &height)

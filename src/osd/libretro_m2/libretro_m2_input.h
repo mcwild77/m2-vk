@@ -155,9 +155,6 @@ public:
 		BUTTON_COUNT
 	};
 
-	// diagnostic is an m2opt::diagnostic_input; it is an unsigned here so that this header keeps out
-	// of the core-options one, which the emulation side has no other reason to see.
-	//
 	// layout is the loaded set's row of NUMBERED_BUTTONS sources, resolved once in input_init() and
 	// shared by every pad: the row is a property of the machine, not of a port.  It is NEVER null —
 	// a set with no row of its own gets the generic one — which is what lets update() drop the
@@ -167,7 +164,6 @@ public:
 			std::string &&id,
 			input_module &module,
 			unsigned port,
-			unsigned diagnostic,
 			unsigned const *layout,
 			bool joy_shifter);
 
@@ -180,8 +176,6 @@ private:
 	// so it is only correct once update() has filled them for the frame.
 	int32_t read_source(retro_input_state_t state_cb, unsigned source) const;
 
-	void update_diagnostic(retro_input_state_t state_cb, unsigned const *layout);
-
 	// Runs the steering chain on the primary stick X and publishes port 0's before-and-after into
 	// m2vk::steer() for the read-out. Not const: the shaped value is written back into m_axes, which
 	// is the whole of how devnotes/steering-curve.md reaches MAME. A no-op unless the machine steers
@@ -193,7 +187,6 @@ private:
 	// and mutually exclusive with the wheel shaping above — see m2vk_analog.h.
 	void shape_analog();
 
-	unsigned         m_diagnostic;
 	unsigned const  *m_layout;      // never null; see the constructor
 	bool             m_joy_shifter; // gear shift is on the joystick — bind it to L1/R1 in configure()
 	int32_t   m_axes[AXIS_COUNT];
@@ -204,12 +197,6 @@ private:
 	// because a two-seat cabinet's wheels are independent. Rest is 0, restored by reset(), which is
 	// what keeps a never-touched axis (every ab.sh fixture) byte-exact.
 	int32_t   m_steer_damp;
-
-	// The diagnostic combo as a button, and how long its controls have been down. Not a slot in
-	// m_buttons because no RetroPad control feeds it — it is computed from several of them, which is
-	// exactly the invariant the static_assert over the slot enum protects.
-	int32_t   m_combo;
-	unsigned  m_combo_frames;
 };
 
 
@@ -262,10 +249,7 @@ public:
 
 	static_assert(MAX_GUNS <= MAX_PADS, "a gun's port index has to be a valid pad port index too");
 
-	// diagnostic is the model2_diagnostic_input core option, carried down to the pads because it
-	// changes both what configure() puts in their default assignment vector and what update()
-	// watches for. An m2opt::diagnostic_input, as unsigned — see the pad's constructor.
-	explicit libretro_m2_input(unsigned diagnostic);
+	libretro_m2_input();
 	virtual ~libretro_m2_input();
 
 	// The frontend's remap labels for the named set — a null-terminated retro_input_descriptor array,
@@ -282,11 +266,12 @@ public:
 	// retro_load_game(): descriptors go out before there is a running_machine to ask.  Name is matched
 	// first and then parent, so one row covers a set and all its clones; either may be null.
 	//
-	// service_coin says whether model2_diagnostic_input is set to anything, because that is what
-	// decides whether L3 is IPT_SERVICE1 or an inert IPT_UI_MENU.  A label on a control that does
-	// nothing is worse than no label, so the string is suppressed rather than shown conditionally true.
+	// L3 and R3 get no descriptor: they are the two cabinet service switches (IPT_SERVICE /
+	// IPT_SERVICE1), managed by the frontend's service gesture rather than remapped as gameplay
+	// controls, so naming them in the Controls menu would label a control the player is not meant to
+	// bind.  A label on such a control is worse than no label, so the string is suppressed.
 	static struct retro_input_descriptor const *descriptors(
-			char const *name, char const *parent, bool service_coin);
+			char const *name, char const *parent);
 
 	// Whether the named set has a row of its own, for the log line only. Nothing branches on it: a set
 	// without one gets the generic row, which is what every set played as before there were rows.
@@ -298,9 +283,6 @@ public:
 	// port_device is MAX_PADS entries of retro_set_controller_port_device state, owned by the
 	// entry-point file because a frontend may set it before there is a machine to tell.
 	void poll_frontend(retro_input_state_t state_cb, unsigned const *port_device);
-
-private:
-	unsigned m_diagnostic;
 };
 
 #endif // MAME_OSD_LIBRETRO_M2_INPUT_H

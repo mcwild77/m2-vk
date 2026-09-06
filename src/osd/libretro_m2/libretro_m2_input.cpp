@@ -3,8 +3,6 @@
 
 #include "libretro_m2_input.h"
 
-#include "retro_options.h"
-
 #include "emu.h"
 #include "emuopts.h"
 
@@ -44,14 +42,12 @@ char const *const RETROPAD_AXIS_NAMES[libretro_m2_pad_device::AXIS_COUNT] = {
 constexpr input_item_id AXIS_ITEMS[libretro_m2_pad_device::AXIS_COUNT] = {
 	ITEM_ID_XAXIS, ITEM_ID_YAXIS, ITEM_ID_ZAXIS, ITEM_ID_RZAXIS, ITEM_ID_SLIDER1, ITEM_ID_SLIDER2 };
 
-// A layout entry names a SOURCE, not necessarily a RetroPad button id. Most sources are ids, and
-// those are stored as themselves so that the diagnostic combo can compare a layout entry against a
-// combo's id directly. The two that are not are the analogue triggers read as switches: they have no
-// RETRO_DEVICE_ID_JOYPAD id of their own that means "past the threshold" rather than "held", and the
-// threshold is what MAME's button item wants.
+// A layout entry names a SOURCE, not necessarily a RetroPad button id. Most sources are ids and are
+// stored as themselves; read_source() reads them straight from the frontend. The two that are not are
+// the analogue triggers read as switches: they have no RETRO_DEVICE_ID_JOYPAD id of their own that
+// means "past the threshold" rather than "held", and the threshold is what MAME's button item wants.
 //
-// The tag bit is above every RetroPad id, so a source can never be mistaken for one — which matters,
-// because update_diagnostic() tests exactly that equality to decide what a fired combo consumes.
+// The tag bit is above every RetroPad id, so a tagged source can never be mistaken for a plain id.
 //
 // SOURCE_NONE is the third tagged source and it is what a cabinet row uses for a MAME button the
 // cabinet has but the pad has run out of controls for. It reads 0 forever, which is exactly what an
@@ -222,8 +218,8 @@ constexpr fixed_button FIXED_BUTTONS[] = {
 	// IPT_JOYSTICK_DOWN/UP to them when the row's joy_shifter flag is set, and on every other set they are
 	// items with no assignment — inert. Distinct from L/R being a numbered-button *source*: a source feeds
 	// a BUTTON_n slot through read_source(), which can only carry an IPT_BUTTON, never a joystick
-	// direction. ITEM_ID_BUTTON13/14 are free — 1-9 are the numbered buttons, 10/11 the stick clicks, 12
-	// the diagnostic combo.
+	// direction. ITEM_ID_BUTTON13/14 are used here — 1-9 are the numbered buttons, 10/11 the stick clicks
+	// (which also carry the two service switches, see configure()), and 12 is free.
 	{ libretro_m2_pad_device::BUTTON_L,      RETRO_DEVICE_ID_JOYPAD_L,      ITEM_ID_BUTTON13 },
 	{ libretro_m2_pad_device::BUTTON_R,      RETRO_DEVICE_ID_JOYPAD_R,      ITEM_ID_BUTTON14 } };
 
@@ -233,44 +229,14 @@ static_assert(std::size(FIXED_BUTTONS) + libretro_m2_pad_device::NUMBERED_BUTTON
 
 
 //============================================================
-//  the diagnostic combo
+//  the service switches
 //============================================================
 
-// What each model2_diagnostic_input value means, in RetroPad ids and one flag. Indexed by
-// m2opt::diagnostic_input, which is also the position of the value in the option's own list, so the
-// words the player picked and the controls read here are one table apart and cannot drift.
-//
-// These are RetroPad ids on purpose and not slots: the option says "L3 + R3", meaning the pad's own
-// L3 and R3, and it has to keep meaning that under either pad layout. What the layout decides is which
-// MAME buttons the combo then has to *consume*, which update_diagnostic() works back through it.
-//
-// Only two non-None values, deliberately: the original eleven were FBNeo's list verbatim, and most of
-// them are built from buttons a Model 2 cabinet actually uses in play (Start, A, B, L, R) — a setting
-// meant to be turned on and left on cannot be one of those. L3 and R3 are otherwise idle on every
-// Model 2 set, and Select doubles as Coin (see configure() below) but nothing else, so a one-second
-// hold on it does not collide with anything short of standing at the coin slot.
-//
-// ⚠ Model 2 has two switches where FBNeo models one. This drives IPT_SERVICE, the test switch that
-// opens the menu; IPT_SERVICE1, the service coin, has no equivalent in FBNeo's vocabulary and stays
-// on L3 alone whenever the option is not None — L3 + R3 uses that same button as half its chord, so
-// tapping L3 by itself still spends the credit and L3 + R3 together opens the test switch instead.
-// devnotes/lightgun.md §2.5.3.
-constexpr unsigned COMBO_NO_ID = ~0U;
-
-struct diagnostic_combo { unsigned ids[3]; bool hold; };
-
-constexpr diagnostic_combo DIAGNOSTIC_COMBOS[m2opt::DIAG_COUNT] = {
-	/* None        */ { { COMBO_NO_ID, COMBO_NO_ID, COMBO_NO_ID }, false },
-	/* L3 + R3     */ { { RETRO_DEVICE_ID_JOYPAD_L3,     RETRO_DEVICE_ID_JOYPAD_R3, COMBO_NO_ID }, false },
-	/* Hold Select */ { { RETRO_DEVICE_ID_JOYPAD_SELECT, COMBO_NO_ID,               COMBO_NO_ID }, true } };
-
-static_assert(std::size(DIAGNOSTIC_COMBOS) == m2opt::DIAG_COUNT,
-		"one combo per declared value of model2_diagnostic_input, in the same order");
-
-// How long a "Hold …" combo wants. About a second at the driver's 57.52 Hz — named once here rather
-// than spelled out at the comparison, because a frame count with no name is a frame count nobody
-// dares change.
-constexpr unsigned COMBO_HOLD_FRAMES = 58;
+// Model 2's two cabinet switches — IPT_SERVICE (the test switch that opens the menu) and IPT_SERVICE1
+// (the service coin) — are driven directly by the pad's L3 and R3, ungated. configure() binds them; no
+// combo is detected here. The gating a player expects (hold both stick clicks, then a trigger, with the
+// trigger swallowed) is done frontend-side by the AOJ layer, which asserts these bits only when it means
+// them, so the native side treats bit 14 / bit 15 as plain presses of the two switches.
 
 } // anonymous namespace
 
@@ -284,11 +250,9 @@ libretro_m2_pad_device::libretro_m2_pad_device(
 		std::string &&id,
 		input_module &module,
 		unsigned port,
-		unsigned diagnostic,
 		unsigned const *layout,
 		bool joy_shifter)
 	: libretro_m2_device(std::move(name), std::move(id), module, port)
-	, m_diagnostic((diagnostic < m2opt::DIAG_COUNT) ? diagnostic : unsigned(m2opt::DIAG_NONE))
 	, m_layout((layout != nullptr) ? layout : GENERIC_LAYOUT.sources)
 	, m_joy_shifter(joy_shifter)
 {
@@ -299,8 +263,6 @@ void libretro_m2_pad_device::reset()
 {
 	std::memset(m_axes, 0, sizeof(m_axes));
 	std::memset(m_buttons, 0, sizeof(m_buttons));
-	m_combo = 0;
-	m_combo_frames = 0;
 	m_steer_damp = 0;
 }
 
@@ -377,9 +339,6 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 
 	for (auto const &fixed : FIXED_BUTTONS)
 		m_buttons[fixed.slot] = state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, fixed.id) ? 0x80 : 0x00;
-
-	// After both button reads, because a fired combo takes its controls back out of them.
-	update_diagnostic(state_cb, layout);
 
 	// The gate, and it covers these two axes and nothing else.
 	//
@@ -477,74 +436,6 @@ int32_t libretro_m2_pad_device::read_source(retro_input_state_t state_cb, unsign
 		return (m_axes[AXIS_L2 + (source & 1)] <= -16'384) ? 0x80 : 0x00;
 
 	return state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, source) ? 0x80 : 0x00;
-}
-
-// The cabinet's test switch, as a button that does not exist on the pad. m_combo is an ordinary
-// button item to MAME (configure() below assigns IPT_SERVICE to it), so nothing about how the switch
-// reaches the machine is new — only how its state is arrived at.
-//
-// Reading the combo's controls straight from the frontend rather than from m_buttons is what keeps
-// the option's words true under either layout: the slots hold MAME button numbers, and "A" is a pad
-// control. layout is passed in so the consumption below can go the other way, from a pad id back to
-// whichever slot that layout fills from it.
-//
-// 🚨 Consumption is the part that is not optional. Without it "Start + A + B" also presses Start —
-// the machine would take a credit on the way into its own test menu — so every control the fired
-// combo names is cleared for the frame. That is also why this runs after both button reads rather
-// than instead of them: a control that is part of the combo is still an ordinary button until the
-// combo fires.
-//
-// A "Hold …" combo fires only after its controls have been down together for COMBO_HOLD_FRAMES, and
-// then goes on firing for as long as they stay down — a held switch is a held switch. The frames
-// before it fires are deliberately *not* consumed, so a tap of Start on "Hold Start" still starts a
-// game. devnotes/lightgun.md §2.5.3.
-void libretro_m2_pad_device::update_diagnostic(retro_input_state_t state_cb, unsigned const *layout)
-{
-	m_combo = 0x00;
-	if (m_diagnostic == m2opt::DIAG_NONE)
-		return;
-
-	diagnostic_combo const &combo = DIAGNOSTIC_COMBOS[m_diagnostic];
-
-	bool down = true;
-	for (unsigned id : combo.ids)
-		down = down && ((id == COMBO_NO_ID) || (state_cb(m_port, RETRO_DEVICE_JOYPAD, 0, id) != 0));
-
-	if (!down)
-	{
-		m_combo_frames = 0;
-		return;
-	}
-
-	// saturating, so a combo held for minutes cannot wrap back below the threshold
-	if (m_combo_frames < COMBO_HOLD_FRAMES)
-		m_combo_frames++;
-	if (combo.hold && (m_combo_frames < COMBO_HOLD_FRAMES))
-		return;
-
-	// generic_button_get_state<> shifts right by 7, as with every other button here
-	m_combo = 0x80;
-
-	auto const in_combo = [&combo] (unsigned id)
-	{
-		for (unsigned which : combo.ids)
-		{
-			if ((which != COMBO_NO_ID) && (which == id))
-				return true;
-		}
-		return false;
-	};
-
-	for (unsigned n = 0; n < NUMBERED_BUTTONS; n++)
-	{
-		if (in_combo(layout[n]))
-			m_buttons[BUTTON_1 + n] = 0x00;
-	}
-	for (auto const &fixed : FIXED_BUTTONS)
-	{
-		if (in_combo(fixed.id))
-			m_buttons[fixed.slot] = 0x00;
-	}
 }
 
 // The SDL game-controller configure() with the availability probing taken out: every control
@@ -702,37 +593,17 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 	add_button_assignment(assignments, IPT_UI_HELP,   { buttonitems[BUTTON_4] });
 	add_button_pair_assignment(assignments, IPT_UI_PAGE_UP, IPT_UI_PAGE_DOWN, buttonitems[BUTTON_7], buttonitems[BUTTON_8]);
 
-	// The cabinet's test switch, on the synthetic combo item rather than on a pad control. The item
-	// is added whichever way the option is set: it is 0 forever when the combo is None, and keeping
-	// the item list independent of an option means a ctrlr file or a saved remap cannot change
-	// meaning underneath the player when they change it.
+	// The two cabinet switches, bound directly to the two stick clicks and never gated here: L3 is
+	// IPT_SERVICE (the test switch that opens the menu) and R3 is IPT_SERVICE1 (the service coin). The
+	// player-facing gating — hold both stick clicks, then a trigger, with the trigger swallowed — is
+	// done frontend-side by the AOJ layer, which asserts bit 14 / bit 15 only when it means them, so
+	// there is nothing for the native side to detect: a set bit is a plain press of that switch.
 	//
-	// ITEM_ID_BUTTON12 is free: the nine numbered buttons take 1..9 and L3/R3 take 10 and 11. ✅ The
-	// safety argument survives the shift up from BUTTON11 unchanged — IPT_BUTTON12's own default in
-	// inpttype.ipp is KEYCODE_COMMA (line 45), a keyboard code, and this OSD registers no keyboard,
-	// so nothing else can arrive at this item. Player 2's default is an empty sequence, as before.
-	const input_item_id comboitem = device.add_item(
-			"Diagnostic Combo",
-			std::string_view(),
-			ITEM_ID_BUTTON12,
-			generic_button_get_state<int32_t>,
-			&m_combo);
-
-	// Since this core draws no MAME menu, the combo is the only way into a game's test mode — and it
-	// is None by default, because a combination nobody asked for is worse than a menu they have to
-	// enable. IPT_SERVICE1, the service coin, has no combination of its own and rides on L3 whenever
-	// the option is set to anything: it is a free credit, so it should not be one held button away,
-	// but losing it entirely is not acceptable either. Both types are player 0 in inpttype.ipp, so
-	// apply_device_defaults() lands them on pad 1 alone and pad 2's copy is skipped.
-	if (m_diagnostic != m2opt::DIAG_NONE)
-	{
-		add_button_assignment(assignments, IPT_SERVICE,  { comboitem });
-		add_button_assignment(assignments, IPT_SERVICE1, { buttonitems[BUTTON_L3] });
-	}
-	else
-	{
-		add_button_assignment(assignments, IPT_UI_MENU, { buttonitems[BUTTON_L3] });
-	}
+	// Both types are player 0 in inpttype.ipp, so apply_device_defaults() lands them on pad 1 alone and
+	// pad 2's copy is skipped — which is why binding them on every pad device here is still "player 1
+	// only". Nothing is bound to IPT_UI_MENU any more; this core draws no MAME UI.
+	add_button_assignment(assignments, IPT_SERVICE,  { buttonitems[BUTTON_L3] });
+	add_button_assignment(assignments, IPT_SERVICE1, { buttonitems[BUTTON_R3] });
 
 	// daytona's VR4 (Green) used to be assigned here, to the R3 item, because button 9 was not a
 	// layout slot. It is one now — both layouts name R3 for it, so it lands exactly where it did —
@@ -861,9 +732,8 @@ void libretro_m2_gun_device::configure(osd::input_device &device)
 //  libretro_m2_input
 //============================================================
 
-libretro_m2_input::libretro_m2_input(unsigned diagnostic)
+libretro_m2_input::libretro_m2_input()
 	: input_module_impl<libretro_m2_device, libretro_m2_osd_interface>(OSD_JOYSTICKINPUT_PROVIDER, "libretro")
-	, m_diagnostic(diagnostic)
 {
 }
 
@@ -888,7 +758,7 @@ bool libretro_m2_input::has_layout(char const *name, char const *parent)
 // control claiming to do something. vf2 has three buttons; X, L, R and the triggers genuinely do
 // nothing on it and should read as nothing.
 struct retro_input_descriptor const *libretro_m2_input::descriptors(
-		char const *name, char const *parent, bool service_coin)
+		char const *name, char const *parent)
 {
 	// Static because the frontend keeps the pointer: RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS is
 	// documented as taking an array the core owns, and RetroArch reads it after the call returns.
@@ -908,10 +778,12 @@ struct retro_input_descriptor const *libretro_m2_input::descriptors(
 	{
 		for (unsigned id = 0; id < RETROPAD_ID_COUNT; id++)
 		{
-			// L3 carries IPT_SERVICE1 only while a diagnostic combo is selected; with the option at None
-			// it is IPT_UI_MENU, and this core draws no MAME UI, so it does nothing at all. Labelling it
-			// then would be the one thing worse than input-map.md §4's complaint that it has no label.
-			if ((id == RETRO_DEVICE_ID_JOYPAD_L3) && !service_coin)
+			// L3 and R3 are the two cabinet service switches now (IPT_SERVICE / IPT_SERVICE1), managed by
+			// the frontend's own service gesture rather than remapped as gameplay controls, so neither is
+			// given a descriptor: a Controls-menu entry for a control the player is not meant to bind — and
+			// whose layout label (L3 "Service Coin", R3 sometimes "Button 9") no longer matches what it does
+			// — would be worse than none. input-map.md §4.
+			if ((id == RETRO_DEVICE_ID_JOYPAD_L3) || (id == RETRO_DEVICE_ID_JOYPAD_R3))
 				continue;
 			push(port, RETRO_DEVICE_JOYPAD, 0, id, row.labels[id]);
 		}
@@ -987,7 +859,6 @@ void libretro_m2_input::input_init(running_machine &machine)
 				util::string_format("RetroPad %u", port + 1),
 				util::string_format("RETROPAD_%u", port + 1),
 				port,
-				m_diagnostic,
 				layout,
 				row.joy_shifter);
 	}

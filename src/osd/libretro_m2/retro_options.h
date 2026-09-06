@@ -19,10 +19,8 @@
       model2_steering_response  the same
       model2_steering_range     the same
 
-    The other two cannot be live and retro_run() says so rather than half-applying them:
-    model2_renderer decides whether hardware render was declared at all, which happens before the
-    machine starts, and model2_diagnostic_input is baked into the input assignments when the devices
-    are configured.
+    model2_renderer cannot be live and retro_run() says so rather than half-applying it: it decides
+    whether hardware render was declared at all, which happens before the machine starts.
 
     🚨 Anything a player is meant to *play* with belongs in the first group. Both of those shipped
     load-only on 2026-07-28 and it was reported as "the options do not work" the same day — which is
@@ -51,11 +49,6 @@ namespace m2opt {
 // MAME's own rasteriser, which is both the A/B reference the Vulkan path is measured against and
 // the fallback where Vulkan is unavailable.
 inline constexpr char const *KEY_RENDERER = "model2_renderer";
-
-// The button combination that flips the cabinet's test switch, and with it whether the service coin
-// is on L3 at all. "None" by default. FBNeo's fbneo-diagnostic-input, value list unchanged, because
-// a player arriving from any other libretro arcade core should find the same words in the same order.
-inline constexpr char const *KEY_DIAGNOSTIC_INPUT = "model2_diagnostic_input";
 
 // The framebuffer the 3D is rendered into, and which the frontend is then handed. Vulkan only: MAME's
 // rasteriser has no such thing to be asked for — bitmap_rgb32 is capped at 512x512, which is a large
@@ -204,23 +197,6 @@ inline constexpr char const *KEY_STEERING_DISPLAY = "model2_steering_display";
 // machine is asked (an IPT_AD_STICK field), not a table consulted (m2vk_analog.h).
 inline constexpr char const *KEY_ANALOG_DEADZONE = "model2_analog_deadzone";
 inline constexpr char const *KEY_ANALOG_REACH    = "model2_analog_reach";
-
-// The values of that option. Declaration order, and the numbering is what the input module keys its
-// combo table on — so the two lists cannot drift apart, because there is only one list.
-enum diagnostic_input : unsigned
-{
-	DIAG_NONE = 0,
-	DIAG_L3_R3,
-	DIAG_HOLD_SELECT,
-	DIAG_COUNT
-};
-
-// The names are RetroPad controls, not MAME button numbers: "A" is the pad's A button under either
-// pad layout, and which MAME button that produces is the layout's business and not this option's.
-inline constexpr char const *DIAGNOSTIC_VALUES[DIAG_COUNT] = {
-	m2txt::DIAG_NONE_LABEL,
-	m2txt::DIAG_L3_R3_LABEL,
-	m2txt::DIAG_HOLD_SELECT_LABEL };
 
 // KEY_STEERING_RESPONSE values and their gammas. One list, so nothing drifts. The curve is
 // |v|^gamma — above 1, fine near centre, coarse near lock; full lock reachable at every setting.
@@ -398,11 +374,6 @@ float get_analog_reach(retro_environment_t environ_cb);
 // The frontend's value for an option, or our declared default if the frontend has no value for it
 // (or supports no options at all, which is the retrohost case).
 std::string get(retro_environment_t environ_cb, char const *key);
-
-// KEY_DIAGNOSTIC_INPUT resolved to its position in DIAGNOSTIC_VALUES. A value the frontend invented,
-// or one left over from an older option set, resolves to DIAG_NONE rather than to a guess — losing a
-// test-menu combo is recoverable from the options menu, an unasked-for one is not.
-unsigned get_diagnostic(retro_environment_t environ_cb);
 
 // True once after the user changes anything; the frontend clears the flag as we read it.
 bool updated(retro_environment_t environ_cb);

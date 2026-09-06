@@ -805,15 +805,9 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	apply_family_cascade(fam);
 	m2opt::redeclare(s_environ_cb);
 
-	// Options are read once, here. Both of them are settled before the machine starts — the
-	// renderer picks a draw path, the diagnostic combo is baked into the input devices' default
-	// assignments — so a change made later is reported by retro_run() and applied at the next load.
-	//
-	// The diagnostic option is logged as the value it *resolved to*, not as the frontend's string:
-	// an unrecognised one silently becomes None, and a log line agreeing with the options menu while
-	// the combo does nothing is the shape of bug that costs an afternoon.
+	// Options are read once, here. model2_renderer is settled before the machine starts — it picks a
+	// draw path — so a change made later is reported by retro_run() and applied at the next load.
 	const std::string renderer = m2opt::get(s_environ_cb, m2opt::KEY_RENDERER);
-	const unsigned diagnostic = m2opt::get_diagnostic(s_environ_cb);
 	unsigned res_width = 0, res_height = 0;
 	m2opt::get_internal_size(s_environ_cb, res_width, res_height);
 	const unsigned flat_shading = m2opt::get_flat_shading(s_environ_cb);
@@ -845,9 +839,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	if (steer_damp_return == 0) std::snprintf(damp_return_text, sizeof(damp_return_text), "off");
 	else                        std::snprintf(damp_return_text, sizeof(damp_return_text), "%uf", steer_damp_return);
 
-	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% %s=%s/%s %s=%s\n",
+	s_log_cb(RETRO_LOG_INFO, "[model2] options: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% %s=%s/%s %s=%s\n",
 			m2opt::KEY_RENDERER, renderer.c_str(),
-			m2opt::KEY_DIAGNOSTIC_INPUT, m2opt::DIAGNOSTIC_VALUES[diagnostic],
 			m2opt::KEY_INTERNAL_RES, res_text,
 			m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
 			m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
@@ -867,14 +860,13 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	// user-facing half of the per-game layout work: a default nobody has to change, and a remap screen
 	// worth opening if they want to anyway.
 	//
-	// 🚨 It sits BELOW the options read rather than beside SET_CONTROLLER_INFO above, and the ordering is
-	// load-bearing: L3 is IPT_SERVICE1 only while model2_diagnostic_input names a combo, and is an inert
-	// IPT_UI_MENU otherwise, so its label cannot be decided before `diagnostic` has been read. Sent from
-	// where the descriptors used to be sent, it would have labelled a dead control on every default run.
+	// L3 and R3 carry the two cabinet service switches (IPT_SERVICE / IPT_SERVICE1), managed by the
+	// frontend's service gesture rather than remapped as gameplay, so descriptors() gives neither a
+	// label — the layout row supplies the names for every other control.
 	s_environ_cb(
 			RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS,
 			const_cast<struct retro_input_descriptor *>(
-					libretro_m2_input::descriptors(system.c_str(), parent, diagnostic != m2opt::DIAG_NONE)));
+					libretro_m2_input::descriptors(system.c_str(), parent)));
 
 	if (libretro_m2_input::has_layout(system.c_str(), parent))
 		s_log_cb(RETRO_LOG_INFO, "[model2] '%s' has its own control layout; it is what a RetroPad plays as\n", system.c_str());
@@ -1184,7 +1176,6 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 
 	s_options = std::make_unique<libretro_m2_options>();
 	s_osd = std::make_unique<libretro_m2_osd_interface>(*s_options);
-	s_osd->set_diagnostic_input(diagnostic);
 	s_running = true;
 	s_emu_finished.store(false, std::memory_order_release);
 	s_emu_thread = std::thread(emu_thread_main, args);
@@ -1419,9 +1410,8 @@ RETRO_API void retro_run(void)
 	//   steering        — parked in m2vk::steer(), read by the pad below. Takes effect next frame.
 	//   steering display — bool in m2vk_steerbar.cpp, read by the emulation thread next frame.
 	//
-	// model2_renderer and model2_diagnostic_input genuinely cannot: one decides whether hardware
-	// render was declared at all, before the machine started, and the other is baked into the input
-	// assignments when the devices were configured. Those two still want a reload, and say so.
+	// model2_renderer genuinely cannot: it decides whether hardware render was declared at all, before
+	// the machine started. It still wants a reload, and says so.
 	if (m2opt::updated(s_environ_cb))
 	{
 		unsigned res_width = 0, res_height = 0;
@@ -1482,7 +1472,7 @@ RETRO_API void retro_run(void)
 			std::snprintf(res_text, sizeof(res_text), "%ux%u", res_width, res_height);
 
 		s_log_cb(RETRO_LOG_INFO,
-				"[model2] core options changed: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% applied now; %s and %s need a reload\n",
+				"[model2] core options changed: %s=%s %s=%s %s=%s %s=%s %s=%s %s=%.0f%% %s=%.0f%% applied now; %s needs a reload\n",
 				m2opt::KEY_INTERNAL_RES, res_text,
 				m2opt::KEY_FLAT_SHADING, (flat_shading != 0) ? "flat" : "off",
 				m2opt::KEY_FLAT_LUMA, flat_luma ? "on" : "off",
@@ -1490,7 +1480,7 @@ RETRO_API void retro_run(void)
 				m2opt::KEY_STEERING_RESPONSE, m2opt::STEERING_RESPONSE_VALUES[steer_response],
 				m2opt::KEY_STEERING_DEADZONE, double(steer_deadzone) * 100.0,
 				m2opt::KEY_STEERING_RANGE, double(steer_range) * 100.0,
-				m2opt::KEY_RENDERER, m2opt::KEY_DIAGNOSTIC_INPUT);
+				m2opt::KEY_RENDERER);
 	}
 
 	// Input snapshot, shared by both paths below. Only valid while the emulation thread is parked

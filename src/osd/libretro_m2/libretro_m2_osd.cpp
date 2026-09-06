@@ -159,7 +159,7 @@ void libretro_m2_osd_interface::init_subsystems()
 // polls the module directly rather than going through poll_input_modules().
 bool libretro_m2_osd_interface::input_init()
 {
-	m_input = std::make_unique<libretro_m2_input>(m_diagnostic);
+	m_input = std::make_unique<libretro_m2_input>();
 	if (m_input->init(*this, options()) != 0)
 	{
 		osd_printf_error("libretro input module failed to initialise\n");

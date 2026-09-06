@@ -2,22 +2,20 @@ Why does this exist?
 
 This mainly exists so we can run MAME 3D games inside Age of Joy, a VR/MR virtual arcade. Age of Joy is a Meta Quest 2/3 native app that gives you an empty arcade and lets you fill it up with user-created cabinets. Emulation is handled through Retroarch cores.
 
-While the Quest 2/3 are able to handle older games, the strain the software rendering of modern MAME puts on the CPU makes games choppy or unplayable. The solution is to make a custom core where we rewrite MAME's renderer to use Vulkan, and we magically hit frame rate. The core also gives us the ability to add some 
+While the Quest 2/3 are able to handle older games, the strain the software rendering of modern MAME puts on the CPU makes games choppy or unplayable. The solution is to make a custom core where we rewrite MAME's renderer to use Vulkan. This is actually not enough to hit frame rate, but it comes close. The other trick is doing a bunch of optimizations and omissions, like deactivating certain boards and threading the audio, to lessen the strain on a single-threaded mobile CPU core.
 
-This is based on MAME, is not as good as MAME and never will be. It will have the same issues as MAME (if not more). It exists for QOL additions and playability on niche hardware, not for preservation or accuracy. It's also going to be behind MAME and even though I'll try to stay on top of rolling in the latest fixes from the main MAME branch, so if I get hit by a bus it's probably not gonna to get updated. I'm old as dirt anyway.
 
-COOL STUFF THIS DOES
-Again, the Good Stuff of this core is offloading the rendering to the GPU in Vulkan. I spent a few months hacking on Model 2 stuff and figuring out how to get past the Painter's Algorithm on a separate project, so I rolled that into this and the rendering's pretty good! ElSemi had all of this sorted over 15 years ago with his Model 2 Emulator for Windows so this is in no way a flex.
+This is based on MAME. It is not as good as MAME and never will be. It will have the same issues as MAME (if not more). It exists for QOL additions and playability on niche hardware, not for preservation or accuracy. It's also going to be behind mainline MAME releases, and even though I'll try to stay on top of rolling in the latest fixes from the main MAME branch, if I get hit by a bus it's probably not gonna to get updated. I'm one foot in the grave anyway.
 
-QOL: Steering wheel customizability
-This is the big one. I've always found racing games a drag to play on gamepads via emulation as it's mapping 2cm of analog 
+HEY, I SEE EM-DASHES IN THE SOURCE CODE! DID YOU USE AI?
+Yes.
 
-You've got a curve for more sensitivity at lower inputs, the ability to clamp input so you're not twisting the wheel to insane angles when you hold the stick all the way to the right. 
+DOES THIS DO ANYTHING COOL?
+Aside from rendering in Vulkan, we can easily boost native rendering res, apply some nice smoothing fx, add filtering to Namco System22, and add shading to Model 1 (yuck lol). ElSemi had all of this sorted over 15 years ago with his Model 2 Emulator for Windows so this is in no way special.
 
-QOL for giggles. Higher res.
-what if system 22 had filtered textures, or what if model 1 had gouraud shading? (the latter looks terrible). there's also a polygon counter so you can do the math and figure out how many polygons per second this stuff was legitimately cranking out.
+For QOL purposes there is steering wheel curve customizability.  I've always found racing games a drag to play on gamepads via emulation as it's mapping full wheel rotation to 2cm of analog. You've got a curve for more sensitivity at lower inputs, the ability to clamp input so you're not twisting the wheel to insane angles when you hold the stick all the way to the right. 
 
-SAVE STATES: Not supported. The core reports a savestate size of 0, so RetroArch greys the save/load slots out. They were built and they half-worked — fine on most Model 2 and System 22 games, never on Virtua Cop 2, unverified on Model 1, and off on Android — and a savestate that quietly loads the wrong future is worse than not having one. Removed rather than shipped with an asterisk.
+SAVE STATES: Not supported. The core reports a savestate size of 0, so RetroArch greys the save/load slots out. The MAME team hasn't solved this yet, and I won't try.
 
 # devnotes — working documentation for m2-vk
 
