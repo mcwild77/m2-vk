@@ -591,7 +591,7 @@ bool declare_v1(retro_environment_t environ_cb)
 
 // Pre-options form: "description; first|second", first = default.
 // ⚠️ Emits the default first then skips it in the loop — not a straight copy. Load-bearing since
-// model2_steering_deadzone whose default (5%) is not its first value.
+// steering_deadzone whose default (5%) is not its first value.
 bool declare_variables(retro_environment_t environ_cb)
 {
 	static std::vector<std::string> text;

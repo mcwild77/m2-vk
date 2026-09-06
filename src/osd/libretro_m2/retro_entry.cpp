@@ -848,7 +848,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 			m2opt::KEY_STEERING_RESPONSE, m2opt::STEERING_RESPONSE_VALUES[steer_response],
 			m2opt::KEY_STEERING_DEADZONE, double(steer_deadzone) * 100.0,
 			m2opt::KEY_STEERING_RANGE, double(steer_range) * 100.0,
-			"model2_steering_damp", damp_drive_text, damp_return_text,
+			"steering_damp", damp_drive_text, damp_return_text,
 			m2opt::KEY_STEERING_DISPLAY, steer_display ? "on" : "off");
 
 	s_log_cb(RETRO_LOG_INFO, "[model2] analog: %s=%.0f%% %s=%.0f%%\n",

@@ -15,9 +15,9 @@
       model2_flat_shading       a global the polygon seam reads, so the next frame simply sees it
       model2_flat_luma          the same, resolved per polygon as it crosses the seam
       model2_transparency       a global the polygon pass latches at the top of each upload
-      model2_steering_deadzone  parked in m2vk::steer(), which the pad reads as it shapes the axis
-      model2_steering_response  the same
-      model2_steering_range     the same
+      steering_deadzone         parked in m2vk::steer(), which the pad reads as it shapes the axis
+      steering_response         the same
+      steering_range            the same
 
     model2_renderer cannot be live and retro_run() says so rather than half-applying it: it decides
     whether hardware render was declared at all, which happens before the machine starts.
@@ -174,29 +174,29 @@ inline constexpr char const *KEY_S22_2D_OVERLAY = "system22_2d_overlay";
 // an IPT_PADDLE. The machine is asked rather than a table consulted (m2vk_steer.h).
 // ⚠️ Unlike every rendering option, the default is NOT the untouched path — linear-onto-a-thumbstick
 // is the defect, not accuracy.
-inline constexpr char const *KEY_STEERING_DEADZONE = "model2_steering_deadzone";
-inline constexpr char const *KEY_STEERING_RESPONSE = "model2_steering_response";
-inline constexpr char const *KEY_STEERING_RANGE    = "model2_steering_range";
+inline constexpr char const *KEY_STEERING_DEADZONE = "steering_deadzone";
+inline constexpr char const *KEY_STEERING_RESPONSE = "steering_response";
+inline constexpr char const *KEY_STEERING_RANGE    = "steering_range";
 
 // Steering damping — a rate limit on the shaped axis, in frames-to-full-lock. The official emulator
 // applies one before the game reads the wheel (a self-centring wheel cannot snap), and a thumbstick
 // that reaches lock in one frame feels twitchy without it. Two knobs because the reference is
 // asymmetric: DRIVE is how fast the value follows the stick out, RETURN how fast it recentres when
 // released. Both default Off (instant), which is the identity. m2vk_steer.h runs it.
-inline constexpr char const *KEY_STEERING_DAMP_DRIVE  = "model2_steering_damp_drive";
-inline constexpr char const *KEY_STEERING_DAMP_RETURN = "model2_steering_damp_return";
+inline constexpr char const *KEY_STEERING_DAMP_DRIVE  = "steering_damp_drive";
+inline constexpr char const *KEY_STEERING_DAMP_RETURN = "steering_damp_return";
 
 // Steering read-out bar. Off by default — a bar over the picture is pixels no fixture reference
 // would have, so a run with it on would difference against a background that does not.
-inline constexpr char const *KEY_STEERING_DISPLAY = "model2_steering_display";
+inline constexpr char const *KEY_STEERING_DISPLAY = "steering_display";
 
 // The two analog-stick options — shape the sticks on the sets that declare an IPT_AD_STICK (Star
 // Blade, the twin-stick and flight sets), mutually exclusive with the wheel games. Deadzone is our
 // own (default 5 %); reach is the deflection at which full output is reached (default 100 %). Like the
 // steering options the default is NOT the untouched path — MAME's raw 15 %/85 % is the defect. The
 // machine is asked (an IPT_AD_STICK field), not a table consulted (m2vk_analog.h).
-inline constexpr char const *KEY_ANALOG_DEADZONE = "model2_analog_deadzone";
-inline constexpr char const *KEY_ANALOG_REACH    = "model2_analog_reach";
+inline constexpr char const *KEY_ANALOG_DEADZONE = "analog_deadzone";
+inline constexpr char const *KEY_ANALOG_REACH    = "analog_reach";
 
 // KEY_STEERING_RESPONSE values and their gammas. One list, so nothing drifts. The curve is
 // |v|^gamma — above 1, fine near centre, coarse near lock; full lock reachable at every setting.

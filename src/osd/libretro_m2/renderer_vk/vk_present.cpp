@@ -1958,7 +1958,7 @@ void draw_reticles(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_heigh
 }
 
 // The steering read-out bar, over the reticle. One scissored fullscreen triangle; nothing drawn
-// unless model2_steering_display asked. `fallback_set` bound to satisfy the layout's sampler slot.
+// unless steering_display asked. `fallback_set` bound to satisfy the layout's sampler slot.
 void draw_steerbar(VkCommandBuffer cmd, uint32_t draw_width, uint32_t draw_height, VkDescriptorSet fallback_set)
 {
 	if (s_pipeline_steerbar == VK_NULL_HANDLE)

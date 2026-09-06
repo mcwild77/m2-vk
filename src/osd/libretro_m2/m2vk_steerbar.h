@@ -6,7 +6,7 @@
 
     A bar across the top of the picture showing what the wheel is doing vs what the stick is doing.
     Green = port value the game receives; red = travel it does not; white notch = the raw stick.
-    Off by default: nothing here draws and no port is read unless model2_steering_display asked.
+    Off by default: nothing here draws and no port is read unless steering_display asked.
 
     Drawn twice — a CPU blit in software path, a scissored fullscreen triangle on Vulkan. The
     geometry and the part test are shared as constants and duplicated as code (GLSL cannot include
