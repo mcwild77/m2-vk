@@ -6,7 +6,7 @@
 // cross's bounding box by the caller so that the fragments actually shaded are the ~400 in that box
 // rather than the whole picture. It samples nothing: the cross is generated from the four numbers in
 // the push block, which are m2vk::RETICLE_SHAPE and are the only copy of them — there is no bitmap
-// and no texture, which is the point (devnotes/lightgun.md §1.7).
+// and no texture, which is the point (devnotes/reference/lightgun.md §1.7).
 //
 // ⚠️ covers() below is m2vk::reticle_covers() in src/osd/libretro_m2/m2vk_reticle.h, written a second
 // time because GLSL cannot include it. The CONSTANTS are shared — they arrive in the push block — but

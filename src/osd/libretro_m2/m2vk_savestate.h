@@ -4,7 +4,7 @@
 
     Savestates — MAME's save_manager reached through libretro's three entry points.
 
-    See devnotes/savestates.md. The short version of why this is thin: MAME already has exactly the
+    See devnotes/reference/savestates.md. The short version of why this is thin: MAME already has exactly the
     calls libretro wants — save_manager::write_buffer / read_buffer (save.h:308) and
     ram_state::get_size (save.cpp:598), the latter being retro_serialize_size() with no guesswork —
     and no Model 2 set carrying MACHINE_SUPPORTS_SAVE does NOT disable any of them. That flag drives a

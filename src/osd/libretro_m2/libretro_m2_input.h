@@ -7,7 +7,7 @@
     A real MAME input_module rather than per-game ioport injection. One joystick device is
     registered per RetroPad port, laid out exactly like SDL's game-controller device, so MAME's
     own default assignments and its remapping UI/ctrlr files apply unchanged and every game in the
-    library gets working controls with no per-game table. See devnotes/p1-libretro-core.md.
+    library gets working controls with no per-game table. See devnotes/plan_finished/p1-libretro-core.md.
 
     Two consequences of the layout being fixed and known:
 
@@ -20,7 +20,7 @@
     A second device class sits alongside the pads: one DEVICE_CLASS_LIGHTGUN device per gun-capable
     port, for the six lightgun sets.  Both kinds of device always exist and both are always polled;
     which of them is allowed to *move* is decided per frame by the port's selected libretro device,
-    because MAME sums OR'd absolute axes rather than picking one.  See devnotes/lightgun.md §2.
+    because MAME sums OR'd absolute axes rather than picking one.  See devnotes/reference/lightgun.md §2.
 
     Polling is inverted relative to a normal OSD.  MAME never asks the frontend for anything: the
     item pointers handed to add_item() address this object's state directly, and retro_run() writes
@@ -118,7 +118,7 @@ public:
 	// configure() and button 9 welded to R3 in FIXED_BUTTONS.  That weld is precisely why daytona's
 	// pedals and its VR2/VR3 could not be separated — no layout could move a button that was not a
 	// layout entry.  Widening this is the whole of that fix: a trigger threshold is now just another
-	// *source* a layout row may name, alongside the RetroPad ids.  devnotes/per-game-input.md §3.1.
+	// *source* a layout row may name, alongside the RetroPad ids.  devnotes/plan_finished/per-game-input.md §3.1.
 	static inline constexpr unsigned NUMBERED_BUTTONS = 9;
 
 	// Button state slots.  The first NUMBERED_BUTTONS of them are MAME button *numbers*, not
@@ -126,7 +126,7 @@ public:
 	// fixes each MAME item's pointer to a slot once and for all, so a layout change can only be a
 	// change to which RetroPad id update() reads into the slot.  Rebuilding the assignment vector
 	// instead would fight MAME, whose item state pointers are set when the device is created.
-	// devnotes/lightgun.md §2.5.2.
+	// devnotes/reference/lightgun.md §2.5.2.
 	enum : unsigned
 	{
 		BUTTON_1 = 0,
@@ -178,7 +178,7 @@ private:
 
 	// Runs the steering chain on the primary stick X and publishes port 0's before-and-after into
 	// m2vk::steer() for the read-out. Not const: the shaped value is written back into m_axes, which
-	// is the whole of how devnotes/steering-curve.md reaches MAME. A no-op unless the machine steers
+	// is the whole of how devnotes/reference/steering-curve.md reaches MAME. A no-op unless the machine steers
 	// and a shape has been named — see m2vk_steer.h.
 	void shape_and_publish_steer();
 
@@ -202,7 +202,7 @@ private:
 
 // One emulated lightgun.  Deliberately small: MAME's own defaults for IPT_LIGHTGUN_X/Y and
 // IPT_BUTTON1/2 already name GUNCODE_*_INDEXED(n), so the items below are bound the moment they
-// exist and configure() has almost nothing to add.  devnotes/lightgun.md §1.1, §2.3.
+// exist and configure() has almost nothing to add.  devnotes/reference/lightgun.md §1.1, §2.3.
 class libretro_m2_gun_device : public libretro_m2_device
 {
 public:
@@ -259,7 +259,7 @@ public:
 	// 🚨 That single-source property is the point of routing this through here rather than keeping a
 	// table in retro_entry.cpp.  There WAS such a table, and it disagreed with the layout for months:
 	// it called L "Button 5" and R "Button 6" while the layout had them the other way round, so
-	// daytona's remap screen named GEAR 4 and VR1 (Red) reversed (devnotes/input-map.md §5.1).  A
+	// daytona's remap screen named GEAR 4 and VR1 (Red) reversed (devnotes/reference/input-map.md §5.1).  A
 	// derived array cannot drift from what it is derived from.
 	//
 	// Static, and answering from the set NAME rather than from a machine, because the caller is

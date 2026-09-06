@@ -7,7 +7,7 @@
     M2VK_GUN_LOG=<n> prints the resolved IPT_LIGHTGUN_X/Y port values every n emulated frames. It
     exists because there is nothing else to look at: MAME's crosshair is a render-container quad
     (crsshair.cpp:444) and this OSD reads pixels straight off screen->curbitmap(), so no crosshair is
-    ever drawn here and a scripted aim cannot be checked by eye. See devnotes/lightgun.md §1.5.
+    ever drawn here and a scripted aim cannot be checked by eye. See devnotes/reference/lightgun.md §1.5.
 
     What it prints is the number the *driver* will read — the value after MAME's whole input chain
     (device item -> assignment -> analog_field::apply_settings -> PORT_MINMAX scaling), not what the

@@ -193,7 +193,7 @@ char const *vk_result_name(VkResult result);
 // it: it is pure plumbing, and two copies would drift the first time one of them learned something.
 //
 // Callers ask for preferred properties first and give up on them if refused. This device's memory
-// type 1 is device-local *and* host-visible (unified memory, see devnotes/vulkan-target.md), which
+// type 1 is device-local *and* host-visible (unified memory, see devnotes/reference/vulkan-target.md), which
 // is why the geometry buffers are written straight into rather than staged — but that is an Apple
 // luxury and not something to depend on.
 bool find_memory_type(vk_funcs const &fns, VkPhysicalDevice gpu, uint32_t type_bits,

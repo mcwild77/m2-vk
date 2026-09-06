@@ -10,7 +10,7 @@
     driver already says — every PORT_NAME in model2.cpp is a sentence written by somebody looking at
     the real cabinet ("VR1 (Red)", "Hand Brake", "Bat Swing", "Select (Up)").
 
-    It exists because devnotes/input-map.md, the hand audit this replaces, says in its own §6 that
+    It exists because devnotes/reference/input-map.md, the hand audit this replaces, says in its own §6 that
     nothing was run: it is 32 port sets transcribed by eye out of model2.cpp, and five of its findings
     are marked inferred-rather-than-measured.  Transcription is exactly what a layout table must not
     rest on — the shoulder-button descriptors were inverted for months because two hand-written tables
@@ -24,7 +24,7 @@
                     button at a D-pad control when this is false, because the D-pad slots keep their
                     ITEM_ID_HAT1* items and the IPT_JOYSTICK_* assignments add_directional_assignments()
                     gives them; on a set with a stick, one press would feed two MAME items.
-                    devnotes/per-game-input.md §2.3.
+                    devnotes/plan_finished/per-game-input.md §2.3.
       * pedals    — the set declares IPT_PEDAL/PEDAL2/PEDAL3.  A row may only name the L2/R2 trigger
                     *thresholds* as a button source when this is false.  Naming one anyway is the
                     daytona collision — flooring the accelerator also presses VR3 — which is the

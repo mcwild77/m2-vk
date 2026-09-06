@@ -17,7 +17,7 @@
 //
 // P4 step 2 measured this rather than leaving it as the argument it was until 2026-07-27: M2VK_SS=n
 // renders into an n x attachment and resolves back down, and no polygon that won a pixel at 1x loses
-// it at 2x, 3x or 4x on any fixture. See devnotes/p4-depth-and-decals.md §3 step 2.
+// it at 2x, 3x or 4x on any fixture. See devnotes/plan_finished/p4-depth-and-decals.md §3 step 2.
 //
 // in_pos.z is NOT depth in any geometric sense. It is the draw-order key — 1 - n/65536 for the nth
 // polygon in draw order — and with a GREATER test and depth writes on it reproduces the software

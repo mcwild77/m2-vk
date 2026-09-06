@@ -247,7 +247,7 @@ bool state_save(running_machine &machine, void *data, size_t size)
 	// retro_serialize must answer now.
 	//
 	// So this is a report, not a gate, and the frame boundary is deliberately not moved to dodge it.
-	// See devnotes/savestates.md.
+	// See devnotes/reference/savestates.md.
 	if (!machine.scheduler().can_save())
 		osd_printf_error("[model2] savestate: 🚨 saving with live anonymous timers — the state will lose them (see error.log)\n");
 
@@ -543,7 +543,7 @@ bool state_load(running_machine &machine, void const *data, size_t size)
 	//     marks tiles dirty from its write handler (segaic24.cpp:533), which a state load bypasses.
 	//
 	// Both are fixed from here rather than in the driver, because both APIs are public — so this costs
-	// no upstream line. See devnotes/savestates.md.
+	// no upstream line. See devnotes/reference/savestates.md.
 	machine.tilemap().mark_all_dirty();
 	for (device_gfx_interface &intf : gfx_interface_enumerator(machine.root_device()))
 		for (u8 i = 0; i < MAX_GFX_ELEMENTS; i++)

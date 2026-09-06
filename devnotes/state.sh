@@ -5,7 +5,7 @@
 #
 # retro_serialize_size() now returns 0 for every family, so every arm below fails for the trivial
 # reason. Do not run this, do not cite it, do not gate a change on it. Kept for the method only.
-# See the savestates section of CLAUDE.md and the banner at the top of devnotes/savestates.md.
+# See the savestates section of CLAUDE.md and the banner at the top of devnotes/reference/savestates.md.
 # ============================================================================================
 #
 
@@ -14,7 +14,7 @@ echo "Nothing here can pass. See CLAUDE.md, section 'Savestates are DISABLED'." 
 echo "Set STATE_SH_I_KNOW=1 to run it anyway." >&2
 [ -n "$STATE_SH_I_KNOW" ] || exit 2
 #
-# The savestate harness. devnotes/savestates.md §3 step 3 is what this is for.
+# The savestate harness. devnotes/reference/savestates.md §3 step 3 is what this is for.
 #
 #   ./devnotes/state.sh <game> [frames] [savepoint] [outdir]
 #   VK=1 ./devnotes/state.sh vf2 3000 1500 /tmp/state      # same test through the Vulkan path

@@ -376,7 +376,7 @@ function createProjects_mame_modelizer(_target, _subtarget)
     --=====================================================================
     --  Namco System 23 / Super System 23  (new; no standalone namcos23.lua
     --  ever existed -- this project was hand-derived directly against
-    --  modelizer, per devnotes/plan_system23.md phase 23-0)
+    --  modelizer, per devnotes/plans/plan_system23.md phase 23-0)
     --=====================================================================
     project ("mame_namcos23")
     targetsubdir(_target .."_" .. _subtarget)

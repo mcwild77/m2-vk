@@ -17,7 +17,7 @@
 
     The transform is applied per axis, independently, exactly the way MAME's deadzone/saturation is,
     so a diagonal (raw_x == raw_y) stays a true 45°: f(raw_x) == f(raw_y). Full design in
-    devnotes/analog-deadzone-reach-plan.md.
+    devnotes/plans/analog-deadzone-reach-plan.md.
 
     Include AFTER emu.h: names ioport types, which only emu.h brings in.
 

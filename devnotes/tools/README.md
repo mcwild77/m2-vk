@@ -5,7 +5,7 @@ frontend calls it. You do the deciding; the tool stops you from making the two m
 invisible until somebody plays the game, and fills in the names out of the driver so you never have to
 look them up.
 
-This file is the how-to. **[../padmap-tool.md](../padmap-tool.md) is the why** — the architecture and the
+This file is the how-to. **[../reference/padmap-tool.md](../reference/padmap-tool.md) is the why** — the architecture and the
 traps. Read this one to get work done, that one before changing how any of it works.
 
 ---
@@ -257,7 +257,7 @@ Prints exactly the labels RetroArch's **Quick Menu → Controls** will show. `de
 
 ```sh
 ./devnotes/tools/padmap-test.sh     # the editor's own logic, all 32 port sets
-./devnotes/ab.sh vf2 2500 /tmp/ab   # must reproduce devnotes/ab-baselines.md exactly
+./devnotes/ab.sh vf2 2500 /tmp/ab   # must reproduce devnotes/reference/ab-baselines.md exactly
 ```
 
 Input changes no pixel, so `ab.sh` is a *no-op guard* — a green table means you didn't break rendering,
@@ -336,7 +336,7 @@ release** (the repo tracks release tags — `mame0289` and on), not by re-dumpin
 `hotdo` set. Loading them under the clone's name is the whole fix, and both render — `vonj` 633 3D
 frames, `hotdo` 823. They are copied to `vonj.zip` / `hotdo.zip` in `devnotes/roms/`, and the old names
 are still there and still fail. **No game in the library is currently blocked on a ROM we do not have.**
-See [compatibility.md](../compatibility.md) §4, which is now the reference for this question.
+See [compatibility.md](../reference/compatibility.md) §4, which is now the reference for this question.
 
 ⚠️ The general point this paragraph was making still stands: a `MACHINE_NOT_WORKING` game that starts
 loading becomes *authorable*, not necessarily playable.

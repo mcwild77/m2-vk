@@ -9,7 +9,7 @@ That inversion is the whole reason a generator exists.  The core needs two views
 button n is produced by control c" for reading the pad, and "control c is called L" for telling the
 frontend — and for as long as those were two hand-written tables they disagreed: the shoulder-button
 descriptors were inverted for months, so daytona's remap screen named GEAR 4 and VR1 the wrong way round
-(devnotes/input-map.md §5.1).  Deriving one from the other, once, makes that class of bug unable to occur.
+(devnotes/reference/input-map.md §5.1).  Deriving one from the other, once, makes that class of bug unable to occur.
 
 The collision check falls out of the same pass for free: if two MAME buttons name one control, the
 inversion has two labels for one slot and says so instead of silently keeping the last.
@@ -169,7 +169,7 @@ def check_steering(rows, generic, claimed, errors):
     """A row that steers must be consistent with the machine under it, both ways.
 
     The coupling is one fact seen from two sides, invisible from either alone.  The analog steering curve
-    (devnotes/steering-curve.md) applies iff the machine declares an IPT_PADDLE — nothing is authored and
+    (devnotes/reference/steering-curve.md) applies iff the machine declares an IPT_PADDLE — nothing is authored and
     nothing can be switched on per game — while the LSTICK_X label is the only place the frontend ever says
     what the stick does.  So a row on a paddle machine that does NOT label LSTICK_X "steer" hides the wheel,
     and a row labelled "Steering" on a machine with no paddle promises a curve that will never run.  Neither
@@ -385,7 +385,7 @@ def render(doc):
     w("// One row per port set: which RetroPad control produces each MAME button, and what every control is")
     w("// called in the frontend's Controls menu.  The label array is DERIVED from the button assignments")
     w("// rather than written beside them, which is why the two can no longer disagree — see the generator's")
-    w("// docstring and devnotes/input-map.md §5.1 for the bug that made this necessary.")
+    w("// docstring and devnotes/reference/input-map.md §5.1 for the bug that made this necessary.")
     w("//")
     w("// Included from libretro_m2_input.cpp inside its anonymous namespace, after the SOURCE_* constants.")
     w("")

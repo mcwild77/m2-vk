@@ -220,7 +220,7 @@ void scsp_device::device_start()
 		// every slot, so EG.volume then walks a different curve -- and the phase is not merely
 		// audible: UpdateSlot() picks a different volume path for SCSP_ATTACK, and the slot status
 		// register hands the phase straight back to the sound CPU as SGC, which is how a sound-only
-		// difference becomes a soundram difference. Measured on vcop2, devnotes/savestates.md.
+		// difference becomes a soundram difference. Measured on vcop2, devnotes/reference/savestates.md.
 		save_item(NAME(m_Slots[slot].EG.state), slot);
 		save_item(NAME(m_Slots[slot].EG.step), slot);
 		save_item(NAME(m_Slots[slot].EG.AR), slot);

@@ -74,7 +74,7 @@ constexpr unsigned SOURCE_NONE    = SOURCE_TAG | 2;
 // if the two have drifted. The generator exists for one reason worth knowing before working around it:
 // the labels are DERIVED from the sources rather than written beside them. Two hand-written copies of
 // that relationship is exactly what put daytona's GEAR 4 and VR1 (Red) the wrong way round in the
-// remap UI for months (devnotes/input-map.md §5.1), and a derived array cannot drift from what it is
+// remap UI for months (devnotes/reference/input-map.md §5.1), and a derived array cannot drift from what it is
 // derived from.
 //
 // 🚨 A row may name a D-PAD control only if the set declares no IPT_JOYSTICK_*. The d-pad slots keep
@@ -354,7 +354,7 @@ void libretro_m2_pad_device::update(retro_input_state_t state_cb, unsigned devic
 	// d-pad, the triggers and the right stick are untouched on purpose: a RETRO_DEVICE_LIGHTGUN port
 	// reports no shoulder buttons and no L3/R3, and this core draws no MAME UI, so gating them would
 	// leave the gun games with no route into a test menu at all. Switches OR into switches without
-	// summing, so there is nothing to fix there. devnotes/lightgun.md §1.2, §2.2, §2.4.
+	// summing, so there is nothing to fix there. devnotes/reference/lightgun.md §1.2, §2.2, §2.4.
 	if (kind == RETRO_DEVICE_LIGHTGUN)
 		m_axes[AXIS_LEFT_X] = m_axes[AXIS_LEFT_Y] = 0;
 
@@ -607,7 +607,7 @@ void libretro_m2_pad_device::configure(osd::input_device &device)
 
 	// daytona's VR4 (Green) used to be assigned here, to the R3 item, because button 9 was not a
 	// layout slot. It is one now — both layouts name R3 for it, so it lands exactly where it did —
-	// and assigning IPT_BUTTON9 twice would bind it to two items at once. devnotes/per-game-input.md
+	// and assigning IPT_BUTTON9 twice would bind it to two items at once. devnotes/plan_finished/per-game-input.md
 	// §3.1.
 
 	device.set_default_assignments(std::move(assignments));
@@ -650,7 +650,7 @@ void libretro_m2_gun_device::update(retro_input_state_t state_cb, unsigned devic
 	//
 	// There is no scale factor and no windowing here, and there must never be one: PORT_MINMAX is
 	// the cabinet's own calibration, MAME maps full-scale input straight onto it, and correcting an
-	// aim offset on this side is the specific mistake devnotes/lightgun.md §5 warns about.
+	// aim offset on this side is the specific mistake devnotes/reference/lightgun.md §5 warns about.
 	const std::pair<unsigned, unsigned> axes[] = {
 		{ AXIS_X, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X },
 		{ AXIS_Y, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y } };
@@ -672,7 +672,7 @@ void libretro_m2_gun_device::update(retro_input_state_t state_cb, unsigned devic
 	// when either axis lands within 5 % of the ends of that port's own PORT_MINMAX — so offscreen is
 	// not "a value outside the range" but "a value pinned at the edge of the range", which is exactly
 	// what driving the axis to ABSOLUTE_MIN produces. Nothing has to survive a clamp; the clamp is
-	// the mechanism. devnotes/lightgun.md §1.4.
+	// the mechanism. devnotes/reference/lightgun.md §1.4.
 	//
 	// ABSOLUTE_MIN rather than a coordinate near the edge, because it is the one value MAME's scaling
 	// maps exactly onto minval: the border is 5 % wide and a scale factor of ours picking a point
@@ -871,7 +871,7 @@ void libretro_m2_input::input_init(running_machine &machine)
 	// They are also created whether or not any port is currently set to a gun, which is what makes a
 	// mid-run device change free: MAME fixes its options when the machine is built, but
 	// retro_set_controller_port_device can arrive at any time, and a frontend's input menu will do
-	// exactly that. devnotes/lightgun.md §2.1.
+	// exactly that. devnotes/reference/lightgun.md §2.1.
 	for (unsigned port = 0; port < MAX_GUNS; port++)
 	{
 		create_device<libretro_m2_gun_device>(

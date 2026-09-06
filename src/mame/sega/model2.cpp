@@ -193,7 +193,7 @@ void model2_state::machine_start()
 	// Found by devnotes/state.sh, which loads a state taken from one machine history into another and
 	// compares the futures: daytona failed on the gearbox and drive-board pair, vcop2 on the lightgun
 	// mux, while vf2 -- which has none of these peripherals -- passed without them. See
-	// devnotes/savestates.md §1.5.
+	// devnotes/reference/savestates.md §1.5.
 	save_item(NAME(m_cmd_data));
 	save_item(NAME(m_driveio_comm_data));
 	save_item(NAME(m_gearsel));
@@ -238,7 +238,7 @@ void model2_tgp_state::machine_start()
 #ifdef M2VK
 	// The TGP's bank register and the three table base addresses it resolves through. Written by the
 	// copro's own code rather than fixed at init, so they belong in a savestate. See
-	// devnotes/savestates.md §1.5.
+	// devnotes/reference/savestates.md §1.5.
 	save_item(NAME(m_copro_tgp_bank_reg));
 	save_item(NAME(m_copro_sincos_base));
 	save_item(NAME(m_copro_inv_base));

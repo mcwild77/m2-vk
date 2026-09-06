@@ -8,7 +8,7 @@
     screen's render container (src/emu/crsshair.cpp), and this OSD reads pixels straight off
     screen->curbitmap() and composites the layers itself, so container primitives are never drawn by
     anything. PORT_CROSSHAIR on the six gun sets is dead weight. If the player is to see where the gun
-    is pointing, this file is what draws it. devnotes/lightgun.md §1.5, §1.7.
+    is pointing, this file is what draws it. devnotes/reference/lightgun.md §1.5, §1.7.
 
     Three things live here and the split is deliberate:
 
@@ -18,7 +18,7 @@
         consumers do — and because the Vulkan path may be drawing into an oversized attachment.
       * WHAT it looks like. The shape below is the whole asset: a gapped cross, generated from four
         numbers. Nothing is copied from anywhere — flycast's vmu_xhair.cpp is GPL-2.0-or-later and
-        devnotes/legalstuff.md rests the release on there being no GPL-tagged object in the link, so
+        devnotes/reference/legalstuff.md rests the release on there being no GPL-tagged object in the link, so
         a 16x16 bitmap is not worth borrowing when the geometry is four constants.
       * HOW it is drawn, which is twice, because the two renderers composite in different places.
         renderer=software hands MAME's finished frame straight to the frontend, so the reticle is
@@ -35,7 +35,7 @@
     time, which is the cheapest kind of bug to notice.
 
     🚨 It must be invisible unless a port is actually set to a gun. Every accuracy fixture in
-    devnotes/ab-baselines.md and devnotes/res-baselines.md differences against a background reference
+    devnotes/reference/ab-baselines.md and devnotes/reference/res-baselines.md differences against a background reference
     that both renderers produce bit-identically; a reticle drawn on a run that did not ask for one
     would move those pixels and quietly invalidate the whole harness. Nothing here draws until
     reticle_publish() is called with on = true, which happens only for a port whose libretro device is

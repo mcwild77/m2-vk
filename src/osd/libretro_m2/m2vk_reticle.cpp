@@ -18,7 +18,7 @@ namespace {
 // two apart in a screenshot.
 //
 // A per-port colour option is a nice-to-have and is folded into the queued core-options work rather
-// than inventing a second options mechanism for it (devnotes/lightgun.md §3 step 4).
+// than inventing a second options mechanism for it (devnotes/reference/lightgun.md §3 step 4).
 struct reticle_colours
 {
 	uint32_t colour;

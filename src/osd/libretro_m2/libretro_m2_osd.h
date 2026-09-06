@@ -17,7 +17,7 @@
     one private member (m_font_module) is reachable only from font_alloc() and get_font_families(),
     both of which are overridden here. Modules that are needed come straight from their exported
     factories — a module_type is just a std::unique_ptr<osd_module>(*)(), so it can be called
-    directly without the manager. See devnotes/p1-libretro-core.md.
+    directly without the manager. See devnotes/plan_finished/p1-libretro-core.md.
 
 *********************************************************************************************************************************/
 

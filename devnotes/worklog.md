@@ -10,7 +10,7 @@ Closed history lives in [worklog-archive.md](worklog-archive.md):
 - **System 21** (T0 → T5 Winning Run + savestates/pads/A-B), committed at `6e62265dff6`.
 
 This file continues from the **shippable pass** — the work that remains to turn three complete renderers
-into a public release. The scheduled queue is [shippable-plan.md](shippable-plan.md) (R0 triage → R1
+into a public release. The scheduled queue is [shippable-plan.md](plan_finished/shippable-plan.md) (R0 triage → R1
 input mapping → R2 compat → R3 options → R4 polish → R5 release; the savestate half of R2 is void as of
 2026-09-04 — see the last entry). Renderer/geometry work is
 done across all three families.
@@ -100,7 +100,7 @@ unchanged — ridgerac 1800f digest `000263dec4db0fa1` == baseline, aquajet clea
 ---
 
 **2026-08-25 — R3 System 22 option set + polygon counter.** Five new toggles, all live, each a
-`DEFINITIONS[]` entry + `M2VK_*` switch. Detail in [shippable-plan.md](shippable-plan.md) R3. Renderer
+`DEFINITIONS[]` entry + `M2VK_*` switch. Detail in [shippable-plan.md](plan_finished/shippable-plan.md) R3. Renderer
 side: three `s22.frag` `poly_flags` bits (`PFLAG_NO_FOG`/`NO_TEX`/`NO_LIGHT`) — no push-block size change,
 regenerated `s22_frag_spv.h` only. `system22_fog` (default on) skips the fog blends; `system22_no_textures`
 whitewashes the surface to white so shade renders it greyscale (S22 luma-only shading → true greyscale);
@@ -588,7 +588,7 @@ relaunch). AudioFlinger underruns are NOT the tell (both arms read 2 — `audio_
 trading underruns for pitch-warble). ⚠️ RetroArch **Restart** = `retro_reset`, does NOT rebuild the machine,
 so toggling this reload-gated option + Restart ANRs — switch arms by a full relaunch. Residual 90 Hz-panel
 judder on a 57.5 Hz core (vrr_runloop + rate-control) is a RA config artifact, not the core. Detail in
-[m1audio-thread-plan.md](m1audio-thread-plan.md) §Stage 2. Next lever: drive-board Z80 park / interpreter
+[m1audio-thread-plan.md](plans/m1audio-thread-plan.md) §Stage 2. Next lever: drive-board Z80 park / interpreter
 hot-path, ordered by a fresh `m2prof` ranking now that sound is off the main thread.
 
 **2026-09-01 — On-screen emulated frame-rate read-out (`model2_fps_display`, default ON).**
@@ -655,7 +655,7 @@ manual install-or-restore cycle on the headset to test.
 
 ## 2026-09-01 (later) — scheduler-quantum experiment: run, and it redirected the roadmap
 
-Ran `devnotes/plan_model2_quantum.md` end to end on the desktop. The quantum lever is **dead**; the
+Ran `devnotes/plan_finished/plan_model2_quantum.md` end to end on the desktop. The quantum lever is **dead**; the
 lever it was standing next to is worth 34–57 % of emulation-thread compute. Full write-up and every
 number in that file; instrumentation saved as `devnotes/qprobe.patch` (throwaway, env-gated, reverted
 from the tree — the upstream diff is back to what it was).
@@ -695,7 +695,7 @@ not less.
 
 ---
 
-## 2026-09-01 — the demand-gated baud clock, built ([lazy-baud.md](lazy-baud.md))
+## 2026-09-01 — the demand-gated baud clock, built ([lazy-baud.md](reference/lazy-baud.md))
 
 The lever the entry above found, taken. `src/osd/libretro_m2/m2vk_baud.{h,cpp}` replaces the 500 kHz
 `CLOCK` feeding `i8251::write_txc`/`write_rxc` with a generator that delivers **the same edges on the
@@ -789,7 +789,7 @@ The user's daytona report survived the transmitter-stall fix. Cause: their live
 Game Launcher uses whatever is in that config. **With the sound thread on, the serial bridge stops
 delivering ~11 s in — the board receives 96 of 1622 bytes.** Identical at `M2VK_LAZY_BAUD=0` and `=1`,
 so it is a pre-existing fault in `m2vk_snd`, not this work. Written up as an open bug in
-[m1audio-thread-plan.md](m1audio-thread-plan.md). Disabling the option restored the game's sound.
+[m1audio-thread-plan.md](plans/m1audio-thread-plan.md). Disabling the option restored the game's sound.
 
 1. **Check which options the user's config actually has before interpreting a hand-check.** Two rounds
    of ear-testing were spent attributing a sound-thread fault to the baud clock. Their `.opt` file is
@@ -872,7 +872,7 @@ consequence: a default run now gets the parked machine — a digest that wants t
 The Mac is no longer the reference machine. Before today the Windows box could only cross-build the
 Android core; the desktop build had never been attempted and every verification instrument was
 Mac-only. Now the host core, `retrohost`, `ab.sh` and `state.sh` all work here. Plan and phases in
-[windows-move-plan.md](windows-move-plan.md); the standing host reference is [windows.md](windows.md).
+[windows-move-plan.md](plans/windows-move-plan.md); the standing host reference is [windows.md](reference/windows.md).
 
 1. **The host build needed three things, none of them large.** A per-host Vulkan-header candidate
    list in `libretro_m2.lua` (the old non-macOS default `/usr/include` is `C:\msys64\usr\include`
@@ -932,7 +932,7 @@ core options at `config\m2-vk\m2-vk.opt`, exactly the path CLAUDE.md names).
    W1's real acceptance criterion, not "it compiled".
 2. **`devnotes\shortcuts\Game Launcher.bat`** — the play command, standing in for the Mac's
    `Model 2.app`. Numbered list of the 68 installed sets grouped by family, type a number to play,
-   quit RetroArch and the list is still there. Details in [windows.md](windows.md) §3; the three
+   quit RetroArch and the list is still there. Details in [windows.md](reference/windows.md) §3; the three
    decisions worth recording:
    - **It runs the core from the repo** (`-L <repo>\modelizer_libretro.dll`) and prints its build
      timestamp in the header. The Mac's installed-core symlink silently reverted to a copy at least
@@ -971,7 +971,7 @@ booted fine, `M2VK_LAZY_BAUD=0` made no difference, which isolated it to the thr
 chain, `driver_list::clone(m_system)` → `find(m_system)` → `assert(index >= 0)` → `driver(index)`.
 `m1snd` is deliberately not in the generated driver list, `find()` returns -1, the assert is compiled
 out of a release build, and `driver(std::size_t(-1))` indexes `s_drivers_sorted` out of bounds.
-Full write-up in [m1audio-thread-plan.md](m1audio-thread-plan.md).
+Full write-up in [m1audio-thread-plan.md](plans/m1audio-thread-plan.md).
 
 **Fix**, entirely in `m2vk_soundthread.cpp` — no upstream file touched: build the worker from a copy
 of the m1snd descriptor renamed to the main system's short name. It is in the list by construction,

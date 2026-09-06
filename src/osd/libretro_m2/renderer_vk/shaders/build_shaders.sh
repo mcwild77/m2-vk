@@ -5,7 +5,7 @@
 # Run by hand, and only when a shader changes. The generated *_spv.h files are checked in, which is
 # a deliberate choice: a genie custom build rule would make glslc a build requirement for everyone
 # who touches the tree, and these shaders change roughly never. See
-# devnotes/p2-vulkan-passthrough.md.
+# devnotes/plan_finished/p2-vulkan-passthrough.md.
 #
 #   brew install shaderc      # macOS; otherwise your distribution's shaderc / glslang package
 #   ./build_shaders.sh

@@ -172,13 +172,13 @@ bool filter_enabled()
 // depth_enabled() is FORCED OFF here, so build_pipeline() never builds the depth pipeline, the no-depth
 // companion is never built, and the draw path is the untouched painter's algorithm. The code below
 // (s_pipeline_nodepth, the batch split on draw_batch::nodepth, the ooz remap) stays in place, dormant,
-// so it can be revisited. Do not re-enable without solving the corruption. See devnotes/zfighting.md.
+// so it can be revisited. Do not re-enable without solving the corruption. See devnotes/plan_finished/zfighting.md.
 bool s_option_depth = false;   // still parked by retro_entry; ignored while depth_enabled() is forced off
 bool s_depth_pipeline = false;
 
 bool depth_enabled()
 {
-	return false;   // SHELVED: option removed, code dormant — see the note above and devnotes/zfighting.md
+	return false;   // SHELVED: option removed, code dormant — see the note above and devnotes/plan_finished/zfighting.md
 }
 
 // The three view toggles, each parked by retro_entry and each overridable by its M2VK_* switch in the

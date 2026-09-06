@@ -75,7 +75,7 @@ struct frame_record;
 
 // The depth format. D24_UNORM_S8_UINT does not exist on Apple GPUs at all — its optimalTilingFeatures
 // is literally zero on both hosts measured — so the reflex desktop choice is not available. See
-// devnotes/vulkan-target.md; D32_SFLOAT holds a 16-bit draw-order key with enormous margin.
+// devnotes/reference/vulkan-target.md; D32_SFLOAT holds a 16-bit draw-order key with enormous margin.
 extern const VkFormat GEOM_DEPTH_FORMAT;
 
 // Built and destroyed with the image ring, because it shares the ring's render pass and is indexed

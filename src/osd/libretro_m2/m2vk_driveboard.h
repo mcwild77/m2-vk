@@ -4,7 +4,7 @@
 //
 //  The wheel cabinets (daytona, srallyc, ...) carry a Z80 drive board whose only job is force
 //  feedback — output the player never feels on a gamepad. The Quest 3 profiler put it at ~6% of
-//  the frame (devnotes/retroarch-quest-perf.md §4.1), pure waste on a pad. Parking suspends the
+//  the frame (devnotes/reference/retroarch-quest-perf.md §4.1), pure waste on a pad. Parking suspends the
 //  Z80 via SUSPEND_REASON_DISABLE: it executes no cycles but stays a device, so savestates keep
 //  their shape. The comm latch the main CPU writes stays writable; the board just never answers —
 //  the same face the game sees during the real board's self-test window.

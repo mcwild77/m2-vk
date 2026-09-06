@@ -5,7 +5,7 @@
     M2VK_JVS_HLE — whether namcos23.cpp's timecrs2/timecrs2v4a/crszone default to the HLE JVS I/O
     board (namco_tssio_hle, bus/jvs/namcoio.cpp) instead of the real namco_tssio/namco_csz1 board,
     each of which interprets a Hitachi H8/3334 for no reason other than reading a light gun, a foot
-    pedal, and coins. See devnotes/plan_system23optimization.md, Lever 1 / phase O2.
+    pedal, and coins. See devnotes/plans/plan_system23optimization.md, Lever 1 / phase O2.
 
     Composition matches every other M2VK_* gate in this OSD (m2vk_baud, m2vk_snd): the core option
     (system23_jvs_hle, once it ships in the menu) seeds set_option_enabled() before the machine is

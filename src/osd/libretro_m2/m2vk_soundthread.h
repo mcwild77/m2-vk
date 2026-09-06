@@ -7,7 +7,7 @@
 
     Why (measured): on a Quest 3 the Model 2 emulation is CPU-bound and the per-device profile is flat;
     the sound 68000 (:m1audio:sndcpu / :audiocpu) is the single largest device in two of four profiled
-    games and never below #2. Parallelising it is the lever. See devnotes/m1audio-thread-plan.md.
+    games and never below #2. Parallelising it is the lever. See devnotes/plans/m1audio-thread-plan.md.
 
     Shape of the split (Stage 1, this module):
 

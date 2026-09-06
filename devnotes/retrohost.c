@@ -23,7 +23,7 @@
  * There is no window, no swapchain and no surface extension, which makes this a *smaller* job than
  * RetroArch's, not a larger one. What it must get exactly right is the contract in
  * libretro_vulkan.h — the sync index, the mask, and the queue lock — and those are the parts worth
- * reading below. See devnotes/p2-vulkan-passthrough.md §5.
+ * reading below. See devnotes/plan_finished/p2-vulkan-passthrough.md §5.
  *
  * The optional trailing argument is a control script — a comma-separated list of
  * frame:control[:frames-held][:port], e.g. "600:select,660:start,700:b:30,800:lx+:200" — which is
@@ -41,7 +41,7 @@
  * screen coordinates and "trigger", "reload" and "offscreen" are the gun's buttons. What the aim
  * came out as on the other side is M2VK_GUN_LOG=<n> in the core (src/osd/libretro_m2/m2vk_gunlog.h),
  * which prints the resolved port values — the only read-out there is, since this OSD draws no
- * crosshair. See devnotes/lightgun.md.
+ * crosshair. See devnotes/reference/lightgun.md.
  *
  * --modern <port> is the same call with the core's second pad layout, which is a subclass of
  * RETRO_DEVICE_JOYPAD rather than a class of its own: nothing about the script changes, only which
@@ -356,7 +356,7 @@ static void hash_frame(const uint32_t *fb, unsigned w, unsigned h, size_t pitch)
  * there, so a completely broken read_buffer that restored nothing would also pass. The test that
  * means something loads a state taken from a DIFFERENT machine history and asks whether the future
  * matches that history's future, which requires digesting only the frames after the load. See
- * devnotes/savestates.md §3 step 3. */
+ * devnotes/reference/savestates.md §3 step 3. */
 static long g_digest_from = 0;
 static unsigned long g_digest_frames = 0;
 
@@ -1220,7 +1220,7 @@ static void video_cb(const void *data, unsigned width, unsigned height, size_t p
 }
 
 /* The video digest CANNOT see sound: vf2/srallyc/vcop2 held their picture digests with the serial
- * link to the sound board fully dead (devnotes/plan_model2_quantum.md). So the audio gets its own
+ * link to the sound board fully dead (devnotes/plan_finished/plan_model2_quantum.md). So the audio gets its own
  * whole-run digest, on the same FNV-1a the picture uses, plus an RMS for a run whose audio is
  * produced asynchronously (the sound thread) and so is not bit-reproducible. */
 static uint64_t g_audio_digest = 1469598103934665603ULL;
@@ -1309,7 +1309,7 @@ static uint32_t g_cabinet_ports;
 /* one bit per port given --classic: RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 2), the generic
  * layout as an explicit opt-out. On a set with a cabinet row this is the ONLY way to reach the old
  * behaviour, which makes it the negative control for every per-game layout check — see
- * devnotes/per-game-input.md §5.3. On a set without one it is the same thing the default already is. */
+ * devnotes/plan_finished/per-game-input.md §5.3. On a set without one it is the same thing the default already is. */
 static uint32_t g_classic_ports;
 
 static void input_poll_cb(void) { }
@@ -1335,7 +1335,7 @@ static int16_t input_state_cb(unsigned p, unsigned d, unsigned i, unsigned id)
 
 /* 0.0..1.0 across the screen -> the full SCREEN_X/Y range, which the libretro header defines as
  * -0x8000..0x7fff. No clamping to a smaller window anywhere: PORT_MINMAX is the cabinet's own
- * calibration and doing any of it here is exactly the mistake devnotes/lightgun.md §5 warns about. */
+ * calibration and doing any of it here is exactly the mistake devnotes/reference/lightgun.md §5 warns about. */
 static int16_t gun_coord(double v)
 {
 	long scaled = lround(v * 65535.0) - 32768;
@@ -1487,7 +1487,7 @@ static void apply_opt_changes(long frame)
 }
 
 /*==========================================================================================
- * Savestates.  devnotes/savestates.md §3 step 3 is what these are for.
+ * Savestates.  devnotes/reference/savestates.md §3 step 3 is what these are for.
  *
  *   M2VK_HOST_SAVE_AT=<frame>:<path>      retro_serialize at the END of that frame, to a file
  *   M2VK_HOST_SAVE_AT2=<frame>:<path>     a SECOND save point in the same run — so the load-state (N)

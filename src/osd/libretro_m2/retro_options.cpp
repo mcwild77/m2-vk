@@ -113,7 +113,7 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 	// NOTE: the "Depth Buffer (3D)" option (KEY_S22_DEPTH_BUFFER) was removed before release — the
 	// per-pixel depth experiment corrupted textures/UVs on the ground and broke the layered UI, so it is
 	// not shippable. The renderer code is still present but dormant (s22::depth_enabled() is forced off);
-	// see devnotes/zfighting.md. Do not re-add this menu entry without fixing the underlying issues.
+	// see devnotes/plan_finished/zfighting.md. Do not re-add this menu entry without fixing the underlying issues.
 	{
 		m2opt::KEY_S22_NO_TEXTURES,
 		m2txt::S22_NO_TEXTURES_LABEL,
@@ -458,7 +458,7 @@ retro_core_option_v2_definition DEFINITIONS[] = {
 		// replaces the CLOCK is decided when the machine is built.
 		//
 		// Default ON. Worth 35-48 % of emulation-thread time on desktop and the lever that matters on a
-		// CPU-bound device; see devnotes/lazy-baud.md for the measurements and for what it does change
+		// CPU-bound device; see devnotes/reference/lazy-baud.md for the measurements and for what it does change
 		// (MAME's device interleave, not the serial link).
 		{
 			{ "disabled", m2txt::V_OFF },

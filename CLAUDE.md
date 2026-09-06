@@ -21,16 +21,16 @@ clean. Upstream diff vs `mame0288`: **457 insertions / 16 deletions across 11 fi
 - **Model 2** — DONE (`aabcd8d5cac` baseline). P0–P5, lightgun, twelve core options,
   per-game pads, the full steering block. Whole raster tail on the GPU; depth is **draw order, not z**.
   Phase detail in `devnotes/pN-*.md`.
-- **System 22 / Super System 22** — renderer DONE ([devnotes/system22plan.md](devnotes/system22plan.md)).
+- **System 22 / Super System 22** — renderer DONE ([devnotes/plan_finished/system22plan.md](devnotes/plan_finished/system22plan.md)).
   S0 boot → S1 seam → S2a–d GPU geometry (untextured → textured → 2D-over → shading/gamma) → sprites →
   per-quad scissor → `system22_texture_filter` + per-family option-visibility. Detail in
   `devnotes/s{0,1,2}-*.md`.
-- **System 21** — DONE ([devnotes/system21plan.md](devnotes/system21plan.md)). T0 boot → T1 seam → T2 GPU
+- **System 21** — DONE ([devnotes/plan_finished/system21plan.md](devnotes/plan_finished/system21plan.md)). T0 boot → T1 seam → T2 GPU
   geometry (real hardware z-buffer + layer-0 z-mix) → T3 routing/options → T4 Winning Run → T5
   pads/A-B/compat. Detail in `devnotes/t{0,1,2}-*.md`.
 
 **Next: the shippable pass.** Renderer/geometry work is finished across all families; what remains to make
-this a public release is scheduled in **[devnotes/shippable-plan.md](devnotes/shippable-plan.md)** —
+this a public release is scheduled in **[devnotes/plan_finished/shippable-plan.md](devnotes/plan_finished/shippable-plan.md)** —
 R0 bug/option triage → R1 System 22 input mapping (authored + static-verified, all S22/S21 rows present in
 `input_layouts.json`; only the user hand-check is open) → R2 combined compat matrix (done; the savestate
 half of R2 is void — see the savestates section) →
@@ -54,7 +54,7 @@ only half the cores could satisfy. A state that loads a wrong future is worse th
 - **`devnotes/state.sh` is RETIRED.** Do not run it, do not cite it, do not add a savestate row to any
   new plan's exit criteria. It will now fail everywhere for the trivial reason (size 0).
 - A/B (`ab.sh`), resolution invariance (`res.sh`) and `perf.sh` are unaffected and remain the gates.
-- `devnotes/savestates.md` is **history**, not a live spec. Same for the savestate steps inside the
+- `devnotes/reference/savestates.md` is **history**, not a live spec. Same for the savestate steps inside the
   closed phase plans (`shippable-plan.md` R2, `system21plan.md` T5, `plan_system23.md` 23-7).
 
 **What is still in the tree, deliberately unbuilt-out:** `m2vk_savestate.cpp` (including the
@@ -136,7 +136,7 @@ repo). Launch with `--add-dir /Users/mcwildmacbookair/Documents/GitHub/Polydiver
 - **Vulkan device ownership:** core creates its own device via HW-render context negotiation and
   renders into frontend-provided images. Links no Vulkan library — every entry point comes from the
   frontend's `vkGetInstanceProcAddr`. Committed SPIR-V is `--target-env=vulkan1.0`; the core is
-  portable (proven on Adreno 740, see `devnotes/android.md`).
+  portable (proven on Adreno 740, see `devnotes/reference/android.md`).
 - **Mergeability golden rule:** all new logic in NEW files; the only edits to upstream files are
   a handful of guarded hook calls. 🚨 **The real upstream diff to mame0288, measured 2026-08-22, is
   135 insertions / 2 deletions across 5 files** (`scsp.cpp` +6, `scsp.h` +5/−2, `model2.flt` +1,
@@ -211,7 +211,7 @@ The polygon tap is **off unless an `M2VK_POLYTAP*` variable is set**.
 
 Android: `./devnotes/build-android.sh` → `model2_libretro_android.so`; `./devnotes/deploy-android.sh`.
 The harness does NOT cross-compile — `retrohost`, `ab.sh`, all digests stay on the Mac. See
-`devnotes/android.md`.
+`devnotes/reference/android.md`.
 
 🎯 **Deploying core-only to the Quest 3 — set `M2VK_ANDROID_ROMDIR`:**
 ```sh
@@ -272,7 +272,7 @@ Then on the headset: **Load Core → Install or Restore a Core → `libmodelizer
 Every prose count in this file has been wrong at least once; check that array. Matching `M2VK_*`
 switch **overrides its option**, never the reverse (the core logs a line when one is overriding). All
 but the two marked apply **live**; `model2_renderer` and `model2_internal_res` need a content reload.
-Full rationale in `devnotes/user-options.md`, `steering-curve.md`, `blended-transparency.md`,
+Full rationale in `devnotes/reference/user-options.md`, `steering-curve.md`, `blended-transparency.md`,
 `p5-internal-resolution.md`.
 
 | Option | Default | Switch | Notes |
@@ -328,10 +328,10 @@ The key `M2VK_*` switches: `M2VK_SW_3D=1` puts MAME's rasteriser back in charge 
 pixel); `M2VK_NO_RETICLE=1`, `M2VK_NO_SCISSOR=1`, `M2VK_SS=<n>`, `M2VK_RES=<w>x<h>`.
 `M2VK_LAZY_BAUD=0` restores the stock 500 kHz i8251 `CLOCK` — the demand-gated baud clock ships as the
 `model2_lazy_baud` core option ("Fast Sound-Link Timing", **default ON**, reload-gated, Model 2 + Model 1
-menus only) and is worth 35–48 % of core ms/frame ([devnotes/lazy-baud.md](devnotes/lazy-baud.md)).
+menus only) and is worth 35–48 % of core ms/frame ([devnotes/reference/lazy-baud.md](devnotes/reference/lazy-baud.md)).
 ⚠️ `retrohost` pins `model2_self_throttle` off for itself — that option now ships ON and maps to MAME's
 `-throttle`, which would cap every harness run at 1×.
-**Full reference: [devnotes/switches.md](devnotes/switches.md)** — that file carries the count; do not
+**Full reference: [devnotes/reference/switches.md](devnotes/reference/switches.md)** — that file carries the count; do not
 quote one here.
 
 ## 🎮 Just playing it? None of the harness commands. Use `~/Desktop/Model 2.app`
@@ -366,7 +366,7 @@ still gates on the host harness — the Quest is a performance instrument only, 
   interpolated z, networked cabinets, the steering Rate mode (built and removed 2026-08-08).
 
 ## Releasing a public binary is CLEAR — the open item is trademark, not licence
-`devnotes/legalstuff.md` is the audit; §9 is the release checklist. 585 of 606 linked `src/` objects
+`devnotes/reference/legalstuff.md` is the audit; §9 is the release checklist. 585 of 606 linked `src/` objects
 are BSD-3-Clause, **zero GPL-tagged**; two LGPL-2.1+ files are satisfied by the public repo; all
 third-party libs permissive. Release as GPL-2.0-or-later, tag the building commit, ship
 `COPYING` + `docs/legal/`. The repo rename to `m2-vk` closed the repository half of the trademark

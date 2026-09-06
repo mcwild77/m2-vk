@@ -4,7 +4,7 @@
 
     M2VK_LAZY_BAUD — a demand-gated replacement for the 500 kHz CLOCK that drives the i8251's TxC/RxC.
 
-    Why (measured, 2026-09-01, devnotes/plan_model2_quantum.md): every Model 2 machine carries one or
+    Why (measured, 2026-09-01, devnotes/plan_finished/plan_model2_quantum.md): every Model 2 machine carries one or
     two `clock_device`s at 16 MHz/2/16 = 500 kHz wired to i8251_device::write_txc + write_rxc. A
     clock_device fires on both edges, so each one is 1,000,000 timer callbacks per emulated second —
     99.87 % of every timer callback in the machine, and ~1 M forced scheduler breaks/s at ~85 ns each.

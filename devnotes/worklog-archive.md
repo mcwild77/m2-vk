@@ -19,7 +19,7 @@ Repo state: branch `main`, clean, at `27a8d9e85b5` (version bump to 0.288).
 **Next:** P0 spike — locate `model2_renderer::model2_3d_render` in
 `src/mame/sega/model2_v.cpp` at mame0288 (the ~line 611 figure in the Polydiver notes is from an
 older tree and needs re-confirming), then add the `#ifdef`-guarded poly-tap that logs polys/frame
-and dumps one frame of `m2_poly_extra_data`. Record findings in [seam.md](seam.md).
+and dumps one frame of `m2_poly_extra_data`. Record findings in [seam.md](reference/seam.md).
 
 ---
 
@@ -27,7 +27,7 @@ and dumps one frame of `m2_poly_extra_data`. Record findings in [seam.md](seam.m
 
 Did the whole spike in this tree at mame0288 rather than in Polydiver's `pdmame` build — the seam
 is what we keep, so it may as well be verified where it will live. Full findings in
-[seam.md](seam.md); the short version:
+[seam.md](reference/seam.md); the short version:
 
 `model2_renderer::model2_3d_render` is at `model2_v.cpp:565` (the old ~611 figure was from the
 pre-0288 reference tree). Instrumented with a new header-only file
@@ -96,7 +96,7 @@ Goal is to freeze the upstream diff at ~16 lines permanently; that is the whole 
 
 ## 2026-07-25 — feature-survey sweep over 29 games
 
-Full write-up in [feature-survey.md](feature-survey.md); ROM set notes in [roms.md](roms.md). Ran the
+Full write-up in [feature-survey.md](reference/feature-survey.md); ROM set notes in [roms.md](reference/roms.md). Ran the
 tap over 29 working sets, 65 emulated seconds each, and **checked every game's screenshots by eye**
 before believing any of it. That last part was the important part: a Model 2 service screen or
 attract text card is itself hundreds of textured translucent quads, so it passes as plausible
@@ -135,7 +135,7 @@ Polydiver's `pdmame_osd.cpp`.
 
 ## 2026-07-25 — P1 planned, and steps 1–4 landed: the core boots VF2 and draws
 
-Plan written up first in [p1-libretro-core.md](p1-libretro-core.md), because the wiring was the
+Plan written up first in [p1-libretro-core.md](plan_finished/p1-libretro-core.md), because the wiring was the
 part expected to be fiddly. It was, but the headline is better than hoped:
 
 **Zero edits to upstream files outside `model2_v.cpp`.** All five of pdmame's upstream patches
@@ -210,7 +210,7 @@ then core options. Not yet committed.
 `src/osd/libretro_m2/libretro_m2_input.{h,cpp}` — a real MAME `input_module` registering two
 RetroPad joystick devices, as decided earlier today. Built clean first try; the interesting part was
 all in reading how MAME 0288 wires device defaults, and that is now written up in
-[p1-libretro-core.md](p1-libretro-core.md).
+[p1-libretro-core.md](plan_finished/p1-libretro-core.md).
 
 Three things that shaped the implementation:
 
@@ -277,7 +277,7 @@ namespace changed (`m2vk::`, not `model2_polytap::`). The include is
 `"libretro_m2/m2vk_sink.h"` — `src/osd` is on the driver project's include path, `src/` is not, so
 the `osd/libretro_m2/…` spelling the plan doc used would not have compiled.
 
-Three decisions behind it, written up in [p1-libretro-core.md](p1-libretro-core.md):
+Three decisions behind it, written up in [p1-libretro-core.md](plan_finished/p1-libretro-core.md):
 
 - **What crosses the seam is a snapshot with no MAME types in it.** Consumers — the tap now, the
   Vulkan renderer later — compile without the driver's headers, so an upstream change to `model2.h`
@@ -300,7 +300,7 @@ conversion now zeroes them, making it a property of the data.
 
 ### Verified — the stream is unchanged
 
-- `vf2` frames 100/300/400/500/600 off the standalone binary reproduce [seam.md](seam.md)'s recorded
+- `vf2` frames 100/300/400/500/600 off the standalone binary reproduce [seam.md](reference/seam.md)'s recorded
   lines exactly.
 - The full per-polygon dump of `vf2` rendered frame 800 is **byte-identical** to the P0 fixture
   `devnotes/fixtures/vf2-frame800-polytap.txt` — every field of the conversion, including all five
@@ -325,7 +325,7 @@ current — correct here since the driver's flags do not depend on the OSD, but 
 trusting a build that "did nothing".
 
 **Next:** step 7, core options (savestates are deliberately out of P1 — see
-[p1-libretro-core.md](p1-libretro-core.md)). Still not committed.
+[p1-libretro-core.md](plan_finished/p1-libretro-core.md)). Still not committed.
 
 ---
 
@@ -333,7 +333,7 @@ trusting a build that "did nothing".
 
 P1's last step. `src/osd/libretro_m2/retro_options.{h,cpp}` — two core options, declared through
 `SET_CORE_OPTIONS_V2` with the v1 and pre-options forms derived from the same table so an older
-frontend gets them too. Full write-up in [p1-libretro-core.md](p1-libretro-core.md).
+frontend gets them too. Full write-up in [p1-libretro-core.md](plan_finished/p1-libretro-core.md).
 
 | key | values | default |
 | --- | --- | --- |
@@ -387,17 +387,17 @@ overridable per run by `M2OPT_<key>` in the environment, and a save directory de
 - `renderer=software` loads without the fallback warning; the default `vulkan` logs it.
 - Input regression after the L3/R3 change: the step-5 script still reaches PLAYER SELECT with the
   cursor two characters across.
-- Seam regression: `vf2` rendered frame 100 through the core reproduces [seam.md](seam.md)'s line
+- Seam regression: `vf2` rendered frame 100 through the core reproduces [seam.md](reference/seam.md)'s line
   field for field.
 - `OSD=libretro_m2` and `OSD=sdl3` both build.
 
 **P1 is done.** Savestates stay deliberately out (no Model 2 set carries `MACHINE_SUPPORTS_SAVE`;
-reasoning in [p1-libretro-core.md](p1-libretro-core.md)). Next: commit the branch, then P2.
+reasoning in [p1-libretro-core.md](plan_finished/p1-libretro-core.md)). Next: commit the branch, then P2.
 
 ## 2026-07-25 — P2 planned: Vulkan HW context, passthrough
 
 P1 is committed (`00a245ac219`, "Software core ready"). P2 is planned in
-[p2-vulkan-passthrough.md](p2-vulkan-passthrough.md); nothing implemented yet.
+[p2-vulkan-passthrough.md](plan_finished/p2-vulkan-passthrough.md); nothing implemented yet.
 
 **Frontend settled: RetroArch**, after checking what is actually on this machine rather than
 assuming. `/Applications/RetroArch.app` is 1.22.2 (git 69a4f0ea, Nov 2025), arm64,
@@ -661,7 +661,7 @@ fails with `could not create image from display`, wanting a Screen Recording per
 network command interface works and is the better tool for a HW-render core anyway —
 `network_cmd_enable`, `video_gpu_screenshot`, `screenshot_directory` in the `--appendconfig` file,
 then `printf 'SCREENSHOT' | nc -u -w0 127.0.0.1 55355`. Recorded in
-[p2-vulkan-passthrough.md](p2-vulkan-passthrough.md).
+[p2-vulkan-passthrough.md](plan_finished/p2-vulkan-passthrough.md).
 
 Next: step 4 — the picture. Staging buffer, sampler, pipeline, fullscreen triangle from
 `gl_VertexIndex`, and the clear goes away. The format chain is already confirmed
@@ -675,7 +675,7 @@ upload needs no padding).
 `renderer=vulkan` now draws MAME's frame. Staging buffer → optimal-tiled texture → fullscreen
 triangle → the ring image the frontend presents. The clear is gone. vf2's attract renders in
 RetroArch on the Vulkan path, and **the read-back is bit-identical to the software frame that went
-in**. Plan of record updated as-built in [p2-vulkan-passthrough.md](p2-vulkan-passthrough.md).
+in**. Plan of record updated as-built in [p2-vulkan-passthrough.md](plan_finished/p2-vulkan-passthrough.md).
 
 **Say this out loud before reading further, because the sentence above invites the wrong reading:
 nothing is GPU-rasterised yet.** MAME's software rasteriser draws every polygon on the CPU exactly as
@@ -1063,7 +1063,7 @@ the risks it hands forward are clearest:
   fullscreen triangle. Reading it as a stronger result than that is the main hazard the phase leaves
   behind, and it has already had to be written down twice.
 
-**`devnotes/vulkan-target.md` is new** — the measured device, extracted from two probe logs buried in
+**`devnotes/reference/vulkan-target.md` is new** — the measured device, extracted from two probe logs buried in
 this file, in the form P3 will actually want it: formats (no `D24_UNORM_S8_UINT`, use `D32_SFLOAT`),
 features (`depthBiasClamp` yes, `geometryShader` and `wideLines` no), a limits table with **both**
 hosts side by side, the copy-alignment numbers, and the extensions that are available on the device
@@ -1099,7 +1099,7 @@ A/B harness built at step 7 can still compare it against the software renderer.
 
 ## 2026-07-26 — P3 planned, and step 1 (the layer sandwich) built and verified
 
-### The plan file — `devnotes/p3-hw-geometry.md`
+### The plan file — `devnotes/plan_finished/p3-hw-geometry.md`
 
 Written first, as CLAUDE.md's "Next step" asked. Same shape as the P1 and P2 files: what the phase
 delivers, an exit criterion, the problems and how each is handled, where the code goes, the order of
@@ -2084,7 +2084,7 @@ The Mac is the development and A/B host, not the target.
 Before this entry the word "Quest" appeared in **no file in the repo** — the only `Unity` hits were
 Polydiver the research project. Every performance judgement in P2 and P3 was made without it, which is
 why two of them turn out to be wrong. It is now at the top of `CLAUDE.md` and the analysis is in the
-new **[performance.md](performance.md)**.
+new **[performance.md](reference/performance.md)**.
 
 ### Correction 1 — "104.5 % of full speed" is a throttle artifact, not headroom
 
@@ -2514,7 +2514,7 @@ the real system overlaps.
 
 ## 2026-07-26 — Input survey, and a P6 options proposal
 
-**`devnotes/user-options.md`.** Prompted by a question about Dynamite Baseball's bat controller. No
+**`devnotes/reference/user-options.md`.** Prompted by a question about Dynamite Baseball's bat controller. No
 code changed. The survey is parsed out of `src/mame/sega/model2.cpp` at mame0288: **83 GAME entries,
 32 input-port sets, and they collapse to 6 tiers.**
 
@@ -2578,7 +2578,7 @@ per-game descriptors and the override table → internal resolution (P5).
 
 ## 2026-07-26 — P4 planned, and the measurement voids its premise
 
-**`devnotes/p4-depth-and-decals.md`.** No code changed; HEAD is still `c38dbbefffe` and `git status`
+**`devnotes/plan_finished/p4-depth-and-decals.md`.** No code changed; HEAD is still `c38dbbefffe` and `git status`
 is clean. The phase was scoped as "Correctness: decals / z-fight / sort — the hard part". **Measured,
 the hard part is not there**, and adopting interpolated z would be a regression rather than a fix.
 
@@ -2638,7 +2638,7 @@ taking the port before P5.
 
 ---
 
-## 2026-07-26 — Licence audit for a public binary release (`devnotes/legalstuff.md`)
+## 2026-07-26 — Licence audit for a public binary release (`devnotes/reference/legalstuff.md`)
 
 **No code changed.** HEAD is still `c38dbbefffe` and `git status` is clean. The question was "assuming
 the repo stays public, can a binary be released?" and the answer is **yes**, with one decision
@@ -2715,7 +2715,7 @@ of two. ⚠️ **It is also a single point of failure no clone carries**: a fres
 line and would show `CLAUDE.md` and `devnotes/` as untracked, so a second working copy has to re-add
 both by hand before anything else.
 
-**New file: `devnotes/legalstuff.md`** (§9 is a release checklist), row added to the devnotes index.
+**New file: `devnotes/reference/legalstuff.md`** (§9 is a release checklist), row added to the devnotes index.
 The one piece of new public-facing prose the release needs is the fork README — and the
 commit-hygiene rules apply to it in full, along with the release notes.
 
@@ -2938,7 +2938,7 @@ depend on the resolution — was an argument until today and is now a measuremen
 Committed as **`83491ca0fa3`**, "Draw the frame at an internal scale and resolve it back down".
 No upstream file touched, so **the diff against mame0288 is still 30 lines**. New:
 `renderer_vk/shaders/downsample.frag`, `devnotes/res.sh`, `devnotes/res-table.py`,
-`devnotes/res-baselines.md`. Changed: `vk_present.cpp`, `vk_geom.{h,cpp}`, `poly.vert` (comment only —
+`devnotes/reference/res-baselines.md`. Changed: `vk_present.cpp`, `vk_geom.{h,cpp}`, `poly.vert` (comment only —
 `poly_vert_spv.h` regenerated byte-identical), `build_shaders.sh`, `devnotes/README.md`,
 `screenshots/README.md`.
 
@@ -2981,7 +2981,7 @@ that carries the claim. `res.sh` enforces `ppmdiff`'s interior verdict only on p
 so in the report; on box runs it prints it as information and judges on the background reference and
 exit criterion 1.
 
-### The result — [res-baselines.md](res-baselines.md), regenerate with `res-table.py`
+### The result — [res-baselines.md](reference/res-baselines.md), regenerate with `res-table.py`
 
 3× point, 10 fixtures: **`A only` 0 on 8 of 10** (dynamcop 12, schamp 2, every one of them on a
 silhouette edge with 2–7 both-covered neighbours and 10 of the 14 the `(0,0,0)`-background drew-black
@@ -3139,7 +3139,7 @@ opens by saying never to retype one. The plan cites `devnotes/` paths instead.
 
 **What P4 turned out to be**: one free optimisation, one invariance check, and a correction to the
 plan. It was scoped as "the hard part". The reason it was not is the whole content of §1–2 of
-[p4-depth-and-decals.md](p4-depth-and-decals.md) — P3 picked a design that made the phase's problem
+[p4-depth-and-decals.md](plan_finished/p4-depth-and-decals.md) — P3 picked a design that made the phase's problem
 not exist, *because* the plan had named the hazard.
 
 ### Process note
@@ -3297,7 +3297,7 @@ the generated identifier, so the names are `Model 2 (vf2)` and the id is filtere
 ## 2026-07-27 — Smoke-test questions answered: the MoltenVK warning is not ours, coin works, and the pad mapping gets FBNeo parity
 
 Three things came out of a RetroArch smoke test. **No core code changed**; the only write is
-[lightgun.md](lightgun.md), which gained §2.5 and a step 6.
+[lightgun.md](reference/lightgun.md), which gained §2.5 and a step 6.
 
 **1. `[mvk-warn] VK_ERROR_FEATURE_NOT_PRESENT: Metal does not support disabling primitive restart` is
 RetroArch's, not ours, and the attribution is measured rather than argued.** Two 900-frame `vf2` runs
@@ -3347,7 +3347,7 @@ Classic. **Buttons 5 and 6 are swapped** — we have `L, R`, FBNeo Classic has `
 The divergence that matters is not the default, it is that both cores offer **alternatives as
 controller device types** (`retro_set_controller_port_device`, a stub here) and expose the service
 menu as a **button combo core option** rather than dedicated buttons. Written up as
-[lightgun.md §2.5](lightgun.md) + step 6, placed in that phase because it reuses the very dispatch
+[lightgun.md §2.5](reference/lightgun.md) + step 6, placed in that phase because it reuses the very dispatch
 step 2 has to build anyway.
 
 Three places "exactly like FBNeo" cannot be literal here, all recorded in §2.5 with their evidence:
@@ -3369,7 +3369,7 @@ sets (`daytona` VR1–3, `desert` VR2/3, `srallyc` VR, `gears` GEAR 4, `segawski
 mappings?"** Answer: not for that question. The fault class a play-through is worst at — a control
 with **no** mapping — is static, and it took two minutes: every `IPT_*` in `model2.cpp` against our
 `configure()` plus MAME's `assignmenthelper.cpp`. Matrix and method are now
-[user-options.md §3.1](user-options.md); the four gaps are folded into `lightgun.md` step 6.
+[user-options.md §3.1](reference/user-options.md); the four gaps are folded into `lightgun.md` step 6.
 
 Everything the platform uses is covered except four, and **two of them are in `daytona`**:
 
@@ -3446,7 +3446,7 @@ carries gap 2's collision as a known limitation with the reason it cannot be mov
 
 ## 2026-07-27 — Lightgun step 1: the instrument, and the stick's aim is not linear
 
-`devnotes/lightgun.md` §3 step 1 — the read-out and the script controls, before any of the gun
+`devnotes/reference/lightgun.md` §3 step 1 — the read-out and the script controls, before any of the gun
 device itself. **Committed as `607d9f6528b` "Report the resolved lightgun port values".** Files:
 **new `src/osd/libretro_m2/m2vk_gunlog.h`**, plus `libretro_m2_osd.cpp` (two call sites); the
 `devnotes/retrohost.c` half of the step never ships and is not in the commit. **No upstream file
@@ -3727,7 +3727,7 @@ the change is inside a branch only a `RETRO_DEVICE_LIGHTGUN` port reaches.
 
 ## 2026-07-27 — Lightgun step 4: the reticle, and the two blitters agree to the pixel
 
-`devnotes/lightgun.md` §3 step 4, struck through and rewritten as-built. New files
+`devnotes/reference/lightgun.md` §3 step 4, struck through and rewritten as-built. New files
 `src/osd/libretro_m2/m2vk_reticle.{h,cpp}` and `renderer_vk/shaders/reticle.frag` (+ its generated
 `_spv.h`); edits to `retro_entry.cpp`, `libretro_m2_osd.cpp`, `renderer_vk/vk_present.cpp`,
 `scripts/src/osd/libretro_m2.lua` and `shaders/build_shaders.sh`. **No upstream file touched; the
@@ -4070,8 +4070,8 @@ what a pure refactor can be checked against after the fact.
 
 ## 2026-07-28 — Lightgun step 7: the docs pass, and the phase closes
 
-**No executable code changed.** Five writes — this entry, [lightgun.md](lightgun.md) struck through
-and rewritten as-built, `CLAUDE.md`'s "Where we are" and "Next", [user-options.md](user-options.md)
+**No executable code changed.** Five writes — this entry, [lightgun.md](reference/lightgun.md) struck through
+and rewritten as-built, `CLAUDE.md`'s "Where we are" and "Next", [user-options.md](reference/user-options.md)
 §7 closed with §1's corrections folded back, and two missing sections in
 [screenshots/README.md](screenshots/README.md). Nothing was re-measured and nothing needed to be:
 step 6 reproduced both vf2 baselines at this working tree, and the docs steps of P3 and P4 set the
@@ -4485,7 +4485,7 @@ of it — 1× has 782 unique colours in vf2's last frame and 4× has 11172, ever
 produced by throwing the resolution away.
 
 **As built: nine absolute resolutions, `496x384` to `2848x2136`, drawn into and handed over as drawn.**
-Full record in **[p5-internal-resolution.md](p5-internal-resolution.md)** — this entry is what was
+Full record in **[p5-internal-resolution.md](plan_finished/p5-internal-resolution.md)** — this entry is what was
 learned rather than what was built.
 
 Files: `vk_present.{h,cpp}`, `vk_geom.{h,cpp}`, `poly.{vert,frag}`, `reticle.frag`, `retro_entry.cpp`,
@@ -4572,7 +4572,7 @@ native, `Content ran for a total of: 24 seconds` for 1400 frames. Native is a pr
 # 2026-07-28 — `model2_transparency`: the `checker` screen door as a real blend
 
 Asked for as a core option: true transparency instead of the screen-door transparency. Built, off by
-default, Vulkan only. **[blended-transparency.md](blended-transparency.md) is the record.** No new
+default, Vulkan only. **[blended-transparency.md](reference/blended-transparency.md) is the record.** No new
 source file, no upstream file, no shader file added — `poly.frag` and `poly.vert` grew a push-constant
 word, `vk_geom.{h,cpp}` grew a third pipeline and a deferred list, and the option is the usual four
 lines in `retro_options.{h,cpp}` plus `retro_entry.cpp`. **Diff against mame0288 unchanged.**
@@ -4734,11 +4734,11 @@ inputs/mappings for each Model 2 game", which turned into an audit and then into
 
 ## What was done
 
-- **[input-map.md](input-map.md)** — the per-game input map. All 32 port sets, every `PORT_NAME` in
+- **[input-map.md](reference/input-map.md)** — the per-game input map. All 32 port sets, every `PORT_NAME` in
   `model2.cpp` lines 1632–2431, against the RetroPad control that produces it under Classic, Modern
   and Light Gun. Read out of `model2.cpp`, `libretro_m2_input.cpp` and `assignmenthelper.cpp`;
   **nothing was run**, and the claims that are inferences rather than transcriptions say so in place.
-- **[per-game-input.md](per-game-input.md)** — the plan that came out of it, with `daytona` as the
+- **[per-game-input.md](plan_finished/per-game-input.md)** — the plan that came out of it, with `daytona` as the
   testbed. Six steps. Promoted **ahead of the analog steering curve**, which is now second.
 - `user-options.md` §6, `CLAUDE.md`'s "Next step" and its queued list, and the `devnotes/README.md`
   index all updated to match.
@@ -4894,7 +4894,7 @@ frame, because "does nothing on a menu screen" is a true and useful thing for th
 
 ## 2026-07-29 — Savestates: planned, built, partly working
 
-Asked for a plan to get savestates working; wrote [savestates.md](savestates.md), then built it.
+Asked for a plan to get savestates working; wrote [savestates.md](reference/savestates.md), then built it.
 **`vf2` and `daytona` pass; `vcop2` and `vstriker` still diverge.** Nothing committed. §9 of that file
 is the as-built record; this is the session log.
 
@@ -5711,7 +5711,7 @@ says what the button actually does on that cabinet. Plus: **get rid of `RetroPad
 *"I want to make those decisions of how the keys are bound, and I don't want to have to explain to you
 which button does which — so build me an HTML5 tool."*
 
-**[devnotes/padmap-tool.md](padmap-tool.md) is the record.** What landed, in one line: the machine now
+**[devnotes/reference/padmap-tool.md](reference/padmap-tool.md) is the record.** What landed, in one line: the machine now
 describes its own controls to a browser, the browser authors a table, a generator compiles it, and the
 core reads one table for both the pad and the frontend's labels.
 
@@ -5753,7 +5753,7 @@ core reads one table for both the pad and the frontend's labels.
   by two rows.
 - 🚨 **The generator exists so the labels can be DERIVED from the sources.** Two hand-written copies of
   that relationship is what put daytona's GEAR 4 and VR1 the wrong way round for months
-  ([input-map.md](input-map.md) §5.1). Deriving makes it structurally impossible, and the collision check
+  ([input-map.md](reference/input-map.md) §5.1). Deriving makes it structurally impossible, and the collision check
   falls out of the same pass. **Do not add a second label table anywhere.**
 - 🚨 **The `lightgun` row flag was missing and the gun descriptors went out on EVERY set** — daytona's
   remap screen listed a lightgun trigger called "GEAR 1" and vf2's listed one called "Punch".
@@ -5775,7 +5775,7 @@ core reads one table for both the pad and the frontend's labels.
 
 ### Verified
 
-**The A/B no-op guard passes with all nine digests byte-exact against [ab-baselines.md](ab-baselines.md)**
+**The A/B no-op guard passes with all nine digests byte-exact against [ab-baselines.md](reference/ab-baselines.md)**
 on `vf2` (an authored row), `schamp` and `dynamcop` (both unauthored, both on the generic row) — which is
 the proof the 62 unauthored entries are untouched. `padmap-gen.py --check` and `padmap-test.sh` pass.
 `M2VK_HOST_DESCRIPTORS` confirmed on daytona / vf2 / vcop / schamp.
@@ -5912,7 +5912,7 @@ in served mode only. Two files, both `devnotes/tools/`. **No core code, no upstr
   start`. **Do not go back to `devnull` and do not trust the return code.**
 - 🚨 **The actual `doa` failure was NOT the button: `~/Documents/RetroArch/system/model2` was an EMPTY
   DIRECTORY, and that is the core's second rompath** (`retro_entry.cpp:669`). So every set needing
-  `Polydiver/roms` — `doa` is the one left, [roms.md](roms.md) — failed its audit **under RetroArch
+  `Polydiver/roms` — `doa` is the one left, [roms.md](reference/roms.md) — failed its audit **under RetroArch
   only**, while every retrohost run passed, because the harness is always pointed at both paths. Created
   2026-07-27 and empty ever since; nothing else looks there, so nothing else could have noticed. Fixed
   with a symlink to `Polydiver/roms`; `doa` now boots and runs at 1440×1080 under RetroArch, and the same
@@ -6014,7 +6014,7 @@ came from the file.
 ## 2026-08-02 — Compatibility audit: a boot sweep of the whole local ROM set, and three sets that were misnamed rather than missing
 
 **Asked for a compatibility list — game name, supported or not, which ROM set to use.** Written as
-[compatibility.md](compatibility.md); the index row is in `README.md` and it is the one doc here aimed
+[compatibility.md](reference/compatibility.md); the index row is in `README.md` and it is the one doc here aimed
 at a reader who is not us. **No code changed.**
 
 **Method: a boot sweep, not an opinion.** Every zip in `devnotes/roms/` run for 1800 host frames
@@ -6066,7 +6066,7 @@ no_3d=1`, which is what made a 33-set sweep readable in one pass.
 
 **It builds and links. It has not been run on a phone.** `./devnotes/build-android.sh` produces
 `model2_libretro_android.so`, aarch64, 89.6 MB unstripped, all 25 `retro_*` entry points exported.
-**[devnotes/android.md](android.md) is the record.**
+**[devnotes/reference/android.md](reference/android.md) is the record.**
 
 🚨 **THE HEADLINE IS THAT THE CORE WAS ALREADY PORTABLE AND NOT ONE LINE OF IT CHANGED.** The tree was
 checked rather than assumed before any glue was written: **zero Apple-specific code** in
@@ -6140,7 +6140,7 @@ and looking at it, and **a phone screenshot is not comparable to anything in `de
 ✅ **`vf2` and `daytona` boot, render and play on an AYN Odin 2 Portal** (Snapdragon 8 Gen 2,
 `Adreno (TM) 740`, Android 13, RetroArch 1.22.2, Vulkan driver). Screenshots in
 `devnotes/screenshots/2026-08-07-android-odin-{vf2,daytona}.png`. **First light needed no code change
-at all** beyond yesterday's build glue. **[devnotes/android.md](android.md) is the record** — §5a is
+at all** beyond yesterday's build glue. **[devnotes/reference/android.md](reference/android.md) is the record** — §5a is
 the device read-out and §7 the install/launch loop.
 
 🚨 **THE DEVICE IS THE QUEST 3's GPU.** XR2 Gen 2 is the same silicon family as the 8 Gen 2, so a
@@ -6203,7 +6203,7 @@ the same HEAD). **No code changed and no commit was needed.**
 
 🚨 **The headline finding is that NOT ONE COMMITTED FILE HAS EVER NAMED THE REPO.** A tree-wide search
 returned nine hits and every one is local-only or untracked: `CLAUDE.md` (×3), `devnotes/README.md`,
-`devnotes/legalstuff.md`, `devnotes/worklog.md`, `.vscode/settings.json` (untracked — confirmed with
+`devnotes/reference/legalstuff.md`, `devnotes/worklog.md`, `.vscode/settings.json` (untracked — confirmed with
 `git ls-files .vscode/`, which prints nothing) and the three `devnotes/shortcuts/apps/*.app` launchers.
 So the rename is **invisible to the public tree**: nothing to commit, nothing for an upstream merge to
 conflict with, and §9's release checklist is untouched.
@@ -6238,7 +6238,7 @@ to do the provenance job as well as the disclaimer job. **Still the user's to wr
 (2026-07-27) stands.
 
 **Docs updated:** `CLAUDE.md` (title + a rename note under it + the release paragraph),
-`devnotes/README.md`, `devnotes/legalstuff.md` §5 (both bullets and item 1, corrected in place), and
+`devnotes/README.md`, `devnotes/reference/legalstuff.md` §5 (both bullets and item 1, corrected in place), and
 this entry. The `mame-model2-vk` strings left in this file above are dated records and were not
 rewritten.
 
@@ -6320,7 +6320,7 @@ stale *yet* — which is exactly how this one hides, since it only bites at the 
 the play section, and "Where we are"), `devnotes/shortcuts/README.md` (the paths table, the
 Load Core line, the `.opt` name, and the paragraph that claimed the ROM folder name was the core's
 `library_name` — that coincidence is gone), `devnotes/shortcuts/retroarch.sh` (the `.opt` it reads and
-the menu hint it prints), and `devnotes/legalstuff.md` §5 (the `library_name` paragraph and item 1,
+the menu hint it prints), and `devnotes/reference/legalstuff.md` §5 (the `library_name` paragraph and item 1,
 corrected in place). 🚨 **The rename is naming consistency, NOT a trademark change** — neither
 `Model 2` nor `m2-vk` carries the wordmark, so §5's conclusion is untouched; what it does is close
 item 1 by making the repo name, the `corename` and the `library_name` all agree. Dated records
@@ -6377,7 +6377,7 @@ tool, not something a player on a handheld can reach.
 
 ## 2026-08-07 — steering curve step 1: the detector, MAME's analog settings, and the read-out
 
-[steering-curve.md](steering-curve.md) step 1. **It shapes nothing** — that is the whole point of the
+[steering-curve.md](reference/steering-curve.md) step 1. **It shapes nothing** — that is the whole point of the
 step, and the evidence for it is that `ab.sh` reproduces all nine `ab-baselines.md` digests
 byte-exactly on three fixtures and the read-out prints `shaped == raw` on every line of every sweep.
 
@@ -6477,7 +6477,7 @@ of nothing *breaking*, never of anything working. The working evidence is the sw
 
 ## 2026-08-07 — steering curve step 2: the pipeline, behind the switches only
 
-`devnotes/steering-curve.md` step 2. **Three files, all `src/osd/libretro_m2/`** — `m2vk_steer.h`
+`devnotes/reference/steering-curve.md` step 2. **Three files, all `src/osd/libretro_m2/`** — `m2vk_steer.h`
 (the shaping, the config reader, two lines of read-out), `libretro_m2_input.{h,cpp}` (the call site
 and the write-back). `libretro_m2_osd.cpp` changed one comment. **No upstream file, no shader, no new
 file, no pixel**; the diff against mame0288 is unchanged.
@@ -6611,7 +6611,7 @@ as core options, live, with the switches overriding them and joining the announc
 
 ## 2026-08-07 — steering curve step 3: the three core options, live, with the switches overriding them
 
-[devnotes/steering-curve.md](steering-curve.md) §4 step 3, now as-built. Four files, all
+[devnotes/reference/steering-curve.md](reference/steering-curve.md) §4 step 3, now as-built. Four files, all
 `src/osd/libretro_m2/`: `m2vk_steer.h` (the option storage and the composition), `retro_options.{h,cpp}`
 (the table and the getters), `retro_entry.cpp` (the reads, the log line, the switch announcements).
 **No upstream file, no shader, no new file, no pixel.** `git diff --numstat mame0288 -- src/devices
@@ -6693,7 +6693,7 @@ Medium + 5 % is accepted or moved.
 
 ## 2026-08-07 — steering curve step 4: the labels, the one gap they had, and a check that keeps it shut
 
-[devnotes/steering-curve.md](steering-curve.md) §4 step 4, now as-built. Two files —
+[devnotes/reference/steering-curve.md](reference/steering-curve.md) §4 step 4, now as-built. Two files —
 `src/osd/libretro_m2/input_layouts.{json,ipp}`, the second generated from the first — plus
 `devnotes/tools/padmap-gen.py`. **No C++, no upstream file, no shader, no new file, no pixel.**
 `git diff --numstat mame0288 -- src/devices src/mame` unchanged.
@@ -6766,7 +6766,7 @@ is where that is decided with a pad, and it is unchanged by this step.
 
 - `ab.sh desert 2500` — the changed set — `0c5533aa763ce5c3` / `bcf3237a5747a53b` / `444c4d30a83c91f4`,
   covered 138222, SSIM covered 0.999376, 0 real interior disagreements. Byte-exact against
-  [ab-baselines.md](ab-baselines.md).
+  [ab-baselines.md](reference/ab-baselines.md).
 - `ab.sh vf2 2500` — `c3aaa56633c1c4f7` / `9c20f1fac9d9fe92` / `de94f44a06151f71`, covered 107568,
   0.996985. Byte-exact.
 - `padmap-gen.py --check` — **23 rows naming 27 sets** (was 22 / 26), `.ipp` matches `.json`.
@@ -6851,7 +6851,7 @@ sized by **how much steering the game is actually receiving**. Built, and it is 
 
 ### It is the reticle again, and that is why it was cheap
 
-Every hard part was solved by devnotes/lightgun.md step 4 and is reused rather than re-argued: a
+Every hard part was solved by devnotes/reference/lightgun.md step 4 and is reused rather than re-argued: a
 normalised state published once per frame from the thread that knows the number, two blitters (a
 scissored fullscreen triangle after the OVER layer, a CPU blit into MAME's finished frame for
 `renderer=software`), opaque so the two paths produce the *same pixels* rather than the same picture,
@@ -6888,7 +6888,7 @@ asserted.
   ones. The core announces the override on its own line, as the other switches do.
 - **The no-op guard passes on a steering fixture, which is the one that matters**: `ab.sh srallyc 2500`
   gives `49f86e1309ca422b` / `6fcc26a931ab2b01` / `172bb47c8ba8f383`, covered 136116, SSIM 0.988401 —
-  byte-exact against [ab-baselines.md](ab-baselines.md), as is `ab.sh vf2 2500`
+  byte-exact against [ab-baselines.md](reference/ab-baselines.md), as is `ab.sh vf2 2500`
   (`c3aaa56633c1c4f7` / `9c20f1fac9d9fe92` / `de94f44a06151f71`).
 - Screenshots: `devnotes/screenshots/2026-08-08-steerbar-daytona-{centre,left-half,right-full,
   left-half-software,off}.png`, all from `retrohost --vk` except the one named software.
@@ -6916,7 +6916,7 @@ the option's description says so. `Model 2 Steering.command` toggles it with `d`
 
 **Docs only. No file in `src/` touched, nothing rebuilt, nothing measured** — so there is no digest in
 this entry and there should not be. Three files:
-[steering-handcheck.md](steering-handcheck.md), [steering-curve.md](steering-curve.md) §2/§3.5/§6/step
+[steering-handcheck.md](reference/steering-handcheck.md), [steering-curve.md](reference/steering-curve.md) §2/§3.5/§6/step
 6/§7 q4, and this log.
 
 The user brought a survey of how other projects map a pad onto an arcade wheel — Supermodel, MAME,
@@ -7035,7 +7035,7 @@ below 100 % makes full lock arrive earlier in stick travel, and this pad already
 gate in every direction — so lowering it stacks a second plateau on a measured one. Keep `100%` here.
 
 ⚠️ **And it changes how test 5 must be read**: a Range preference measured on this pad would be
-measuring the clip, not the player's taste. Noted in [steering-handcheck.md](steering-handcheck.md).
+measuring the clip, not the player's taste. Noted in [steering-handcheck.md](reference/steering-handcheck.md).
 Deadzone `5%` is confirmed sound from the other side — worst drift is 0.0103, comfortably inside it.
 
 ### ⚠️ The instrument lied first, and the lesson is about sample density
@@ -7069,7 +7069,7 @@ Logs kept: `sticktest-run1.log` (the sparse one, superseded), `sticktest-run2-hi
 
 ## 2026-08-08 (5) — the hand-check answered: **`Slight` is the default now**, and `vf2`'s "no inputs work" is not the steering chain
 
-Step 5 of [steering-curve.md](steering-curve.md) — the one step that is a person with a pad — came
+Step 5 of [steering-curve.md](reference/steering-curve.md) — the one step that is a person with a pad — came
 back. Three of its four decisions are made, one of them against the survey, and the fourth is a bug
 report about something else entirely.
 
@@ -7260,7 +7260,7 @@ entries in `retro_options.cpp` now read: `model2_steering_response` = `Slight` (
 (reversing the 2026-08-08 hand-check's `3b` answer of `100%`), **`model2_steering_damp_drive` = `4`**,
 **`model2_steering_damp_return` = `8`** (both were `Off` since the 2026-08-11 damping feature shipped).
 
-⚠️ **The Range reversal is not a re-run of Test 5** — [steering-handcheck.md](steering-handcheck.md)'s
+⚠️ **The Range reversal is not a re-run of Test 5** — [steering-handcheck.md](reference/steering-handcheck.md)'s
 5a/5b transcript is untouched and still says `100%`, on a pad that steering-handcheck.md §5 itself
 flagged as clipping before its physical gate (measured on `sticktest.c`), which is exactly the
 confound that would make an `80%` preference read as "no" on that particular controller. This is a
@@ -7347,7 +7347,7 @@ draws over MAME's finished 2D frame via the passthrough path — so 2D overlays 
 (`s22_seam.{h,cpp}`) **moved from the driver project into the shared OSD** so the Model 2 build resolves
 the `s22::` symbols too (inert there). Model 2 unaffected — links and presents unchanged (vf2 vk 1200
 frames, no S22 capture). **Upstream diff: namcos22_v.cpp +26/-0 (+2 for the guard); total 161/2 across
-6 files.** Detail + screenshots in [s2-gpu-geometry.md](s2-gpu-geometry.md). Next: texture tail, then
+6 files.** Detail + screenshots in [s2-gpu-geometry.md](plan_finished/s2-gpu-geometry.md). Next: texture tail, then
 2D-over compositing, sprites and the SS22 shading path.
 
 ## 2026-08-22 — S2b: System 22 texture tail
@@ -7363,7 +7363,7 @@ is static and uploaded once into buffers shared by every slot; only the 128 KB p
 per frame. The driver hands the pointers over a new `s22::set_texture_ram()` call in the frame bracket.
 Pipeline gained a 5-buffer descriptor set and subsumes the S2a untextured pipeline (one pipeline, flag
 switches). Model 2 unaffected (vf2 vk 1200 frames, no S22 capture). **Upstream diff: namcos22_v.cpp
-+29/-0; total 165/2 across 7 files.** Detail + screenshots in [s2-gpu-geometry.md](s2-gpu-geometry.md).
++29/-0; total 165/2 across 7 files.** Detail + screenshots in [s2-gpu-geometry.md](plan_finished/s2-gpu-geometry.md).
 Next: 2D-over compositing (the HUD the 3D covers), then SS22 fog/fade/alpha and sprites.
 
 ## 2026-08-22 — S2c: System 22 2D-over compositing
@@ -7382,7 +7382,7 @@ existing `slot.layers[LAYER_OVER]` staging (no new Vulkan resource). Faithful fo
 limits (alpha/shadow text blends against UNDER not the 3D; behind-poly text still shows; SS22
 sprite-in-tree z not resolved) are acceptable for the racer set and noted in the doc. Model 2 unaffected
 (vf2 vk 1100 frames, no S22 capture). **Upstream diff: namcos22_v.cpp +44/-0; total 180/2 across 7
-files.** Detail + screenshot in [s2-gpu-geometry.md](s2-gpu-geometry.md). Next: SS22 fog/fade/alpha,
+files.** Detail + screenshot in [s2-gpu-geometry.md](plan_finished/s2-gpu-geometry.md). Next: SS22 fog/fade/alpha,
 then sprites.
 
 ## 2026-08-22 — S2d: System 22 shading tail (fog / fade / poly-alpha) + a GPU-path crash fix
@@ -7417,7 +7417,7 @@ resets its poly arrays — the arena grew every frame and `poly_array::next()` o
 ~4000 frames (`ridgerac` SIGBUS at ~4200). One guarded line reclaims it:
 `if (!s22::sw_owns_3d()) object_data().reset();`. Every earlier test ran ≤1800 frames, which is why it
 went unseen. Model 2 unaffected (vf2 vk 1200 frames, zero `s22:` lines). **Upstream diff: namcos22_v.cpp
-+84/-0; total 220/2 across 7 files.** Detail in [s2-gpu-geometry.md](s2-gpu-geometry.md).
++84/-0; total 220/2 across 7 files.** Detail in [s2-gpu-geometry.md](plan_finished/s2-gpu-geometry.md).
 
 ## 2026-08-22 — S2d fix: the final gamma LUT (things were ~half as bright)
 
@@ -7504,7 +7504,7 @@ gold score/time sprite frames, flying character, and the wooden-banner sprite wi
 composite correctly). Plain S22 provably inert: ridgerac digest `62db03fd8ee89035`, bit-identical to the
 letterbox baseline, 0 sprite tiles. Model 2 unaffected (vf2 vk 1200 frames, zero `s22:` lines). Upstream
 diff: `namcos22_v.cpp` +121/−0; total vs `mame0288` **257/2 across 7 files**. Detail in
-[s2-gpu-geometry.md](s2-gpu-geometry.md).
+[s2-gpu-geometry.md](plan_finished/s2-gpu-geometry.md).
 
 **Follow-up same day — `M2VK_NO_3D` fixed for System 22.** It had never suppressed the S22 software 3D:
 `set_gpu(false)` couples "GPU off" to `sw_owns_3d() == true`, so the rasteriser kept drawing the 3D into
@@ -7583,7 +7583,7 @@ Result (starblad attract, 4500f, --vk): GPU vs software **97.1% exact**, mean di
 polygon edges (`y 140–273`) — the GPU/scanline coverage residual Model 2 has. Model 2 / namcos22 builds
 unchanged (every `s21::` path inert, gated on `find("starblad")`). **Deferred to T2b:** the `pri1==4`
 z-mixed layer-0 (`mix_layer0_sprites`) — its sprites are omitted from the overlay until the z-mix moves
-onto the GPU depth buffer. Detail in [t1-seam-tap.md](t1-seam-tap.md), [t2-untextured-gpu.md](t2-untextured-gpu.md).
+onto the GPU depth buffer. Detail in [t1-seam-tap.md](t1-seam-tap.md), [t2-untextured-gpu.md](plan_finished/t2-untextured-gpu.md).
 
 ## 2026-08-24 — T2b: the `pri1==4` layer-0 z-mix, on the GPU depth buffer
 
@@ -7609,7 +7609,7 @@ applies a real 0.8× vertical **rescale**, not a crop — a naive top-384-rows c
 content and looks like a 40% structural mismatch that isn't there. Found, not fixed (out of scope): a
 cybsled in-HUD sub-viewport renders solid green on the GPU path where software shows detail — looks like
 `s21.h`'s "S21 does not window the 3D" note not holding for every C67 game, a T2a-era gap. Detail in
-[t2-untextured-gpu.md](t2-untextured-gpu.md).
+[t2-untextured-gpu.md](plan_finished/t2-untextured-gpu.md).
 
 ---
 
@@ -7671,12 +7671,12 @@ tooling and layout data.
   (`namcos21.cpp`, `namcos21_c67.cpp`, `namcos21_de.cpp`); `padmap-sweep.sh` has a `system21` family
   (one family, three source files). ⚠️ Full browser-editor bring-up (running the sweep → S21 in
   `padmap-data.js`, TIERS entries, `padmap-test.js` total bumps) left for when more S21 pads are authored.
-- **A/B baselines** recorded for the four fixtures via `ab-table.py` — [ab-baselines.md](ab-baselines.md)
+- **A/B baselines** recorded for the four fixtures via `ab-table.py` — [ab-baselines.md](reference/ab-baselines.md)
   "System 21". `starblad` (coverage 0.998) and `cybsled` (0.9985) sit on their T4 numbers and are clean
   at frame 2500; `winrun` shows no 3D at 2500 and `winrungp`'s 2500 is a fast-motion frame (0.596) — a
   sample-point artefact, not a renderer disagreement (T4's controlled-frame coverage is 0.9998 / 1.0000).
   A per-set 3D frame for the two Winning Runs is the open tidy-up.
-- **Compatibility matrix** — first Track-D-format table added to [compatibility.md](compatibility.md)
+- **Compatibility matrix** — first Track-D-format table added to [compatibility.md](reference/compatibility.md)
   (Game/romset/Driver/Boots/Renders/On GPU/Input mapped/Key-map verified/Savestate/Notes) for the four
   S21 sets; `aircomb`/`solvalou`/`driveyes`/`winrun91` listed as not-yet-exercised.
 - **Owed hand-checks** (rendering is verified statically, controls are not): winrun/winrungp steering &

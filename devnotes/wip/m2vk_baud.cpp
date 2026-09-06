@@ -23,7 +23,7 @@ static int mode()
 	// points exactly and is the control that separates "the mechanism is wrong" from "the machine
 	// noticed the missing scheduler breaks".
 	// 🚨 DEFAULT OFF. Two hand-checks in a row found audible faults on daytona that every digest,
-	// savestate and byte-stream measurement had passed (devnotes/lazy-baud.md). It stays opt-in
+	// savestate and byte-stream measurement had passed (devnotes/reference/lazy-baud.md). It stays opt-in
 	// (M2VK_LAZY_BAUD=1) until a listening check signs it off.
 	static int cached = -1;
 	if (cached < 0)

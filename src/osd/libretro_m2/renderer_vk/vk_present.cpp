@@ -454,7 +454,7 @@ uint32_t env_supersample()
 
 // M2VK_RES=<w>x<h>, the internal resolution's overriding switch, parsed once for the same reason.
 // It exists because no entry in the option's list is an integer multiple of 496x384, and the
-// equivalence check against the M2VK_SS path needs one — see devnotes/p5-internal-resolution.md.
+// equivalence check against the M2VK_SS path needs one — see devnotes/plan_finished/p5-internal-resolution.md.
 uint32_t s_env_width = 0;
 uint32_t s_env_height = 0;
 bool s_env_res_read = false;

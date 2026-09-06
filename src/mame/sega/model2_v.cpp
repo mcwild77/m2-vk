@@ -312,7 +312,7 @@ void model2_state::raster_init(memory_region *texture_rom)
 	// vblank (model2_v.cpp render_frame_start), and the libretro save point sits after the frame's
 	// polygons were consumed and before the next vblank builds them. That is a guarantee this core
 	// can make and MAME cannot, because MAME serialises at arbitrary scheduler points.
-	// devnotes/savestates.md §1.6, measured by devnotes/state.sh.
+	// devnotes/reference/savestates.md §1.6, measured by devnotes/state.sh.
 	save_item(NAME(m_raster->cur_window));
 #endif
 }
@@ -1035,7 +1035,7 @@ void model2_state::geo_init(memory_region *polygon_rom)
 #ifdef M2VK
 	// Geometry-engine state upstream leaves unregistered: the projection focus, the light vector, and
 	// the 32 texture parameter slots. All three are set by display-list commands and persist until the
-	// next one changes them, so they outlive the frame that wrote them. devnotes/savestates.md §1.5.
+	// next one changes them, so they outlive the frame that wrote them. devnotes/reference/savestates.md §1.5.
 	//
 	// focus and light are poly_vertex (poly.h vertex_t) -- two scalars plus a std::array, which
 	// save_item handles a member at a time but not whole.
@@ -2475,7 +2475,7 @@ void model2_state::video_start()
 	// handler) and that copy is private, so it is not restored here. Harmless and bounded rather than
 	// overlooked: it is re-pushed whenever the game writes the register, and any two boots of the same
 	// set write the same value, so a loaded state cannot disagree with the machine it is loaded into.
-	// devnotes/savestates.md §1.5.
+	// devnotes/reference/savestates.md §1.5.
 	save_item(NAME(m_crtc_xoffset));
 	save_item(NAME(m_crtc_yoffset));
 	save_item(NAME(m_palette_dirty));

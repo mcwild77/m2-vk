@@ -3,7 +3,7 @@
 /*********************************************************************************************************************************
 
     Sega Model 2 steering — paddle detector, MAME analog capture, read-out, shaping pipeline.
-    Full design in devnotes/steering-curve.md.
+    Full design in devnotes/reference/steering-curve.md.
 
     Include AFTER emu.h: names ioport types, which only emu.h brings in.
 
@@ -66,7 +66,7 @@ struct steer_state
 	// recentring), which is why a slam to lock and a release take different numbers of frames. 0 ==
 	// that direction is instant, which is the identity and the default — so every ab.sh baseline is
 	// untouched, the limiter never leaving its rest state because no fixture scripts an analog axis.
-	// devnotes/steering-curve.md §6.
+	// devnotes/reference/steering-curve.md §6.
 	int32_t  damp_drive  = 0;
 	int32_t  damp_return = 0;
 

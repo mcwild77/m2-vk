@@ -326,7 +326,7 @@ static_assert(m2vk::RETICLE_MAX == libretro_m2_input::MAX_GUNS,
 // two state_cb calls per gun port per frame — and it keeps the drawn position honest: it is the
 // frontend's coordinate, not something derived from what MAME made of it. The port value has already
 // been through PORT_MINMAX by then, so working back from it would put a calibration of ours between
-// the pointer and the cross, which is exactly what devnotes/lightgun.md §5 forbids.
+// the pointer and the cross, which is exactly what devnotes/reference/lightgun.md §5 forbids.
 //
 // Offscreen counts as no reticle. RELOAD is offscreen too: the gun device pins both axes to
 // ABSOLUTE_MIN for it, so the shot really is going into the corner, and drawing a cross where the
@@ -588,7 +588,7 @@ RETRO_API void retro_get_system_info(struct retro_system_info *info)
 	std::memset(info, 0, sizeof(*info));
 	// The core's name, not the system's — RetroArch shows it as "Core name" and builds the per-core
 	// config directory from it (config/m2-vk/m2-vk.opt). Deliberately carries no MAME wordmark; see
-	// devnotes/legalstuff.md. Renaming this orphans a player's existing options file, so it is not a
+	// devnotes/reference/legalstuff.md. Renaming this orphans a player's existing options file, so it is not a
 	// string to adjust casually.
 	info->library_name = "m2-vk";
 	info->library_version = emulator_info::get_bare_build_version();
@@ -745,7 +745,7 @@ RETRO_API void retro_deinit(void) { }
 // There is now, because a port can be set to RETRO_DEVICE_LIGHTGUN. That is a real choice rather
 // than a superset — MAME ORs the pad's stick and the gun into IPT_LIGHTGUN_X, and OR'd absolute
 // axes are summed and then saturated, so the two have to take turns. All this records is what the
-// port is set to; the gate itself is in libretro_m2_input.cpp. See devnotes/lightgun.md §1.2, §2.2.
+// port is set to; the gate itself is in libretro_m2_input.cpp. See devnotes/reference/lightgun.md §1.2, §2.2.
 //
 // Nothing here needs a reload, and that is by design: -lightgun is passed unconditionally and both
 // kinds of device are created for every set, so a change mid-run only alters which of them moves.
@@ -999,7 +999,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 	{
 		const bool s22_filter = m2opt::get_s22_texture_filter(s_environ_cb);
 		s22::set_option_filter(s22_filter);
-		// The Depth Buffer option was removed before release (shelved; see devnotes/zfighting.md). The
+		// The Depth Buffer option was removed before release (shelved; see devnotes/plan_finished/zfighting.md). The
 		// renderer code is dormant — s22::depth_enabled() is forced off — so nothing parks it here.
 		const bool s22_fog = m2opt::get_s22_fog(s_environ_cb);
 		s22::set_option_fog(s22_fog);
@@ -1142,7 +1142,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
 		//
 		// -lightgun_device is deliberately absent rather than forgotten: init_autoselect_devices
 		// returns early once the class is enabled, so it would have nothing left to do.
-		// devnotes/lightgun.md §1.3, §2.1.
+		// devnotes/reference/lightgun.md §1.3, §2.1.
 		"-lightgun",
 	};
 
@@ -1614,7 +1614,7 @@ RETRO_API void retro_run(void)
 //  What is still here, deliberately: m2vk_savestate.cpp, m2vk_snd::state_*, the FIFO trailer and
 //  libretro_m2_osd_interface::state_{size,save,load} all still build and still work. Nothing calls
 //  them from the ABI any more. Re-enabling is restoring the three bodies below — see git history
-//  for what they were, and devnotes/savestates.md for what they rest on.
+//  for what they were, and devnotes/reference/savestates.md for what they rest on.
 //============================================================
 
 RETRO_API size_t retro_serialize_size(void)

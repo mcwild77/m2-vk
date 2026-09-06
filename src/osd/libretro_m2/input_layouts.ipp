@@ -7,7 +7,7 @@
 // One row per port set: which RetroPad control produces each MAME button, and what every control is
 // called in the frontend's Controls menu.  The label array is DERIVED from the button assignments
 // rather than written beside them, which is why the two can no longer disagree — see the generator's
-// docstring and devnotes/input-map.md §5.1 for the bug that made this necessary.
+// docstring and devnotes/reference/input-map.md §5.1 for the bug that made this necessary.
 //
 // Included from libretro_m2_input.cpp inside its anonymous namespace, after the SOURCE_* constants.
 
